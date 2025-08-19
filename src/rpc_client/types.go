@@ -1,19 +1,25 @@
 package rpcclient
 
 import (
-	"net/rpc"
+	"net/http"
 	"time"
 )
 
 type RpcGnoland struct {
-	rpcURL  string
-	port    *int
-	client  *rpc.Client
-	timeout time.Duration
+	rpcURL string
+	client *http.Client
 }
+
+type JsonRpcError struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+}
+
 type ValidatorsResponse struct {
-	Jsonrpc string `json:"jsonrpc"`
-	ID      string `json:"id"`
+	Jsonrpc string        `json:"jsonrpc"`
+	ID      int           `json:"id"`
+	Error   *JsonRpcError `json:"error,omitempty"`
 	Result  struct {
 		BlockHeight string `json:"block_height"`
 		Validators  []struct {
@@ -29,8 +35,9 @@ type ValidatorsResponse struct {
 }
 
 type BlockResponse struct {
-	Jsonrpc string `json:"jsonrpc"`
-	ID      string `json:"id"`
+	Jsonrpc string        `json:"jsonrpc"`
+	ID      int           `json:"id"`
+	Error   *JsonRpcError `json:"error,omitempty"`
 	Result  struct {
 		BlockMeta struct {
 			BlockID struct {
@@ -55,14 +62,14 @@ type BlockResponse struct {
 						Hash  string `json:"hash"`
 					} `json:"parts"`
 				} `json:"last_block_id"`
-				LastCommitHash     string      `json:"last_commit_hash"`
-				DataHash           string      `json:"data_hash"`
-				ValidatorsHash     string      `json:"validators_hash"`
-				NextValidatorsHash string      `json:"next_validators_hash"`
-				ConsensusHash      string      `json:"consensus_hash"`
-				AppHash            string      `json:"app_hash"`
-				LastResultsHash    interface{} `json:"last_results_hash"`
-				ProposerAddress    string      `json:"proposer_address"`
+				LastCommitHash     string `json:"last_commit_hash"`
+				DataHash           string `json:"data_hash"`
+				ValidatorsHash     string `json:"validators_hash"`
+				NextValidatorsHash string `json:"next_validators_hash"`
+				ConsensusHash      string `json:"consensus_hash"`
+				AppHash            string `json:"app_hash"`
+				LastResultsHash    any    `json:"last_results_hash"`
+				ProposerAddress    string `json:"proposer_address"`
 			} `json:"header"`
 		} `json:"block_meta"`
 		Block struct {
@@ -81,17 +88,17 @@ type BlockResponse struct {
 						Hash  string `json:"hash"`
 					} `json:"parts"`
 				} `json:"last_block_id"`
-				LastCommitHash     string      `json:"last_commit_hash"`
-				DataHash           string      `json:"data_hash"`
-				ValidatorsHash     string      `json:"validators_hash"`
-				NextValidatorsHash string      `json:"next_validators_hash"`
-				ConsensusHash      string      `json:"consensus_hash"`
-				AppHash            string      `json:"app_hash"`
-				LastResultsHash    interface{} `json:"last_results_hash"`
-				ProposerAddress    string      `json:"proposer_address"`
+				LastCommitHash     string `json:"last_commit_hash"`
+				DataHash           string `json:"data_hash"`
+				ValidatorsHash     string `json:"validators_hash"`
+				NextValidatorsHash string `json:"next_validators_hash"`
+				ConsensusHash      string `json:"consensus_hash"`
+				AppHash            string `json:"app_hash"`
+				LastResultsHash    any    `json:"last_results_hash"`
+				ProposerAddress    string `json:"proposer_address"`
 			} `json:"header"`
 			Data struct {
-				Txs []string `json:"txs"`
+				Txs any `json:"txs"` // it can be a slice of strings or nil
 			} `json:"data"`
 			LastCommit struct {
 				BlockID struct {
@@ -123,8 +130,39 @@ type BlockResponse struct {
 }
 
 type HealthResponse struct {
-	Jsonrpc string `json:"jsonrpc"`
-	ID      string `json:"id"`
+	Jsonrpc string        `json:"jsonrpc"`
+	ID      int           `json:"id"`
+	Error   *JsonRpcError `json:"error,omitempty"`
+	Result  interface{}   `json:"result"`
+}
+
+type TxResponse struct {
+	Jsonrpc string        `json:"jsonrpc"`
+	ID      int           `json:"id"`
+	Error   *JsonRpcError `json:"error,omitempty"`
 	Result  struct {
+		Hash     string `json:"hash"`
+		Height   string `json:"height"`
+		Index    int    `json:"index"`
+		TxResult struct {
+			ResponseBase struct {
+				Error  interface{} `json:"Error"`
+				Data   string      `json:"Data"`
+				Events []struct {
+					AtType string `json:"@type"`
+					Type   string `json:"type"`
+					Attrs  []struct {
+						Key   string `json:"key"`
+						Value string `json:"value"`
+					} `json:"attrs"`
+					PkgPath string `json:"pkg_path"`
+				} `json:"Events"`
+				Log  string `json:"Log"`
+				Info string `json:"Info"`
+			} `json:"ResponseBase"`
+			GasWanted string `json:"GasWanted"`
+			GasUsed   string `json:"GasUsed"`
+		} `json:"tx_result"`
+		Tx string `json:"tx"`
 	} `json:"result"`
 }
