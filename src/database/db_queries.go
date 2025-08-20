@@ -33,7 +33,7 @@ func (t *TimescaleDb) FindExistingAccounts(addresses []string, chainName string,
 	} else {
 		query = `
 		SELECT address, id
-		FROM gno_accounts
+		FROM gno_addresses
 		WHERE chain_name = $1
 		AND address = ANY($2)
 		`
@@ -57,7 +57,7 @@ func (t *TimescaleDb) FindExistingAccounts(addresses []string, chainName string,
 	return addressesMap, nil
 }
 
-// GetAllAccounts gets all the accounts from the database for a given chain
+// GetAllAddresses gets all the addresses from the database for a given chain
 //
 // Usage:
 //
@@ -71,7 +71,7 @@ func (t *TimescaleDb) FindExistingAccounts(addresses []string, chainName string,
 //
 //   - map[string]int32: the map of all accounts and their ids
 //   - error: if the query fails
-func (t *TimescaleDb) GetAllAccounts(chainName string, searchValidators bool) (map[string]int32, error) {
+func (t *TimescaleDb) GetAllAddresses(chainName string, searchValidators bool) (map[string]int32, error) {
 	addressesMap := make(map[string]int32)
 	// we need to check if we are searching for validators or accounts
 	query := ""
@@ -84,7 +84,7 @@ func (t *TimescaleDb) GetAllAccounts(chainName string, searchValidators bool) (m
 	} else {
 		query += `
 		SELECT address, id
-		FROM gno_accounts
+		FROM gno_addresses
 		WHERE chain_name = $1
 		`
 	}
