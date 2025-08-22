@@ -17,7 +17,7 @@ type GnoAddress struct {
 	Address string `db:"address" dbtype:"TEXT" nullable:"false" primary:"true" unique:"true"`
 	ID      int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"false" unique:"true"`
 	// use type enum chain_name from postgres
-	ChainID string `db:"chain_id" dbtype:"chain_name" nullable:"false" primary:"false"`
+	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
 }
 
 // TableName returns the name of the table for the GnoAddress struct
@@ -43,12 +43,13 @@ type Blocks struct {
 	Hash      []byte    `db:"hash" dbtype:"bytea" nullable:"false" primary:"false"`
 	Height    uint64    `db:"height" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"true"`
-	ChainID   string    `db:"chain_id" dbtype:"varchar" nullable:"false" primary:"false"`
+	ChainID   string    `db:"chain_id" dbtype:"TEXT" nullable:"false" primary:"false"`
 	// proposer address is the validator address hence why this should be an integer
 	ProposerAddress int32 `db:"proposer_address" dbtype:"integer" nullable:"false" primary:"false"`
 	// Technically speaking we could set it to have a null in place however i think even null takes up space
 	// so keep it like in the cosmos indexer
-	Txs []byte `db:"txs" dbtype:"bytea" primary:"false"`
+	Txs       []byte `db:"txs" dbtype:"bytea" primary:"false"`
+	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
 }
 
 func (b Blocks) TableName(valTable bool) string {
@@ -71,7 +72,7 @@ type ValidatorBlockSigning struct {
 	BlockHeight uint64    `db:"block_height" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp   time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"true"`
 	SignedVals  []int32   `db:"address" dbtype:"integer" nullable:"false" primary:"false"`
-	ChainID     string    `db:"chain_id" dbtype:"chain_name" nullable:"false" primary:"true"` // use type enum chain_name from postgres
+	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"` // use type enum chain_name from postgres
 	MissedVals  []int32   `db:"missed_vals" dbtype:"integer" nullable:"false" primary:"false"`
 }
 
@@ -92,7 +93,7 @@ func (vbs ValidatorBlockSigning) TableName() string {
 type AddressTx struct {
 	Address   int32     `db:"address" dbtype:"INTEGER" nullable:"false" primary:"false"`
 	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
-	ChainID   string    `db:"chain_id" dbtype:"chain_name" nullable:"false" primary:"false"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
 	MsgTypes  []string  `db:"msg_types" dbtype:"[]TEXT" nullable:"false" primary:"false"`
 }
@@ -110,7 +111,7 @@ func (at AddressTx) TableName() string {
 // - Denom (string)
 // PRIMARY KEY (amount, denom)
 type Fee struct {
-	Amount uint64 `db:"amount" dbtype:"bigint"`
+	Amount uint64 `db:"amount" dbtype:"NUMERIC"`
 	Denom  string `db:"denom" dbtype:"TEXT"`
 }
 
@@ -122,7 +123,7 @@ func (f Fee) TypeName() string {
 // TransactionGeneral represents a transaction general data with database mapping information
 type TransactionGeneral struct {
 	TxHash             []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
-	ChainID            string    `db:"chain_id" dbtype:"chain_name" nullable:"false" primary:"true"`
+	ChainName          string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Timestamp          time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"true"`
 	MsgTypes           []string  `db:"msg_types" dbtype:"[]TEXT" nullable:"false" primary:"false"`
 	TxEvents           []byte    `db:"tx_events" dbtype:"bytea" nullable:"false" primary:"false"`
@@ -137,5 +138,60 @@ func (tg TransactionGeneral) TableName() string {
 	return "transaction_general"
 }
 
-type BankSend struct {
+// MsgSend represents a bank send message
+type MsgSend struct {
+	TxHash      []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
+	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
+	FromAddress string    `db:"from_address" dbtype:"TEXT" nullable:"false" primary:"false"`
+	ToAddress   string    `db:"to_address" dbtype:"TEXT" nullable:"false" primary:"false"`
+	Amount      string    `db:"amount" dbtype:"TEXT" nullable:"false" primary:"false"`
+	Timestamp   time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
+}
+
+// TableName returns the name of the table for the MsgSend struct
+func (ms MsgSend) TableName() string {
+	return "bank_msg_send"
+}
+
+// MsgCall represents a VM function call message
+type MsgCall struct {
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
+	Caller    string    `db:"caller" dbtype:"TEXT" nullable:"false" primary:"false"`
+	PkgPath   string    `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
+	FuncName  string    `db:"func_name" dbtype:"TEXT" nullable:"false" primary:"false"`
+	Args      []string  `db:"args" dbtype:"[]TEXT" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
+}
+
+func (mc MsgCall) TableName() string {
+	return "vm_msg_call"
+}
+
+// MsgAddPackage represents a VM package addition message
+type MsgAddPackage struct {
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
+	Creator   string    `db:"creator" dbtype:"TEXT" nullable:"false" primary:"false"`
+	PkgPath   string    `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
+	PkgName   string    `db:"pkg_name" dbtype:"TEXT" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
+}
+
+func (ma MsgAddPackage) TableName() string {
+	return "vm_msg_add_package"
+}
+
+// MsgRun represents a VM package run message
+type MsgRun struct {
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
+	Caller    string    `db:"caller" dbtype:"TEXT" nullable:"false" primary:"false"`
+	PkgPath   string    `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
+	PkgName   string    `db:"pkg_name" dbtype:"TEXT" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
+}
+
+func (mr MsgRun) TableName() string {
+	return "vm_msg_run"
 }
