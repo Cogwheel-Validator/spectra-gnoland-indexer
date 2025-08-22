@@ -16,7 +16,7 @@ import (
 // This can be later used to query the tx from the rpc client via the tx method
 // Same data is pressent within the tx query method so this should be useful for the indexer
 func TestEncodeDecode(t *testing.T) {
-	raw_data := "CnQKCi92bS5tX2NhbGwSZgooZzFxODdwcHVrang4bXA3bjcwZmFsOGVwdDZhandyMGR0dGFmbGQ2OCIaZ25vLmxhbmQvci9wb3VscHkxMzM3L2hvbWUqDEFkZF9jb21tZW50czIQWU8gTEVTIEFNSVMgXG5cbhITCICt4gQSDDEwMDAwMDB1Z25vdBp+CjoKEy90bS5QdWJLZXlTZWNwMjU2azESIwohAyog3sIWA1G/Y43nCkI44R47Tx9uzsxu6C9KhDL2g4pAEkAc/Nv1EPDl2vCkaBC8E2e8exUhJMWf7VSltTCDmUb3Qi0g9DOF5qvd9cpP+7hS7mJ7uw7pdvaLiEqiPwEvxI9q"
+	raw_data := "CnQKDS9iYW5rLk1zZ1NlbmQSYwooZzE0ODU4M3Q1eDY2enM2cDkwZWhhZDZsNHFlZmV5YWY1NHM2OXdxbBIoZzFrM2NjcDA5NzdhajMyeXJqeHBtdjA5d2hxZ2w3bjgzcjZjc2pyYxoNMTAwMDAwMDB1Z25vdBIRCIDaxAkSCjEwMDAwdWdub3Qafgo6ChMvdG0uUHViS2V5U2VjcDI1NmsxEiMKIQMcQg5ueuQfcNtMh5w7PjWaTKO72epQaK9kax/g3+C9NRJAYMsAIGMPOzc964cBKZ49xg+KBO/5T3RJLhjDzO9x5a5Kr4sX+78p3QLvOV6a30htoJc11XYGV5tymCLgewf8lg=="
 
 	// decode the raw data from base64 to string
 	base64Decoded, err := base64.StdEncoding.DecodeString(raw_data)

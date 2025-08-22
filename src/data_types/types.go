@@ -48,7 +48,7 @@ type Blocks struct {
 	ProposerAddress int32 `db:"proposer_address" dbtype:"integer" nullable:"false" primary:"false"`
 	// Technically speaking we could set it to have a null in place however i think even null takes up space
 	// so keep it like in the cosmos indexer
-	Txs []string `db:"txs" dbtype:"[]TEXT" primary:"false"`
+	Txs []byte `db:"txs" dbtype:"bytea" primary:"false"`
 }
 
 func (b Blocks) TableName(valTable bool) string {
@@ -100,4 +100,42 @@ type AddressTx struct {
 // TableName returns the name of the table for the AddressTx struct
 func (at AddressTx) TableName() string {
 	return "address_tx"
+}
+
+// Fee is a postgres type that is used to store the fee of a transaction
+//
+// It is a custom type that is used to store the fee of a transaction
+// Stores:
+// - Amount (uint64)
+// - Denom (string)
+// PRIMARY KEY (amount, denom)
+type Fee struct {
+	Amount uint64 `db:"amount" dbtype:"bigint"`
+	Denom  string `db:"denom" dbtype:"TEXT"`
+}
+
+// TypeName returns the name of the type for the Fee struct
+func (f Fee) TypeName() string {
+	return "fee"
+}
+
+// TransactionGeneral represents a transaction general data with database mapping information
+type TransactionGeneral struct {
+	TxHash             []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	ChainID            string    `db:"chain_id" dbtype:"chain_name" nullable:"false" primary:"true"`
+	Timestamp          time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"true"`
+	MsgTypes           []string  `db:"msg_types" dbtype:"[]TEXT" nullable:"false" primary:"false"`
+	TxEvents           []byte    `db:"tx_events" dbtype:"bytea" nullable:"false" primary:"false"`
+	TxEventsCompressed []byte    `db:"tx_events_compressed" dbtype:"bytea" nullable:"false" primary:"false"`
+	GasUsed            uint64    `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
+	GasWanted          uint64    `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
+	Fee                Fee       `db:"fee" dbtype:"fee" nullable:"false" primary:"false"`
+}
+
+// TableName returns the name of the table for the TransactionGeneral struct
+func (tg TransactionGeneral) TableName() string {
+	return "transaction_general"
+}
+
+type BankSend struct {
 }
