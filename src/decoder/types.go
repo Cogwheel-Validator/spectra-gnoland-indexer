@@ -8,3 +8,8 @@ type BasicTxData struct {
 	Memo    string
 	Fee     datatypes.Fee
 }
+
+type Coin struct {
+	Amount uint64
+	Denom  string
+}

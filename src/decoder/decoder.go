@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -110,7 +109,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 		switch m := msg.(type) {
 		case bank.MsgSend:
 			// amount should have something like 1000000 ugnot we just need to split it and convert it to uint64
-			amountInt, denom, err := splitAmmounts(m.Amount)
+			amount, err := extractCoins(m.Amount)
 			if err != nil {
 				return BasicTxData{}, nil, err
 			}
@@ -118,63 +117,56 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 				"msg_type":     "bank_msg_send",
 				"from_address": m.FromAddress.String(),
 				"to_address":   m.ToAddress.String(),
-				"amount":       amountInt,
-				"denom":        denom,
+				"amount":       amount,
 			})
 		case vm.MsgCall:
 			caller := m.Caller.String()
-			send, sendDenom, err := splitAmmounts(m.Send)
+			send, err := extractCoins(m.Send)
 			if err != nil {
 				return BasicTxData{}, nil, err
 			}
 			pkgPath := m.PkgPath
 			// max deposit could be empty and there is a chance it will return an error
 			// so we need to handle that
-			maxDeposit, maxDepositDenom, err := splitAmmounts(m.MaxDeposit)
+			maxDeposit, err := extractCoins(m.MaxDeposit)
 			if err != nil {
-				maxDeposit = 0
-				maxDepositDenom = ""
+				maxDeposit = []Coin{}
 			}
 			funcName := m.Func
 			// combine the args into a string
 			args := strings.Join(m.Args, ",")
 			messages = append(messages, map[string]any{
-				"msg_type":          "vm_msg_call",
-				"caller":            caller,
-				"pkg_path":          pkgPath,
-				"func_name":         funcName,
-				"args":              args,
-				"fee":               fee,
-				"signers":           signersString,
-				"send":              send,
-				"send_denom":        sendDenom,
-				"max_deposit":       maxDeposit,
-				"max_deposit_denom": maxDepositDenom,
+				"msg_type":    "vm_msg_call",
+				"caller":      caller,
+				"pkg_path":    pkgPath,
+				"func_name":   funcName,
+				"args":        args,
+				"fee":         fee,
+				"signers":     signersString,
+				"send":        send,
+				"max_deposit": maxDeposit,
 			})
 		case vm.MsgAddPackage:
 			pkgPath := m.Package.Path
 			pkgName := m.Package.Name
 			pkgFileNames := m.Package.FileNames()
 			creator := m.Creator.String()
-			send, sendDenom, err := splitAmmounts(m.Send)
+			send, err := extractCoins(m.Send)
 			if err != nil {
 				return BasicTxData{}, nil, err
 			}
-			maxDeposit, maxDepositDenom, err := splitAmmounts(m.MaxDeposit)
+			maxDeposit, err := extractCoins(m.MaxDeposit)
 			if err != nil {
-				maxDeposit = 0
-				maxDepositDenom = ""
+				maxDeposit = []Coin{}
 			}
 			messages = append(messages, map[string]any{
-				"msg_type":          "vm_msg_add_package",
-				"pkg_path":          pkgPath,
-				"pkg_name":          pkgName,
-				"pkg_file_names":    pkgFileNames,
-				"creator":           creator,
-				"send":              send,
-				"send_denom":        sendDenom,
-				"max_deposit":       maxDeposit,
-				"max_deposit_denom": maxDepositDenom,
+				"msg_type":       "vm_msg_add_package",
+				"pkg_path":       pkgPath,
+				"pkg_name":       pkgName,
+				"pkg_file_names": pkgFileNames,
+				"creator":        creator,
+				"send":           send,
+				"max_deposit":    maxDeposit,
 			})
 
 		case vm.MsgRun:
@@ -182,27 +174,24 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 			pkgPath := m.Package.Path
 			pkgName := m.Package.Name
 			pkgFileNames := m.Package.FileNames()
-			send, sendDenom, err := splitAmmounts(m.Send)
+			send, err := extractCoins(m.Send)
 			if err != nil {
 				return BasicTxData{}, nil, err
 			}
 			// max deposit could be empty and there is a chance it will return an error
 			// so we need to handle that
-			maxDeposit, maxDepositDenom, err := splitAmmounts(m.MaxDeposit)
+			maxDeposit, err := extractCoins(m.MaxDeposit)
 			if err != nil {
-				maxDeposit = 0
-				maxDepositDenom = ""
+				maxDeposit = []Coin{}
 			}
 			messages = append(messages, map[string]any{
-				"msg_type":          "vm_msg_run",
-				"caller":            caller,
-				"pkg_path":          pkgPath,
-				"pkg_name":          pkgName,
-				"pkg_file_names":    pkgFileNames,
-				"send":              send,
-				"send_denom":        sendDenom,
-				"max_deposit":       maxDeposit,
-				"max_deposit_denom": maxDepositDenom,
+				"msg_type":       "vm_msg_run",
+				"caller":         caller,
+				"pkg_path":       pkgPath,
+				"pkg_name":       pkgName,
+				"pkg_file_names": pkgFileNames,
+				"send":           send,
+				"max_deposit":    maxDeposit,
 			})
 		// case for AnyNewMessage add here:
 		default:
@@ -213,16 +202,14 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 }
 
 // Local function to split the amount and denom
-func splitAmmounts(amount std.Coins) (uint64, string, error) {
+func extractCoins(amount std.Coins) ([]Coin, error) {
 	// make a string and split it by space
-	amountString := amount.String()
-	amountParts := strings.Split(amountString, " ")
-	amountInt, err := strconv.ParseUint(amountParts[0], 10, 64)
-	if err != nil {
-		return 0, "", fmt.Errorf("invalid amount: %s", amountString)
+	coins := make([]Coin, len(amount))
+	for _, coin := range amount {
+		coins = append(coins, Coin{
+			Amount: uint64(coin.Amount),
+			Denom:  coin.Denom,
+		})
 	}
-	if len(amountParts) != 2 {
-		return 0, "", fmt.Errorf("invalid amount: %s", amountString)
-	}
-	return amountInt, amountParts[1], nil
+	return coins, nil
 }
