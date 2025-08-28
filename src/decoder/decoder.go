@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	datatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/src/data_types"
+	datatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"

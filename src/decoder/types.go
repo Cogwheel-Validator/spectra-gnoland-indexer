@@ -1,6 +1,6 @@
 package decoder
 
-import datatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/src/data_types"
+import datatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 
 type BasicTxData struct {
 	TxHash  []byte

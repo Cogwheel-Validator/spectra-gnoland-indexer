@@ -26,6 +26,9 @@ type ColumnInfo struct {
 	Unique   *bool
 }
 
+// Special Type is a postgres type that is to be used for a table
+//
+// It is used to create a type
 type SpecialType struct {
 	TypeName string
 	Columns  []ColumnInfo
@@ -59,7 +62,18 @@ func GetTableInfo(structType interface{}, tableName string) (*TableInfo, error) 
 		// Read struct tags
 		dbTag := field.Tag.Get("db")
 		if dbTag == "" || dbTag == "-" {
-			continue // Skip fields without db tag or explicitly ignored
+			// stop the program here if the field is not set
+			//
+			// this function should always receive the sql data types
+			// which should have the db tag set
+			//
+			// if the function receives a struct that is not a sql data type
+			// kill the program here explicitly
+			// TODO the cmd that will handle this will need to check if the db table already exists
+			panic(fmt.Sprintf(
+				`field %s is not set, to proceed with the program you need to set the db tag,
+				this panic is related to %s table`,
+				field.Name, tableName))
 		}
 
 		dbType := field.Tag.Get("dbtype")
@@ -99,10 +113,13 @@ func GenerateCreateTableSQL(tableInfo *TableInfo) string {
 			columnDef += " NOT NULL"
 		} else if col.Nullable != nil && *col.Nullable == false {
 			columnDef += " NULL"
-		} else {
-			// skip because it's not set
-			continue
 		}
+		// coment this out for now
+		// better to have a explicit null value than to have a implicit null value
+		//  else {
+		// 	// skip because it's not set
+		// 	continue
+		// }
 
 		if col.Primary != nil && *col.Primary {
 			primaryKeys = append(primaryKeys, col.Name)

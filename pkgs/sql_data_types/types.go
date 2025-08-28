@@ -1,4 +1,4 @@
-package datatypes
+package sql_data_types
 
 import "time"
 
@@ -45,11 +45,9 @@ type Blocks struct {
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"true"`
 	ChainID   string    `db:"chain_id" dbtype:"TEXT" nullable:"false" primary:"false"`
 	// proposer address is the validator address hence why this should be an integer
-	ProposerAddress int32 `db:"proposer_address" dbtype:"integer" nullable:"false" primary:"false"`
-	// Technically speaking we could set it to have a null in place however i think even null takes up space
-	// so keep it like in the cosmos indexer
-	Txs       []byte `db:"txs" dbtype:"bytea" primary:"false"`
-	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
+	ProposerAddress int32  `db:"proposer_address" dbtype:"integer" nullable:"false" primary:"false"`
+	Txs             []byte `db:"txs" dbtype:"bytea" primary:"false" nullable:"true"` // can be a null value
+	ChainName       string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
 }
 
 func (b Blocks) TableName(valTable bool) string {
@@ -126,8 +124,8 @@ type TransactionGeneral struct {
 	ChainName          string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Timestamp          time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"true"`
 	MsgTypes           []string  `db:"msg_types" dbtype:"[]TEXT" nullable:"false" primary:"false"`
-	TxEvents           []byte    `db:"tx_events" dbtype:"bytea" nullable:"false" primary:"false"`
-	TxEventsCompressed []byte    `db:"tx_events_compressed" dbtype:"bytea" nullable:"false" primary:"false"`
+	TxEvents           []byte    `db:"tx_events" dbtype:"bytea" nullable:"true" primary:"false"`            // in some cases can be null
+	TxEventsCompressed []byte    `db:"tx_events_compressed" dbtype:"bytea" nullable:"true" primary:"false"` // for now it can be a null could be changed later
 	GasUsed            uint64    `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
 	GasWanted          uint64    `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
 	Fee                Fee       `db:"fee" dbtype:"fee" nullable:"false" primary:"false"`
@@ -140,12 +138,13 @@ func (tg TransactionGeneral) TableName() string {
 
 // MsgSend represents a bank send message
 type MsgSend struct {
-	TxHash      []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
-	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
-	FromAddress string    `db:"from_address" dbtype:"TEXT" nullable:"false" primary:"false"`
-	ToAddress   string    `db:"to_address" dbtype:"TEXT" nullable:"false" primary:"false"`
-	Amount      string    `db:"amount" dbtype:"TEXT" nullable:"false" primary:"false"`
-	Timestamp   time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
+	TxHash      []byte `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
+	ChainName   string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
+	FromAddress string `db:"from_address" dbtype:"TEXT" nullable:"false" primary:"false"`
+	// need to test this out later leave it as a possible null value
+	ToAddress string    `db:"to_address" dbtype:"TEXT" nullable:"true" primary:"false"`
+	Amount    string    `db:"amount" dbtype:"TEXT" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
 }
 
 // TableName returns the name of the table for the MsgSend struct
@@ -155,11 +154,12 @@ func (ms MsgSend) TableName() string {
 
 // MsgCall represents a VM function call message
 type MsgCall struct {
-	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
-	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
-	Caller    string    `db:"caller" dbtype:"TEXT" nullable:"false" primary:"false"`
-	PkgPath   string    `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
-	FuncName  string    `db:"func_name" dbtype:"TEXT" nullable:"false" primary:"false"`
+	TxHash    []byte `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
+	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
+	Caller    string `db:"caller" dbtype:"TEXT" nullable:"false" primary:"false"`
+	PkgPath   string `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
+	FuncName  string `db:"func_name" dbtype:"TEXT" nullable:"false" primary:"false"`
+	// could be a null value but maybe return an empty array, leave false for now
 	Args      []string  `db:"args" dbtype:"[]TEXT" nullable:"false" primary:"false"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
 }
