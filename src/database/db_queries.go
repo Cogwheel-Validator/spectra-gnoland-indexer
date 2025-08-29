@@ -105,3 +105,26 @@ func (t *TimescaleDb) GetAllAddresses(chainName string, searchValidators bool) (
 	}
 	return addressesMap, nil
 }
+
+// CheckCurrentDatabaseName checks the current database name
+//
+// Usage:
+//
+// Used to check if the current database is "gnoland"
+//
+// Returns:
+//
+//   - string: the name of the current database
+//   - error: if the query fails
+func (t *TimescaleDb) CheckCurrentDatabaseName() (string, error) {
+	query := `
+	SELECT current_database()
+	`
+	row := t.pool.QueryRow(context.Background(), query)
+	var currentDb string
+	err := row.Scan(&currentDb)
+	if err != nil {
+		return "", err
+	}
+	return currentDb, nil
+}

@@ -1,12 +1,12 @@
 package sql_data_types
 
-import "time"
+import (
+	"time"
 
-// GnoAddress represents a Gno address with database mapping information
-// There are 2 tables for this struct:
-// - gno_addresses (for the regular addresses)
-// - gno_validators (for the validator addresses)
-//
+	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/src/db_init"
+)
+
+// GnoAddress represents a regular Gno address with database mapping information
 // Stores:
 // - Address (string)
 // - ID (int32)
@@ -21,11 +21,31 @@ type GnoAddress struct {
 }
 
 // TableName returns the name of the table for the GnoAddress struct
-func (g GnoAddress) TableName(valTable bool) string {
-	if valTable {
-		return "gno_validators"
-	}
+func (g GnoAddress) TableName() string {
 	return "gno_addresses"
+}
+
+// GetTableInfo returns the table info for the GnoAddress struct
+func (g GnoAddress) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(g, g.TableName())
+}
+
+// GnoValidatorAddress represents a Gno validator address with database mapping information
+// Same structure as GnoAddress but creates a separate table for validators
+type GnoValidatorAddress struct {
+	Address   string `db:"address" dbtype:"TEXT" nullable:"false" primary:"true" unique:"true"`
+	ID        int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"false" unique:"true"`
+	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
+}
+
+// TableName returns the name of the table for the GnoValidatorAddress struct
+func (gv GnoValidatorAddress) TableName() string {
+	return "gno_validators"
+}
+
+// GetTableInfo returns the table info for the GnoValidatorAddress struct
+func (gv GnoValidatorAddress) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(gv, gv.TableName())
 }
 
 // Blocks represents a blockchain block with database mapping information
@@ -50,11 +70,13 @@ type Blocks struct {
 	ChainName       string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
 }
 
-func (b Blocks) TableName(valTable bool) string {
-	if valTable {
-		return "blocks_val"
-	}
+func (b Blocks) TableName() string {
 	return "blocks"
+}
+
+// GetTableInfo returns the table info for the Blocks struct
+func (b Blocks) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(b, b.TableName())
 }
 
 // ValidatorBlockSigning represents a validator block signing with database mapping information
@@ -79,6 +101,11 @@ func (vbs ValidatorBlockSigning) TableName() string {
 	return "validator_block_signing"
 }
 
+// GetTableInfo returns the table info for the ValidatorBlockSigning struct
+func (vbs ValidatorBlockSigning) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(vbs, vbs.TableName())
+}
+
 // AddressTx represents a transaction with database mapping information
 //
 // Stores:
@@ -101,6 +128,11 @@ func (at AddressTx) TableName() string {
 	return "address_tx"
 }
 
+// GetTableInfo returns the table info for the AddressTx struct
+func (at AddressTx) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(at, at.TableName())
+}
+
 // Fee is a postgres type that is used to store the fee of a transaction
 //
 // It is a custom type that is used to store the fee of a transaction
@@ -116,6 +148,11 @@ type Fee struct {
 // TypeName returns the name of the type for the Fee struct
 func (f Fee) TypeName() string {
 	return "fee"
+}
+
+// GetSpecialTypeInfo returns the special type info for the Fee struct
+func (f Fee) GetSpecialTypeInfo() (*dbinit.SpecialType, error) {
+	return dbinit.GetSpecialTypeInfo(f, f.TypeName())
 }
 
 // TransactionGeneral represents a transaction general data with database mapping information
@@ -136,6 +173,11 @@ func (tg TransactionGeneral) TableName() string {
 	return "transaction_general"
 }
 
+// GetTableInfo returns the table info for the TransactionGeneral struct
+func (tg TransactionGeneral) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(tg, tg.TableName())
+}
+
 // MsgSend represents a bank send message
 type MsgSend struct {
 	TxHash      []byte `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
@@ -150,6 +192,11 @@ type MsgSend struct {
 // TableName returns the name of the table for the MsgSend struct
 func (ms MsgSend) TableName() string {
 	return "bank_msg_send"
+}
+
+// GetTableInfo returns the table info for the MsgSend struct
+func (ms MsgSend) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(ms, ms.TableName())
 }
 
 // MsgCall represents a VM function call message
@@ -168,6 +215,11 @@ func (mc MsgCall) TableName() string {
 	return "vm_msg_call"
 }
 
+// GetTableInfo returns the table info for the MsgCall struct
+func (mc MsgCall) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(mc, mc.TableName())
+}
+
 // MsgAddPackage represents a VM package addition message
 type MsgAddPackage struct {
 	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
@@ -182,6 +234,11 @@ func (ma MsgAddPackage) TableName() string {
 	return "vm_msg_add_package"
 }
 
+// GetTableInfo returns the table info for the MsgAddPackage struct
+func (ma MsgAddPackage) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(ma, ma.TableName())
+}
+
 // MsgRun represents a VM package run message
 type MsgRun struct {
 	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
@@ -194,4 +251,27 @@ type MsgRun struct {
 
 func (mr MsgRun) TableName() string {
 	return "vm_msg_run"
+}
+
+// GetTableInfo returns the table info for the MsgRun struct
+func (mr MsgRun) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(mr, mr.TableName())
+}
+
+type DataTypes interface {
+	TableName(valTable bool) string
+	TypeName() string
+	GetTableInfo() (*dbinit.TableInfo, error)
+}
+
+// DBTable is an interface for structs that represent database tables
+type DBTable interface {
+	GetTableInfo() (*dbinit.TableInfo, error)
+	TableName() string
+}
+
+// DBSpecialType is an interface for structs that represent custom database types
+type DBSpecialType interface {
+	GetSpecialTypeInfo() (*dbinit.SpecialType, error)
+	TypeName() string
 }

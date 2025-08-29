@@ -7,23 +7,26 @@ import (
 	"strings"
 )
 
-// Hypertable is a table that is used to store time-series data in the TimescaleDB
+// Hypertable management for TimescaleDB
 //
-// The program will use the create_hypertable function and will align with altering the tables
-// with the SELECT or ALTER functions that work with version prior to v2.19.3 and later because someone might
-// be using an older version of TimescaleDB
+// This package supports both modern (2.19.3+) and legacy TimescaleDB versions:
+// - Modern: Uses CREATE TABLE WITH (tsdb.hypertable, ...) syntax
+// - Legacy: Uses the 3-step process with create_hypertable() function
 //
-// However the recomendation should be to use the latest version of TimescaleDB.
-// As for which edition of TimescaleDB is recomended, the answer is that it depends.
-// The Tiger Data is the TimescaleDB Cloud edition.
-// The Community Edition is the self hosted version.
-// And the Apache TimescaleDB is the open source version.
+// The system automatically detects the TimescaleDB version and uses the appropriate method.
 //
-// The recomendation is to use the atleast the Community TimescaleDB Edition. The Tiger Data does have some additional features
-// but the Community Edition is very stable and it was tested with the cosmos indexer so it should defenetly work.
+// Recommended TimescaleDB versions:
+// - Community Edition 2.19.3+ (TimescaleDB)
+// - Cloud edition (Tiger Data)
 //
-// TODO: for now even the cosmos indexer uses the same logic but in the future we should
-// adopt the new logic with the latest version of TimescaleDB in case this gets deprecated
+// Not Recommended:
+// - Apache TimescaleDB 2.19.3+ (Apache TimescaleDB)
+// To be clear it is not recommended to use the Apache TimescaleDB because it is not tested on and it won't
+// be officially supported. The reason is most of the features that are available in the Community Edition are not
+// available in the Apache TimescaleDB. However it might be possible to use it since we only need to use hypertables
+// which should exist in the Apache TimescaleDB.
+//
+// For maximum compatibility, this implementation supports both approaches.
 
 // ConvertToHypertables is a method that converts the given table names to hypertables
 //
