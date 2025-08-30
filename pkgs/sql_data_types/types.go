@@ -62,7 +62,7 @@ func (gv GnoValidatorAddress) GetTableInfo() (*dbinit.TableInfo, error) {
 type Blocks struct {
 	Hash      []byte    `db:"hash" dbtype:"bytea" nullable:"false" primary:"false"`
 	Height    uint64    `db:"height" dbtype:"bigint" nullable:"false" primary:"true"`
-	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"true"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainID   string    `db:"chain_id" dbtype:"TEXT" nullable:"false" primary:"false"`
 	// proposer address is the validator address hence why this should be an integer
 	ProposerAddress int32  `db:"proposer_address" dbtype:"integer" nullable:"false" primary:"false"`
@@ -90,7 +90,7 @@ func (b Blocks) GetTableInfo() (*dbinit.TableInfo, error) {
 // PRIMARY KEY (block_height, timestamp, chain_id)
 type ValidatorBlockSigning struct {
 	BlockHeight uint64    `db:"block_height" dbtype:"bigint" nullable:"false" primary:"true"`
-	Timestamp   time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"true"`
+	Timestamp   time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	SignedVals  []int32   `db:"address" dbtype:"integer" nullable:"false" primary:"false"`
 	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"` // use type enum chain_name from postgres
 	MissedVals  []int32   `db:"missed_vals" dbtype:"integer" nullable:"false" primary:"false"`
@@ -119,8 +119,8 @@ type AddressTx struct {
 	Address   int32     `db:"address" dbtype:"INTEGER" nullable:"false" primary:"false"`
 	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
-	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
-	MsgTypes  []string  `db:"msg_types" dbtype:"[]TEXT" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"false"`
+	MsgTypes  []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
 }
 
 // TableName returns the name of the table for the AddressTx struct
@@ -159,8 +159,8 @@ func (f Fee) GetSpecialTypeInfo() (*dbinit.SpecialType, error) {
 type TransactionGeneral struct {
 	TxHash             []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	ChainName          string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
-	Timestamp          time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"true"`
-	MsgTypes           []string  `db:"msg_types" dbtype:"[]TEXT" nullable:"false" primary:"false"`
+	Timestamp          time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	MsgTypes           []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
 	TxEvents           []byte    `db:"tx_events" dbtype:"bytea" nullable:"true" primary:"false"`            // in some cases can be null
 	TxEventsCompressed []byte    `db:"tx_events_compressed" dbtype:"bytea" nullable:"true" primary:"false"` // for now it can be a null could be changed later
 	GasUsed            uint64    `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
@@ -186,7 +186,7 @@ type MsgSend struct {
 	// need to test this out later leave it as a possible null value
 	ToAddress string    `db:"to_address" dbtype:"TEXT" nullable:"true" primary:"false"`
 	Amount    string    `db:"amount" dbtype:"TEXT" nullable:"false" primary:"false"`
-	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"false"`
 }
 
 // TableName returns the name of the table for the MsgSend struct
@@ -207,8 +207,8 @@ type MsgCall struct {
 	PkgPath   string `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
 	FuncName  string `db:"func_name" dbtype:"TEXT" nullable:"false" primary:"false"`
 	// could be a null value but maybe return an empty array, leave false for now
-	Args      []string  `db:"args" dbtype:"[]TEXT" nullable:"false" primary:"false"`
-	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
+	Args      []string  `db:"args" dbtype:"TEXT[]" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"false"`
 }
 
 func (mc MsgCall) TableName() string {
@@ -227,7 +227,7 @@ type MsgAddPackage struct {
 	Creator   string    `db:"creator" dbtype:"TEXT" nullable:"false" primary:"false"`
 	PkgPath   string    `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
 	PkgName   string    `db:"pkg_name" dbtype:"TEXT" nullable:"false" primary:"false"`
-	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"false"`
 }
 
 func (ma MsgAddPackage) TableName() string {
@@ -246,7 +246,7 @@ type MsgRun struct {
 	Caller    string    `db:"caller" dbtype:"TEXT" nullable:"false" primary:"false"`
 	PkgPath   string    `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
 	PkgName   string    `db:"pkg_name" dbtype:"TEXT" nullable:"false" primary:"false"`
-	Timestamp time.Time `db:"timestamp" dbtype:"timestamp" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"false"`
 }
 
 func (mr MsgRun) TableName() string {

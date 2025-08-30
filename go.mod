@@ -6,6 +6,7 @@ require (
 	github.com/gnolang/gno v0.0.0-20250821182231-23c6e6b3dfc4
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/spf13/cobra v1.9.1
+	golang.org/x/term v0.33.0
 )
 
 require (

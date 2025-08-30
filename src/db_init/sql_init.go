@@ -38,6 +38,14 @@ type SpecialType struct {
 
 // GetTableInfo extracts database table information from a struct using reflection
 // This function reads the struct tags and converts them to database metadata
+//
+// Args:
+// - structType: the struct type to get the table info from
+// - tableName: the name of the table to get the table info from
+//
+// Returns:
+// - TableInfo: the table info for the table
+// - error: if the function fails
 func GetTableInfo(structType interface{}, tableName string) (*TableInfo, error) {
 	t := reflect.TypeOf(structType)
 	if t.Kind() == reflect.Ptr {
@@ -102,6 +110,17 @@ func GetTableInfo(structType interface{}, tableName string) (*TableInfo, error) 
 }
 
 // GenerateCreateTableSQL generates a PostgreSQL CREATE TABLE statement from struct metadata
+//
+// Args:
+// - tableInfo: the table info for the table to create
+//
+// Returns:
+// - string: the SQL for the table
+//
+// The function will generate a SQL statement for a table based on the struct tags
+// and the column info for the table
+// The SQL statement will be in the form of CREATE TABLE IF NOT EXISTS <tableName>
+// (<column1> <column1Type>, <column2> <column2Type>, ...)
 func GenerateCreateTableSQL(tableInfo *TableInfo) string {
 	var columns []string
 	var primaryKeys []string
@@ -152,6 +171,20 @@ func GenerateCreateTableSQL(tableInfo *TableInfo) string {
 }
 
 // GenerateCreateHypertableSQL generates a PostgreSQL CREATE TABLE statement with modern TimescaleDB hypertable syntax
+//
+// Args:
+// - tableInfo: the table info for the table to create
+// - chunkInterval: the interval to chunk the table by
+// - partitionColumn: the column to partition the table by
+//
+// Returns:
+// - string: the SQL for the hypertable
+//
+// The function will generate a SQL statement for a hypertable based on the struct tags
+// and the column info for the hypertable
+// The SQL statement will be in the form of CREATE TABLE IF NOT EXISTS <tableName>
+// (<column1> <column1Type>, <column2> <column2Type>, ...)
+// WITH (tsdb.hypertable, tsdb.partition_column='<partitionColumn>', tsdb.chunk_interval='<chunkInterval>')
 func GenerateCreateHypertableSQL(tableInfo *TableInfo, chunkInterval string, partitionColumn string) string {
 	var columns []string
 	var primaryKeys []string
@@ -197,6 +230,18 @@ func GenerateCreateHypertableSQL(tableInfo *TableInfo, chunkInterval string, par
 	return sql
 }
 
+// GenerateSpecialTypeSQL generates a PostgreSQL CREATE TYPE statement from struct metadata
+//
+// Args:
+// - specialType: the special type to generate the SQL for
+//
+// Returns:
+// - string: the SQL for the special type
+//
+// The function will generate a SQL statement for a special type based on the struct tags
+// and the column info for the special type
+// The SQL statement will be in the form of CREATE TYPE <typeName> AS
+// (<column1> <column1Type>, <column2> <column2Type>, ...)
 func GenerateSpecialTypeSQL(specialType *SpecialType) string {
 	var columns []string
 
@@ -204,7 +249,7 @@ func GenerateSpecialTypeSQL(specialType *SpecialType) string {
 		columns = append(columns, fmt.Sprintf("%s %s", col.Name, col.DBType))
 	}
 
-	sql := fmt.Sprintf("CREATE TYPE IF NOT EXISTS %s AS (\n    %s\n);",
+	sql := fmt.Sprintf("CREATE TYPE %s AS (\n    %s\n);",
 		specialType.TypeName,
 		strings.Join(columns, ",\n    "))
 
@@ -212,6 +257,17 @@ func GenerateSpecialTypeSQL(specialType *SpecialType) string {
 }
 
 // CreateTableSQL creates a table in the database based on struct metadata
+//
+// Args:
+// - t: the table info for the table to create
+//
+// Returns:
+// - string: the SQL for the table
+//
+// The function will generate a SQL statement for a table based on the struct tags
+// and the column info for the table
+// The SQL statement will be in the form of CREATE TABLE IF NOT EXISTS <tableName>
+// (<column1> <column1Type>, <column2> <column2Type>, ...)
 func (t *TableInfo) CreateTableSQL() string {
 	return GenerateCreateTableSQL(t)
 }
@@ -235,11 +291,19 @@ type TimescaleDBVersion struct {
 
 // IsModernVersion returns true if this version supports the modern WITH syntax (2.19.3+)
 func (v TimescaleDBVersion) IsModernVersion() bool {
-	if v.Major > 2 && v.Minor > 19 && v.Patch >= 3 {
+	// Compare versions properly: 2.19.3+
+	if v.Major > 2 {
 		return true
-	} else {
-		return false
 	}
+	if v.Major == 2 {
+		if v.Minor > 19 {
+			return true
+		}
+		if v.Minor == 19 && v.Patch >= 3 {
+			return true
+		}
+	}
+	return false
 }
 
 // GetTimescaleDBVersion detects the TimescaleDB version
@@ -283,6 +347,14 @@ func (db *DBInitializer) GetTimescaleDBVersion() (*TimescaleDBVersion, error) {
 }
 
 // CreateTableFromStruct creates a database table based on struct tags
+//
+// Args:
+// - structType: the struct type to create the table from
+// - tableName: the name of the table to create
+//
+// Returns:
+// - nil: if the function is successful
+// - error: if the function fails
 func (db *DBInitializer) CreateTableFromStruct(structType interface{}, tableName string) error {
 	tableInfo, err := GetTableInfo(structType, tableName)
 	if err != nil {
@@ -344,6 +416,14 @@ func GetSpecialTypeInfo(structType interface{}, typeName string) (*SpecialType, 
 }
 
 // CreateSpecialTypeFromStruct creates a database type based on struct tags
+//
+// Args:
+// - structType: the struct type to create the special type from
+// - typeName: the name of the special type to create
+//
+// Returns:
+// - nil: if the function is successful
+// - error: if the function fails
 func (db *DBInitializer) CreateSpecialTypeFromStruct(structType interface{}, typeName string) error {
 	specialType, err := GetSpecialTypeInfo(structType, typeName)
 	if err != nil {
@@ -361,6 +441,16 @@ func (db *DBInitializer) CreateSpecialTypeFromStruct(structType interface{}, typ
 }
 
 // CreateHypertableFromStruct creates a hypertable using the appropriate method based on TimescaleDB version
+//
+// Args:
+// - structType: the struct type to create the hypertable from
+// - tableName: the name of the table to create the hypertable from
+// - partitionColumn: the column to partition the table by
+// - chunkInterval: the interval to chunk the table by
+//
+// Returns:
+// - nil: if the function is successful
+// - error: if the function fails
 func (db *DBInitializer) CreateHypertableFromStruct(structType interface{}, tableName, partitionColumn, chunkInterval string) error {
 	// First get the table info
 	tableInfo, err := GetTableInfo(structType, tableName)
@@ -400,6 +490,15 @@ func (db *DBInitializer) createHypertableModern(tableInfo *TableInfo, partitionC
 }
 
 // createHypertableLegacy creates a hypertable using the legacy 3-step process
+//
+// Args:
+// - tableInfo: the table info for the table to create
+// - partitionColumn: the column to partition the table by
+// - chunkInterval: the interval to chunk the table by
+//
+// Returns:
+// - nil: if the function is successful
+// - error: if the function fails
 func (db *DBInitializer) createHypertableLegacy(tableInfo *TableInfo, partitionColumn, chunkInterval string) error {
 	// Step 1: Create regular table
 	sql := tableInfo.CreateTableSQL()
@@ -417,5 +516,23 @@ func (db *DBInitializer) createHypertableLegacy(tableInfo *TableInfo, partitionC
 	}
 
 	log.Printf("Successfully created hypertable (legacy): %s", tableInfo.TableName)
+	return nil
+}
+
+// CreateTypeEnum creates a type enum in the database
+// This function should be used to create type enums, for now only one enum is created at a time
+func (db *DBInitializer) CreateChainTypeEnum(enumValues []string) error {
+	sql := fmt.Sprintln("CREATE TYPE chain_name AS ENUM ()")
+	_, err := db.pool.Exec(context.Background(), sql)
+	if err != nil {
+		return fmt.Errorf("failed to create type enum chain_name: %w", err)
+	}
+	for _, enumValue := range enumValues {
+		sql = fmt.Sprintf("ALTER TYPE chain_name ADD VALUE '%s'", enumValue)
+		_, err = db.pool.Exec(context.Background(), sql)
+		if err != nil {
+			return fmt.Errorf("failed to add value %s to type enum chain_name: %w", enumValue, err)
+		}
+	}
 	return nil
 }

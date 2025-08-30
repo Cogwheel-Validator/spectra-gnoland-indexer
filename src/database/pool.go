@@ -25,20 +25,11 @@ func NewTimescaleDb(config DatabasePoolConfig) *TimescaleDb {
 func ConnectToDb(config DatabasePoolConfig) (*pgxpool.Pool, error) {
 	parseConfig, err := pgxpool.ParseConfig(
 		fmt.Sprintf(
-			`
-			host=%s 
-			port=%d 
-			user=%s 
-			password=%s 
-			dbname=%s 
-			sslmode=%s 
-			pool_max_conns=%v 
-			pool_min_conns=%v 
-			pool_max_conn_lifetime=%s 
-			pool_max_conn_idle_time=%s 
-			pool_health_check_period=%s 
-			pool_max_conn_lifetime_jitter=%s
-			`,
+			`host=%s port=%d user=%s password=%s 
+			dbname=%s sslmode=%s pool_max_conns=%d 
+			pool_min_conns=%d pool_max_conn_lifetime=%s 
+			pool_max_conn_idle_time=%s pool_health_check_period=%s 
+			pool_max_conn_lifetime_jitter=%s`,
 			config.Host,
 			config.Port,
 			config.User,
@@ -74,11 +65,22 @@ func CreateDatabase(db *TimescaleDb, dbname string) error {
 // this is used to switch to the database after creating it
 // most of the time when the postgres server is running, it will be in the "postgres" database
 // only to be used initiating command
-func SwitchDatabase(db *TimescaleDb) error {
-	_, err := db.pool.Exec(context.Background(), fmt.Sprintf("\\c %s", "gnoland"))
+func SwitchDatabase(db *TimescaleDb, config DatabasePoolConfig) error {
+	// Close the current connection
+	db.pool.Close()
+
+	// Create a new config with the target database name
+	newConfig := config
+	newConfig.Dbname = "gnoland"
+
+	// Create a new connection to the target database
+	newPool, err := ConnectToDb(newConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to connect to gnoland database: %w", err)
 	}
+
+	// Replace the old pool with the new one
+	db.pool = newPool
 	return nil
 }
 
