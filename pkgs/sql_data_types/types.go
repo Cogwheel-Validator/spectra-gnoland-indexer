@@ -1,6 +1,7 @@
 package sql_data_types
 
 import (
+	"reflect"
 	"time"
 
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/src/db_init"
@@ -199,6 +200,18 @@ func (ms MsgSend) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(ms, ms.TableName())
 }
 
+// A method to get the columns of the struct
+// Useful in GnoMessage interface
+func (ms MsgSend) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(ms)
+	for i := 0; i < fields.NumField(); i++ {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
+}
+
 // MsgCall represents a VM function call message
 type MsgCall struct {
 	TxHash    []byte `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
@@ -220,6 +233,18 @@ func (mc MsgCall) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(mc, mc.TableName())
 }
 
+// A method to get the columns of the struct
+// Useful in GnoMessage interface
+func (mc MsgCall) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(mc)
+	for i := 0; i < fields.NumField(); i++ {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
+}
+
 // MsgAddPackage represents a VM package addition message
 type MsgAddPackage struct {
 	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
@@ -239,6 +264,18 @@ func (ma MsgAddPackage) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(ma, ma.TableName())
 }
 
+// A method to get the columns of the struct
+// Useful in GnoMessage interface
+func (ma MsgAddPackage) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(ma)
+	for i := 0; i < fields.NumField(); i++ {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
+}
+
 // MsgRun represents a VM package run message
 type MsgRun struct {
 	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
@@ -247,6 +284,19 @@ type MsgRun struct {
 	PkgPath   string    `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
 	PkgName   string    `db:"pkg_name" dbtype:"TEXT" nullable:"false" primary:"false"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"false"`
+}
+
+// A method to get the columns of the struct
+// Useful in GnoMessage interface
+func (mr MsgRun) TableColumns() []string {
+	columns := make([]string, 0)
+	// get the fields of the struct
+	fields := reflect.TypeOf(mr)
+	for i := 0; i < fields.NumField(); i++ {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
 }
 
 func (mr MsgRun) TableName() string {
@@ -274,4 +324,12 @@ type DBTable interface {
 type DBSpecialType interface {
 	GetSpecialTypeInfo() (*dbinit.SpecialType, error)
 	TypeName() string
+}
+
+// An interface for Gno messages
+//
+// Methods:
+// - TableColumns() []string: a method to get the columns of the struct
+type GnoMessage interface {
+	TableColumns() []string
 }

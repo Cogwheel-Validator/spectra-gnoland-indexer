@@ -108,7 +108,7 @@ func (a *AddressCache) AddressSolver(
 				// as a final resort with this some might be inserted but some might not
 				if *oneByOne && i == retryAttempts-1 {
 					for _, addr := range addressToAdd {
-						loopErr := a.db.InsertAnAddress(addr, chainName, insertValidators)
+						loopErr := a.db.InsertAddresses([]string{addr}, chainName, insertValidators)
 						if loopErr != nil {
 							// this is a final resort, so we can log the error for debugging purposes
 							log.Println("Error inserting address:", addr, "error:", loopErr)
@@ -121,7 +121,7 @@ func (a *AddressCache) AddressSolver(
 		}
 	} else if len(addressToAdd) == 1 {
 		// if there is only one address to insert, we can do it directly
-		loopErr := a.db.InsertAnAddress(addressToAdd[0], chainName, insertValidators)
+		loopErr := a.db.InsertAddresses([]string{addressToAdd[0]}, chainName, insertValidators)
 		if loopErr != nil {
 			return
 		}

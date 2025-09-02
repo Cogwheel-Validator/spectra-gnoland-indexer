@@ -22,7 +22,7 @@ var rootCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log.Printf("Initiating the cmd to set up the database for the indexer...")
 		var dbHost string
-		var dbPort int = 0
+		var dbPort int
 		var dbUser string
 		var dbName string
 		var dbPassword string
@@ -180,6 +180,7 @@ var rootCmd = &cobra.Command{
 			}
 			log.Printf("Successfully created all of the hypertables into the %s database", "gnoland")
 		} else {
+			log.Printf("The current database is %s, and it already exists", currentDb)
 			// TODO else if the current database is "gnoland" then we need to check if the tables exist
 			// and if they don't exist then we need to create them
 			// also any kind of future updates to the database should be done here

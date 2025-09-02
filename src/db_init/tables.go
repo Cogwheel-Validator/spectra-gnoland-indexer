@@ -132,7 +132,7 @@ func GenerateCreateTableSQL(tableInfo *TableInfo) string {
 
 		if col.Nullable != nil && !*col.Nullable {
 			columnDef += " NOT NULL"
-		} else if col.Nullable != nil && *col.Nullable == false {
+		} else if col.Nullable != nil && *col.Nullable {
 			columnDef += " NULL"
 		}
 		// coment this out for now
@@ -196,7 +196,7 @@ func GenerateCreateHypertableSQL(tableInfo *TableInfo, chunkInterval string, par
 
 		if col.Nullable != nil && !*col.Nullable {
 			columnDef += " NOT NULL"
-		} else if col.Nullable != nil && *col.Nullable == false {
+		} else if col.Nullable != nil && *col.Nullable {
 			columnDef += " NULL"
 		}
 
