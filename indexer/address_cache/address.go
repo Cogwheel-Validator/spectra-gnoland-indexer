@@ -4,7 +4,7 @@ import (
 	"log"
 	"maps"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/src/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
 )
 
 func NewAddressCache(db *database.TimescaleDb) *AddressCache {

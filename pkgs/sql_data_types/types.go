@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"time"
 
-	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/src/db_init"
+	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 )
 
 // GnoAddress represents a regular Gno address with database mapping information

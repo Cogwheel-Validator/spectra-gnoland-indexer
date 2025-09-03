@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	rpcclient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/src/rpc_client"
+	rpcclient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 )
 
 func TestGetValidators(t *testing.T) {

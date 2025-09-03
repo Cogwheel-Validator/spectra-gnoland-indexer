@@ -1,6 +1,6 @@
 package addresscache
 
-import "github.com/Cogwheel-Validator/spectra-gnoland-indexer/src/database"
+import "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
 
 // AddressCache is a map of addresses tied to their int32 index
 //

@@ -7,9 +7,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
+	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/src/database"
-	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/src/db_init"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
