@@ -3,13 +3,13 @@ package rpcclient
 import (
 	"time"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/query"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rate_limit"
 )
 
 // RateLimitedRpcClient wraps the original RPC client with rate limiting
 type RateLimitedRpcClient struct {
 	client      *RpcGnoland
-	rateLimiter *query.ChannelRateLimiter
+	rateLimiter *rate_limit.ChannelRateLimiter
 }
 
 // NewRateLimitedRpcClient creates a new rate-limited RPC client wrapper
@@ -36,7 +36,7 @@ func NewRateLimitedRpcClient(rpcURL string, timeout *time.Duration, requestsPerW
 	}
 
 	// Create the rate limiter
-	rateLimiter := query.NewChannelRateLimiter(requestsPerWindow, timeWindow)
+	rateLimiter := rate_limit.NewChannelRateLimiter(requestsPerWindow, timeWindow)
 
 	return &RateLimitedRpcClient{
 		client:      client,
@@ -124,6 +124,6 @@ func (r *RateLimitedRpcClient) TryGetAbciQuery(path string, data string, height 
 }
 
 // GetRateLimiterStatus returns information about the current rate limiter status
-func (r *RateLimitedRpcClient) GetRateLimiterStatus() query.ChannelRateLimiterStatus {
+func (r *RateLimitedRpcClient) GetRateLimiterStatus() rate_limit.ChannelRateLimiterStatus {
 	return r.rateLimiter.GetStatus()
 }

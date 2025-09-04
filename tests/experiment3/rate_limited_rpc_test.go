@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/query"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rate_limit"
 	rpcclient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 )
 
@@ -21,7 +21,7 @@ func TestRateLimitedRpcClient(t *testing.T) {
 // Test the ChannelRateLimiter directly (no network calls) to demonstrate token bucket behavior
 func TestChannelRateLimiterTokenBucket(t *testing.T) {
 	// Create a rate limiter: 3 tokens per 300ms (100ms per token)
-	limiter := query.NewChannelRateLimiter(3, 300*time.Millisecond)
+	limiter := rate_limit.NewChannelRateLimiter(3, 300*time.Millisecond)
 	defer limiter.Close()
 
 	// Initial state: should have 3 tokens
@@ -264,7 +264,10 @@ func testStatusMonitoring(t *testing.T) {
 
 	// Use all tokens quickly (before any can refill)
 	for i := 0; i < 3; i++ {
-		client.TryHealth()
+		_, allowed := client.TryHealth()
+		if !allowed {
+			t.Errorf("Expected request %d to be allowed", i+1)
+		}
 	}
 
 	// Check status immediately (should be empty)
@@ -384,7 +387,10 @@ func BenchmarkRateLimitedRpcClient(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			// Use TryHealth to avoid blocking on rate limits
-			client.TryHealth()
+			_, allowed := client.TryHealth()
+			if !allowed {
+				b.Errorf("Expected request to be allowed")
+			}
 		}
 	})
 }

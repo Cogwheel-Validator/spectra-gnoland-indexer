@@ -1,10 +1,10 @@
-package query
+package rate_limit
 
 import (
 	"time"
 )
 
-// ChannelRateLimiter - Channel-based rate limiter (most Go-idiomatic)
+// ChannelRateLimiter is a channel-based rate limiter
 type ChannelRateLimiter struct {
 	tokens   chan struct{}
 	ticker   *time.Ticker
@@ -12,6 +12,26 @@ type ChannelRateLimiter struct {
 	done     chan struct{}
 }
 
+// NewChannelRateLimiter creates a new ChannelRateLimiter
+//
+// Args:
+//   - requestsAllowed: the number of requests allowed per time window
+//   - timeWindow: the time window for rate limiting
+//
+// Returns:
+//   - *ChannelRateLimiter: the rate limiter
+//   - error: if the rate limiter fails to create
+//
+// Example:
+//
+//	limiter := NewChannelRateLimiter(100, 1*time.Minute)
+//	defer limiter.Close()
+//
+//	limiter.Allow() // returns true if the request is allowed
+//	limiter.Wait() // blocks until the request is allowed
+//	limiter.Close() // closes the rate limiter
+//
+//	limiter.GetStatus() // returns the status of the rate limiter
 func NewChannelRateLimiter(requestsAllowed int, timeWindow time.Duration) *ChannelRateLimiter {
 	rl := &ChannelRateLimiter{
 		tokens:   make(chan struct{}, requestsAllowed),
@@ -33,6 +53,7 @@ func NewChannelRateLimiter(requestsAllowed int, timeWindow time.Duration) *Chann
 	return rl
 }
 
+// refillTokens refills the tokens in the rate limiter
 func (r *ChannelRateLimiter) refillTokens() {
 	for {
 		select {
@@ -48,6 +69,7 @@ func (r *ChannelRateLimiter) refillTokens() {
 	}
 }
 
+// Allow returns true if the request is allowed
 func (r *ChannelRateLimiter) Allow() bool {
 	select {
 	case <-r.tokens:
@@ -57,16 +79,26 @@ func (r *ChannelRateLimiter) Allow() bool {
 	}
 }
 
+// Wait blocks until the request is allowed
 func (r *ChannelRateLimiter) Wait() {
 	<-r.tokens
 }
 
+// Close closes the rate limiter
 func (r *ChannelRateLimiter) Close() {
 	close(r.done)
 	r.ticker.Stop()
 }
 
 // GetStatus returns the current status of the rate limiter
+//
+// Returns:
+//   - ChannelRateLimiterStatus: the status of the rate limiter
+//
+// Example:
+//
+//	status := limiter.GetStatus()
+//	fmt.Println(status)
 func (r *ChannelRateLimiter) GetStatus() ChannelRateLimiterStatus {
 	tokensAvailable := len(r.tokens)
 	return ChannelRateLimiterStatus{
@@ -78,25 +110,15 @@ func (r *ChannelRateLimiter) GetStatus() ChannelRateLimiterStatus {
 }
 
 // ChannelRateLimiterStatus provides information about the rate limiter state
+//
+// Fields:
+//   - TokensAvailable: the number of tokens currently available
+//   - Capacity: the maximum number of tokens
+//   - IsEmpty: whether the bucket is empty (will block on next request)
+//   - IsFull: whether the bucket is full
 type ChannelRateLimiterStatus struct {
 	TokensAvailable int  // Number of tokens currently available
 	Capacity        int  // Maximum number of tokens
 	IsEmpty         bool // Whether the bucket is empty (will block on next request)
 	IsFull          bool // Whether the bucket is full
-}
-
-// Legacy RateLimitBucket (keeping for backward compatibility)
-type RateLimitBucket struct {
-	LastRequestTime time.Time
-	RequestsCount   int
-	RequestsAllowed int
-	TimeWindow      time.Duration
-}
-
-func NewRateLimitBucket(RequestsAllowed int) *RateLimitBucket {
-	return &RateLimitBucket{
-		LastRequestTime: time.Now(),
-		RequestsAllowed: RequestsAllowed,
-		TimeWindow:      1 * time.Minute,
-	}
 }
