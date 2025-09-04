@@ -1,0 +1,129 @@
+package rpcclient
+
+import (
+	"time"
+
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/query"
+)
+
+// RateLimitedRpcClient wraps the original RPC client with rate limiting
+type RateLimitedRpcClient struct {
+	client      *RpcGnoland
+	rateLimiter *query.ChannelRateLimiter
+}
+
+// NewRateLimitedRpcClient creates a new rate-limited RPC client wrapper
+//
+// Args:
+//   - rpcURL: the url of the rpc client
+//   - timeout: the timeout for the rpc client (optional)
+//   - requestsPerWindow: number of requests allowed per time window
+//   - timeWindow: the time window for rate limiting (e.g., 1*time.Minute for 1 minute)
+//
+// Returns:
+//   - *RateLimitedRpcClient: the rate-limited rpc client
+//   - error: if the rpc client fails to connect
+//
+// Example:
+//
+//	// Allow 100 requests per minute
+//	client, err := NewRateLimitedRpcClient("http://localhost:26657", nil, 100, 1*time.Minute)
+func NewRateLimitedRpcClient(rpcURL string, timeout *time.Duration, requestsPerWindow int, timeWindow time.Duration) (*RateLimitedRpcClient, error) {
+	// Create the underlying RPC client
+	client, err := NewRpcClient(rpcURL, timeout)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the rate limiter
+	rateLimiter := query.NewChannelRateLimiter(requestsPerWindow, timeWindow)
+
+	return &RateLimitedRpcClient{
+		client:      client,
+		rateLimiter: rateLimiter,
+	}, nil
+}
+
+// Close properly shuts down the rate limiter
+func (r *RateLimitedRpcClient) Close() {
+	r.rateLimiter.Close()
+}
+
+// Health method with rate limiting
+func (r *RateLimitedRpcClient) Health() error {
+	r.rateLimiter.Wait() // This will block until a token is available
+	return r.client.Health()
+}
+
+// GetValidators method with rate limiting
+func (r *RateLimitedRpcClient) GetValidators(height uint64) (*ValidatorsResponse, *RpcHeightError) {
+	r.rateLimiter.Wait()
+	return r.client.GetValidators(height)
+}
+
+// GetBlock method with rate limiting
+func (r *RateLimitedRpcClient) GetBlock(height uint64) (*BlockResponse, *RpcHeightError) {
+	r.rateLimiter.Wait()
+	return r.client.GetBlock(height)
+}
+
+// GetTx method with rate limiting
+func (r *RateLimitedRpcClient) GetTx(txHash string) (*TxResponse, *RpcStringError) {
+	r.rateLimiter.Wait()
+	return r.client.GetTx(txHash)
+}
+
+// GetAbciQuery method with rate limiting
+func (r *RateLimitedRpcClient) GetAbciQuery(path string, data string, height *uint64, prove *bool) (any, error) {
+	r.rateLimiter.Wait()
+	return r.client.GetAbciQuery(path, data, height, prove)
+}
+
+// TryHealth - non-blocking version that returns false if rate limited
+func (r *RateLimitedRpcClient) TryHealth() (error, bool) {
+	if !r.rateLimiter.Allow() {
+		return nil, false // rate limited
+	}
+	return r.client.Health(), true
+}
+
+// TryGetValidators - non-blocking version that returns false if rate limited
+func (r *RateLimitedRpcClient) TryGetValidators(height uint64) (*ValidatorsResponse, *RpcHeightError, bool) {
+	if !r.rateLimiter.Allow() {
+		return nil, nil, false // rate limited
+	}
+	response, err := r.client.GetValidators(height)
+	return response, err, true
+}
+
+// TryGetBlock - non-blocking version that returns false if rate limited
+func (r *RateLimitedRpcClient) TryGetBlock(height uint64) (*BlockResponse, *RpcHeightError, bool) {
+	if !r.rateLimiter.Allow() {
+		return nil, nil, false // rate limited
+	}
+	response, err := r.client.GetBlock(height)
+	return response, err, true
+}
+
+// TryGetTx - non-blocking version that returns false if rate limited
+func (r *RateLimitedRpcClient) TryGetTx(txHash string) (*TxResponse, *RpcStringError, bool) {
+	if !r.rateLimiter.Allow() {
+		return nil, nil, false // rate limited
+	}
+	response, err := r.client.GetTx(txHash)
+	return response, err, true
+}
+
+// TryGetAbciQuery - non-blocking version that returns false if rate limited
+func (r *RateLimitedRpcClient) TryGetAbciQuery(path string, data string, height *uint64, prove *bool) (any, error, bool) {
+	if !r.rateLimiter.Allow() {
+		return nil, nil, false // rate limited
+	}
+	response, err := r.client.GetAbciQuery(path, data, height, prove)
+	return response, err, true
+}
+
+// GetRateLimiterStatus returns information about the current rate limiter status
+func (r *RateLimitedRpcClient) GetRateLimiterStatus() query.ChannelRateLimiterStatus {
+	return r.rateLimiter.GetStatus()
+}
