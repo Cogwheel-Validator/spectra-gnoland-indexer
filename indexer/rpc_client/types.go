@@ -98,7 +98,7 @@ type BlockResponse struct {
 				ProposerAddress    string `json:"proposer_address"`
 			} `json:"header"`
 			Data struct {
-				Txs any `json:"txs"` // it can be a slice of strings or nil
+				Txs *[]string `json:"txs"` // it can be a slice of strings or nil
 			} `json:"data"`
 			LastCommit struct {
 				BlockID struct {

@@ -135,3 +135,22 @@ func (a *AddressCache) AddressSolver(
 	}
 	a.AddAddresses(newAddrMap)
 }
+
+// GetAddress is a method to get the address from the cache
+//
+// This method is used to get the address from the cache
+// If the address is not in the cache, it will return 0
+//
+// Args:
+//   - address: the address to get
+//
+// Returns:
+//   - int32: the address id
+//   - 0 if the address is not in the cache
+func (a *AddressCache) GetAddress(address string) int32 {
+	if _, ok := a.address[address]; !ok {
+		return 0
+	} else {
+		return a.address[address]
+	}
+}

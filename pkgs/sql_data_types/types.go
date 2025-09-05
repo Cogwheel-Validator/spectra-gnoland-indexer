@@ -66,9 +66,9 @@ type Blocks struct {
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainID   string    `db:"chain_id" dbtype:"TEXT" nullable:"false" primary:"false"`
 	// proposer address is the validator address hence why this should be an integer
-	ProposerAddress int32  `db:"proposer_address" dbtype:"integer" nullable:"false" primary:"false"`
-	Txs             []byte `db:"txs" dbtype:"bytea" primary:"false" nullable:"true"` // can be a null value
-	ChainName       string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
+	ProposerAddress int32    `db:"proposer_address" dbtype:"integer" nullable:"false" primary:"false"`
+	Txs             [][]byte `db:"txs" dbtype:"bytea" primary:"false" nullable:"true"` // can be a null value
+	ChainName       string   `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
 }
 
 func (b Blocks) TableName() string {
