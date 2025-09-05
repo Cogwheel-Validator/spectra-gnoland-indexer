@@ -156,14 +156,82 @@ func (f Fee) GetSpecialTypeInfo() (*dbinit.SpecialType, error) {
 	return dbinit.GetSpecialTypeInfo(f, f.TypeName())
 }
 
+// Event is a postgres type that is used to store the event of a transaction
+//
+// Usage:
+//
+//	This is used to store transaction events in "native format"
+//
+// It is a custom type that is used to store the event of a transaction
+// Stores:
+// - At_type (string)
+// - Type (string)
+// - Attributes (Attribute[])
+// - Pkg_path (string)
+type Event struct {
+	At_type    string      `db:"at_type" dbtype:"TEXT"`
+	Type       string      `db:"type" dbtype:"TEXT"`
+	Attributes []Attribute `db:"attributes" dbtype:"attribute[]"`
+	Pkg_path   string      `db:"pkg_path" dbtype:"TEXT"`
+}
+
+// TypeName returns the name of the type for the Event struct
+func (e Event) TypeName() string {
+	return "event"
+}
+
+// GetSpecialTypeInfo returns the special type info for the Event struct
+func (e Event) GetSpecialTypeInfo() (*dbinit.SpecialType, error) {
+	return dbinit.GetSpecialTypeInfo(e, e.TypeName())
+}
+
+// Attribute is a postgres type that is used to store the attribute of an event
+//
+// It is a custom type that is used to store the attribute of an event
+// Stores:
+// - Key (string)
+// - Value (string)
+type Attribute struct {
+	Key   string `db:"key" dbtype:"TEXT"`
+	Value string `db:"value" dbtype:"TEXT"`
+}
+
+// TypeName returns the name of the type for the Attribute struct
+func (a Attribute) TypeName() string {
+	return "attribute"
+}
+
+// GetSpecialTypeInfo returns the special type info for the Attribute struct
+func (a Attribute) GetSpecialTypeInfo() (*dbinit.SpecialType, error) {
+	return dbinit.GetSpecialTypeInfo(a, a.TypeName())
+}
+
 // TransactionGeneral represents a transaction general data with database mapping information
+//
+// Stores:
+// - TxHash (bytea)
+// - ChainName (string)
+// - Timestamp (time.Time)
+// - MsgTypes (string[])
+// - TxEvents (Event[])
+// - TxEventsCompressed (bytea)
+// - GasUsed (uint64)
+// - GasWanted (uint64)
+// - Fee (Fee)
+//
+// PRIMARY KEY (tx_hash, chain_name, timestamp)
+//
+// INFO about this type!
+// This project is open source hence for the sake of wider addoption this table storer both compressed and native format
+// But what kind of data will be stored should be managed by the config.
+// It is not recommended to use both modes at the same time.
 type TransactionGeneral struct {
 	TxHash             []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	ChainName          string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Timestamp          time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	MsgTypes           []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
-	TxEvents           []byte    `db:"tx_events" dbtype:"bytea" nullable:"true" primary:"false"`            // in some cases can be null
-	TxEventsCompressed []byte    `db:"tx_events_compressed" dbtype:"bytea" nullable:"true" primary:"false"` // for now it can be a null could be changed later
+	TxEvents           []Event   `db:"tx_events" dbtype:"event[]" nullable:"true" primary:"false"`          // to be used if "native format" is used
+	TxEventsCompressed []byte    `db:"tx_events_compressed" dbtype:"bytea" nullable:"true" primary:"false"` // to be used for compressed events
 	GasUsed            uint64    `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
 	GasWanted          uint64    `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
 	Fee                Fee       `db:"fee" dbtype:"fee" nullable:"false" primary:"false"`
@@ -180,14 +248,24 @@ func (tg TransactionGeneral) GetTableInfo() (*dbinit.TableInfo, error) {
 }
 
 // MsgSend represents a bank send message
+//
+// Stores:
+// - TxHash (bytea)
+// - ChainName (string)
+// - FromAddress (string)
+// - ToAddress (string)
+// - Amount (string)
+// - Timestamp (time.Time)
+//
+// PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgSend struct {
-	TxHash      []byte `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
-	ChainName   string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`
+	TxHash      []byte `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	ChainName   string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	FromAddress string `db:"from_address" dbtype:"TEXT" nullable:"false" primary:"false"`
 	// need to test this out later leave it as a possible null value
 	ToAddress string    `db:"to_address" dbtype:"TEXT" nullable:"true" primary:"false"`
 	Amount    string    `db:"amount" dbtype:"TEXT" nullable:"false" primary:"false"`
-	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"false"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 }
 
 // TableName returns the name of the table for the MsgSend struct
@@ -213,6 +291,17 @@ func (ms MsgSend) TableColumns() []string {
 }
 
 // MsgCall represents a VM function call message
+//
+// Stores:
+// - TxHash (bytea)
+// - ChainName (string)
+// - Caller (string)
+// - PkgPath (string)
+// - FuncName (string)
+// - Args (string[])
+// - Timestamp (time.Time)
+//
+// PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgCall struct {
 	TxHash    []byte `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false"`
 	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false"`

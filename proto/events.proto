@@ -1,0 +1,25 @@
+syntax = "proto3";
+package eventsproto;
+
+option go_package = "../indexer/events_proto";
+
+message TxEvents {
+    repeated Event events = 1;
+}
+
+message Event {
+    string at_type = 1;
+    string type = 2;
+    repeated Attribute attributes = 3;
+    optional string pkg_path = 4; // Can be null or string
+}
+
+message Attribute {
+    string key = 1;
+    oneof value {
+        string string_value = 2;
+        int64 int64_value = 3;
+        bool bool_value = 4;
+        double double_value = 5; // leave this as double for now
+    };
+}
