@@ -2,8 +2,10 @@ package dataprocessor
 
 import (
 	"encoding/base64"
+	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -167,8 +169,6 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 //   - nil
 //
 // The method will not throw an error if the transactions are not found, it will just return nil
-// However this function is not finished yet, it only records the transaction general data
-// but it needs to look into the decoded message and record the data from it
 func (d *DataProcessor) ProcessTransactions(
 	transactions map[*rpcClient.TxResponse]time.Time,
 	compressEvents bool,
@@ -242,4 +242,108 @@ func (d *DataProcessor) ProcessTransactions(
 
 	d.dbPool.InsertTransactionsGeneral(transactionsData)
 	log.Printf("Transactions processed from %d to %d", fromHeight, toHeight)
+}
+
+// ProcessMessages processes all messages from transactions and stores them in their respective tables
+// This method aggregates messages by type and performs batch insertions for efficiency
+//
+// Args:
+//   - transactions: a map of transactions and timestamps
+//   - fromHeight: the start height
+//   - toHeight: the end height
+//
+// Returns:
+//   - error: if processing fails
+func (d *DataProcessor) ProcessMessages(
+	transactions map[*rpcClient.TxResponse]time.Time,
+	fromHeight uint64,
+	toHeight uint64) error {
+
+	// Aggregate all messages by type across all transactions
+	aggregatedGroups := &decoder.MessageGroups{
+		MsgSend:   make([]sqlDataTypes.MsgSend, 0),
+		MsgCall:   make([]sqlDataTypes.MsgCall, 0),
+		MsgAddPkg: make([]sqlDataTypes.MsgAddPackage, 0),
+		MsgRun:    make([]sqlDataTypes.MsgRun, 0),
+	}
+
+	// Process each transaction to extract and convert messages
+	for transaction, timestamp := range transactions {
+		decodedMsg := decoder.NewDecodedMsg(transaction.Result.Tx)
+		if decodedMsg == nil {
+			// Skip transactions that can't be decoded
+			continue
+		}
+
+		// Convert messages to structured types
+		messageGroups, err := decodedMsg.ConvertToStructuredMessages(d.chainName, timestamp)
+		if err != nil {
+			log.Printf("Failed to convert messages for tx %s: %v", transaction.Result.Hash, err)
+			continue
+		}
+
+		// Aggregate messages by type
+		aggregatedGroups.MsgSend = append(aggregatedGroups.MsgSend, messageGroups.MsgSend...)
+		aggregatedGroups.MsgCall = append(aggregatedGroups.MsgCall, messageGroups.MsgCall...)
+		aggregatedGroups.MsgAddPkg = append(aggregatedGroups.MsgAddPkg, messageGroups.MsgAddPkg...)
+		aggregatedGroups.MsgRun = append(aggregatedGroups.MsgRun, messageGroups.MsgRun...)
+	}
+
+	// Batch insert messages by type
+	if err := d.insertMessageGroups(aggregatedGroups); err != nil {
+		return fmt.Errorf("failed to insert messages: %w", err)
+	}
+
+	log.Printf("Messages processed from %d to %d: MsgSend=%d, MsgCall=%d, MsgAddPkg=%d, MsgRun=%d",
+		fromHeight, toHeight,
+		len(aggregatedGroups.MsgSend),
+		len(aggregatedGroups.MsgCall),
+		len(aggregatedGroups.MsgAddPkg),
+		len(aggregatedGroups.MsgRun))
+
+	return nil
+}
+
+// insertMessageGroups performs batch insertions for each message type
+func (d *DataProcessor) insertMessageGroups(groups *decoder.MessageGroups) error {
+	var insertErrors []error
+
+	// Insert MsgSend messages
+	if len(groups.MsgSend) > 0 {
+		if err := d.dbPool.InsertMsgSend(groups.MsgSend); err != nil {
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert MsgSend: %w", err))
+		}
+	}
+
+	// Insert MsgCall messages
+	if len(groups.MsgCall) > 0 {
+		if err := d.dbPool.InsertMsgCall(groups.MsgCall); err != nil {
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert MsgCall: %w", err))
+		}
+	}
+
+	// Insert MsgAddPackage messages
+	if len(groups.MsgAddPkg) > 0 {
+		if err := d.dbPool.InsertMsgAddPackage(groups.MsgAddPkg); err != nil {
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert MsgAddPackage: %w", err))
+		}
+	}
+
+	// Insert MsgRun messages
+	if len(groups.MsgRun) > 0 {
+		if err := d.dbPool.InsertMsgRun(groups.MsgRun); err != nil {
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert MsgRun: %w", err))
+		}
+	}
+
+	// Combine all errors if any occurred
+	if len(insertErrors) > 0 {
+		var errorMessages []string
+		for _, err := range insertErrors {
+			errorMessages = append(errorMessages, err.Error())
+		}
+		return fmt.Errorf("multiple insertion errors: %s", strings.Join(errorMessages, "; "))
+	}
+
+	return nil
 }

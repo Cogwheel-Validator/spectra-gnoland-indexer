@@ -122,32 +122,99 @@ func (t *TimescaleDb) InsertTransactionsGeneral(transactionsGeneral []sql_data_t
 	return err
 }
 
-// InsertGnoMessages is a universal function that inserts a slice of Gno messages into
-// the database. It will create the copy from slice to the db and then insert it to the database
-//
-// Usage:
-//
-// # Used for inserting a large number of Gno messages to the database
+// InsertMsgSend inserts a slice of MsgSend messages into the database
 //
 // Args:
-//   - messages: accepts a interface of slice of Gno messages to insert
+//   - messages: a slice of MsgSend messages to insert
 //
 // Returns:
 //   - error: an error if the insertion fails
-//
-// This function is useful for inserting a large number of Gno messages to the database
-// When inserting data they need to from interface GnoMessages to work with this function
-// WARNING: This function will only work if all of the messages are of the same type
-// TODO implement checking of the message types on in the process that will be inserting the messages
-func (t *TimescaleDb) InsertGnoMessages(messages []sql_data_types.GnoMessage) error {
-	// create a copy from the slice
+func (t *TimescaleDb) InsertMsgSend(messages []sql_data_types.MsgSend) error {
 	copy_from_slice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
-		return []any{messages[i].TableColumns()}, nil
+		return []any{
+			messages[i].TxHash,
+			messages[i].ChainName,
+			messages[i].FromAddress,
+			messages[i].ToAddress,
+			messages[i].Amount,
+			messages[i].Timestamp,
+		}, nil
 	})
-	// mark the columns to be inserted
-	columns := messages[0].TableColumns()
 
-	// insert the data to the db
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"gno_messages"}, columns, copy_from_slice)
+	columns := []string{"tx_hash", "chain_name", "from_address", "to_address", "amount", "timestamp"}
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"bank_msg_send"}, columns, copy_from_slice)
+	return err
+}
+
+// InsertMsgCall inserts a slice of MsgCall messages into the database
+//
+// Args:
+//   - messages: a slice of MsgCall messages to insert
+//
+// Returns:
+//   - error: an error if the insertion fails
+func (t *TimescaleDb) InsertMsgCall(messages []sql_data_types.MsgCall) error {
+	copy_from_slice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
+		return []any{
+			messages[i].TxHash,
+			messages[i].ChainName,
+			messages[i].Caller,
+			messages[i].PkgPath,
+			messages[i].FuncName,
+			messages[i].Args,
+			messages[i].Timestamp,
+		}, nil
+	})
+
+	columns := []string{"tx_hash", "chain_name", "caller", "pkg_path", "func_name", "args", "timestamp"}
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_call"}, columns, copy_from_slice)
+	return err
+}
+
+// InsertMsgAddPackage inserts a slice of MsgAddPackage messages into the database
+//
+// Args:
+//   - messages: a slice of MsgAddPackage messages to insert
+//
+// Returns:
+//   - error: an error if the insertion fails
+func (t *TimescaleDb) InsertMsgAddPackage(messages []sql_data_types.MsgAddPackage) error {
+	copy_from_slice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
+		return []any{
+			messages[i].TxHash,
+			messages[i].ChainName,
+			messages[i].Creator,
+			messages[i].PkgPath,
+			messages[i].PkgName,
+			messages[i].Timestamp,
+		}, nil
+	})
+
+	columns := []string{"tx_hash", "chain_name", "creator", "pkg_path", "pkg_name", "timestamp"}
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_add_package"}, columns, copy_from_slice)
+	return err
+}
+
+// InsertMsgRun inserts a slice of MsgRun messages into the database
+//
+// Args:
+//   - messages: a slice of MsgRun messages to insert
+//
+// Returns:
+//   - error: an error if the insertion fails
+func (t *TimescaleDb) InsertMsgRun(messages []sql_data_types.MsgRun) error {
+	copy_from_slice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
+		return []any{
+			messages[i].TxHash,
+			messages[i].ChainName,
+			messages[i].Caller,
+			messages[i].PkgPath,
+			messages[i].PkgName,
+			messages[i].Timestamp,
+		}, nil
+	})
+
+	columns := []string{"tx_hash", "chain_name", "caller", "pkg_path", "pkg_name", "timestamp"}
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_run"}, columns, copy_from_slice)
 	return err
 }
