@@ -117,6 +117,8 @@ var rootCmd = &cobra.Command{
 			// and type enums
 			specialTypes := []sql_data_types.DBSpecialType{
 				sql_data_types.Fee{},
+				sql_data_types.Attribute{}, // this needs to be inserted prior to event type
+				sql_data_types.Event{},
 			}
 			typeEnums := []string{
 				"gnoland",

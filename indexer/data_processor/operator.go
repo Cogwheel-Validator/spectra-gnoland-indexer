@@ -9,6 +9,7 @@ import (
 
 	addressCache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/decoder"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 	sqlDataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 )
@@ -154,16 +155,42 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 	log.Printf("Blocks processed from %d to %d", fromHeight, toHeight)
 }
 
+// ProcessTransactions is a swarm method to process the transactions from a map of transactions and timestamps
+// it will process the transactions using async workers and store them in a channel
+// it will then extract the transactions from the channel and insert them into the database
+//
+// Args:
+//   - transactions: a map of transactions and timestamps
+//   - compressEvents: if true, compress the events
+//
+// Returns:
+//   - nil
+//
+// The method will not throw an error if the transactions are not found, it will just return nil
+// However this function is not finished yet, it only records the transaction general data
+// but it needs to look into the decoded message and record the data from it
 func (d *DataProcessor) ProcessTransactions(
-	transactions map[*rpcClient.TxResponse]time.Time) {
+	transactions map[*rpcClient.TxResponse]time.Time,
+	compressEvents bool,
+	fromHeight uint64,
+	toHeight uint64) {
 
 	transactionChan := make(chan *sqlDataTypes.TransactionGeneral, len(transactions))
-	wg := sync.WaitGroup()
+	wg := sync.WaitGroup{}
 	wg.Add(len(transactions))
 
-	for _, transaction := range transactions {
-		go func(transaction *rpcClient.TxResponse) {
+	for transaction, timestamp := range transactions {
+		go func(
+			transaction *rpcClient.TxResponse,
+			timestamp time.Time,
+			compressEvents bool) {
 			defer wg.Done()
+			txResult := transaction.Result.TxResult
+
+			decodedMsg := decoder.NewDecodedMsg(transaction.Result.Tx)
+
+			fee := decodedMsg.GetFee()
+			msgTypes := decodedMsg.GetMsgTypes()
 
 			// convert the tx hash from base64 to sha256
 			txHash, err := base64.StdEncoding.DecodeString(transaction.Result.Hash)
@@ -172,15 +199,47 @@ func (d *DataProcessor) ProcessTransactions(
 			}
 
 			// convert the gas wanetd and used from string to uint64
-			gasWanted, err := strconv.ParseUint(transaction.Result.TxResult.GasWanted, 10, 64)
+			gasWanted, err := strconv.ParseUint(txResult.GasWanted, 10, 64)
 			if err != nil {
 				return
 			}
-			gasUsed, err := strconv.ParseUint(transaction.Result.TxResult.GasUsed, 10, 64)
+			gasUsed, err := strconv.ParseUint(txResult.GasUsed, 10, 64)
 			if err != nil {
 				return
 			}
 
-		}(transaction)
+			// solve the events
+			events, err := EventSolver(transaction, compressEvents)
+			if err != nil {
+				return
+			}
+
+			// here the text event will return nil depending on the compressEvents
+			transactionChan <- &sqlDataTypes.TransactionGeneral{
+				TxHash:             txHash,
+				ChainName:          d.chainName,
+				Timestamp:          timestamp,
+				MsgTypes:           msgTypes,
+				TxEvents:           events.GetNativeEvents(),
+				TxEventsCompressed: events.GetCompressedData(),
+				GasUsed:            gasUsed,
+				GasWanted:          gasWanted,
+				Fee:                fee,
+			}
+
+		}(transaction, timestamp, compressEvents)
 	}
+
+	go func() {
+		wg.Wait()
+		close(transactionChan)
+	}()
+
+	transactionsData := make([]sqlDataTypes.TransactionGeneral, 0, len(transactions))
+	for transaction := range transactionChan {
+		transactionsData = append(transactionsData, *transaction)
+	}
+
+	d.dbPool.InsertTransactionsGeneral(transactionsData)
+	log.Printf("Transactions processed from %d to %d", fromHeight, toHeight)
 }

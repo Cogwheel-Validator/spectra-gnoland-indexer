@@ -5,9 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
-	"time"
 
-	datatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	dataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
@@ -27,7 +26,7 @@ type Decoder struct {
 //
 // Returns:
 //   - *Decoder: new Decoder struct
-func NewDecoder(encodedTx string, chainName string, height uint64, timestamp time.Time) *Decoder {
+func NewDecoder(encodedTx string) *Decoder {
 	return &Decoder{
 		encodedTx: encodedTx,
 	}
@@ -90,7 +89,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 	for i, signer := range signers {
 		signersString[i] = signer.String()
 	}
-	fee := datatypes.Fee{
+	fee := dataTypes.Fee{
 		Amount: uint64(tx.Fee.GasFee.Amount),
 		Denom:  tx.Fee.GasFee.Denom,
 	}
