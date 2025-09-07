@@ -9,18 +9,18 @@ import dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_
 // - Amount (uint64)
 // - Denom (string)
 // PRIMARY KEY (amount, denom)
-type Fee struct {
+type Amount struct {
 	Amount uint64 `db:"amount" dbtype:"NUMERIC"`
 	Denom  string `db:"denom" dbtype:"TEXT"`
 }
 
 // TypeName returns the name of the type for the Fee struct
-func (f Fee) TypeName() string {
-	return "fee"
+func (f Amount) TypeName() string {
+	return "amount"
 }
 
 // GetSpecialTypeInfo returns the special type info for the Fee struct
-func (f Fee) GetSpecialTypeInfo() (*dbinit.SpecialType, error) {
+func (f Amount) GetSpecialTypeInfo() (*dbinit.SpecialType, error) {
 	return dbinit.GetSpecialTypeInfo(f, f.TypeName())
 }
 

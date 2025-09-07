@@ -2,11 +2,15 @@ package decoder
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	dataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 )
+
+// AddressResolver interface to make the code testable and flexible
+type AddressResolver interface {
+	GetAddress(address string) int32
+}
 
 type DecodedMsg struct {
 	BasicData BasicTxData
@@ -49,26 +53,229 @@ func (dm *DecodedMsg) GetMemo() string {
 	return dm.BasicData.Memo
 }
 
-func (dm *DecodedMsg) GetFee() dataTypes.Fee {
+func (dm *DecodedMsg) GetFee() dataTypes.Amount {
 	return dm.BasicData.Fee
+}
+
+// CollectAllAddresses extracts all unique addresses from the decoded message
+// This includes signers and all addresses from individual messages
+func (dm *DecodedMsg) CollectAllAddresses() []string {
+	addressSet := make(map[string]bool)
+
+	// Add signers from transaction
+	for _, signer := range dm.BasicData.Signers {
+		addressSet[signer] = true
+	}
+
+	// Add addresses from each message
+	for _, msgMap := range dm.Messages {
+		msgType, ok := msgMap["msg_type"].(string)
+		if !ok {
+			continue
+		}
+
+		switch msgType {
+		case "bank_msg_send":
+			if fromAddr, ok := msgMap["from_address"].(string); ok {
+				addressSet[fromAddr] = true
+			}
+			if toAddr, ok := msgMap["to_address"].(string); ok {
+				addressSet[toAddr] = true
+			}
+
+		case "vm_msg_call":
+			if caller, ok := msgMap["caller"].(string); ok {
+				addressSet[caller] = true
+			}
+
+		case "vm_msg_add_package":
+			if creator, ok := msgMap["creator"].(string); ok {
+				addressSet[creator] = true
+			}
+
+		case "vm_msg_run":
+			if caller, ok := msgMap["caller"].(string); ok {
+				addressSet[caller] = true
+			}
+		}
+	}
+
+	// Convert set to slice
+	addresses := make([]string, 0, len(addressSet))
+	for addr := range addressSet {
+		addresses = append(addresses, addr)
+	}
+
+	return addresses
 }
 
 // MessageGroups holds different message types grouped for batch insertion
 type MessageGroups struct {
+	MsgSend   []MsgSend
+	MsgCall   []MsgCall
+	MsgAddPkg []MsgAddPackage
+	MsgRun    []MsgRun
+}
+
+// DbMessageGroups holds database-ready message types with address IDs
+type DbMessageGroups struct {
 	MsgSend   []dataTypes.MsgSend
 	MsgCall   []dataTypes.MsgCall
 	MsgAddPkg []dataTypes.MsgAddPackage
 	MsgRun    []dataTypes.MsgRun
 }
 
+// ConvertToDbMessages converts MessageGroups to DbMessageGroups using address cache
+//
+// Part of the 2 phase message processing,
+// this method will convert to types that can be inserted into the database
+// not the best solution, but the program needs a 2 step method regardless of the types
+// the program needs to insert the addresses ids into the database hence this complex system
+//
+// Args:
+//   - addressResolver: an address resolver to get the address IDs
+//   - txHash: the hash of the transaction
+//   - chainName: the name of the chain
+//   - timestamp: the timestamp of the transaction
+//
+// Returns:
+//   - *DbMessageGroups: a DbMessageGroups struct
+//   - error: an error if the conversion fails
+func (mg *MessageGroups) ConvertToDbMessages(
+	addressResolver AddressResolver,
+	txHash []byte,
+	chainName string,
+	timestamp time.Time,
+) *DbMessageGroups {
+	dbGroups := &DbMessageGroups{
+		MsgSend:   make([]dataTypes.MsgSend, len(mg.MsgSend)),
+		MsgCall:   make([]dataTypes.MsgCall, len(mg.MsgCall)),
+		MsgAddPkg: make([]dataTypes.MsgAddPackage, len(mg.MsgAddPkg)),
+		MsgRun:    make([]dataTypes.MsgRun, len(mg.MsgRun)),
+	}
+
+	// Convert MsgSend
+	for i, msg := range mg.MsgSend {
+		// Convert amount from []Coin to dataTypes.Amount
+		amount := make([]dataTypes.Amount, len(msg.Amount))
+		for j, amt := range msg.Amount {
+			amount[j] = dataTypes.Amount{
+				Amount: amt.Amount,
+				Denom:  amt.Denom,
+			}
+		}
+		dbGroups.MsgSend[i] = dataTypes.MsgSend{
+			TxHash:      txHash,
+			ChainName:   chainName,
+			FromAddress: addressResolver.GetAddress(msg.FromAddress),
+			ToAddress:   addressResolver.GetAddress(msg.ToAddress),
+			Amount:      amount,
+			Timestamp:   timestamp,
+		}
+	}
+
+	// Convert MsgCall
+	for i, msg := range mg.MsgCall {
+		// Convert send from []Coin to dataTypes.Amount
+		send := make([]dataTypes.Amount, len(msg.Send))
+		for j, amt := range msg.Send {
+			send[j] = dataTypes.Amount{
+				Amount: amt.Amount,
+				Denom:  amt.Denom,
+			}
+		}
+		// Convert maxDeposit from []Coin to dataTypes.Amount
+		maxDeposit := make([]dataTypes.Amount, len(msg.MaxDeposit))
+		for j, amt := range msg.MaxDeposit {
+			maxDeposit[j] = dataTypes.Amount{
+				Amount: amt.Amount,
+				Denom:  amt.Denom,
+			}
+		}
+		dbGroups.MsgCall[i] = dataTypes.MsgCall{
+			TxHash:     txHash,
+			ChainName:  chainName,
+			Caller:     addressResolver.GetAddress(msg.Caller),
+			Send:       send,
+			PkgPath:    msg.PkgPath,
+			FuncName:   msg.FuncName,
+			Args:       msg.Args,
+			MaxDeposit: maxDeposit,
+			Timestamp:  timestamp,
+		}
+	}
+
+	// Convert MsgAddPackage
+	for i, msg := range mg.MsgAddPkg {
+		// Convert send from []Coin to dataTypes.Amount
+		send := make([]dataTypes.Amount, len(msg.Send))
+		for j, amt := range msg.Send {
+			send[j] = dataTypes.Amount{
+				Amount: amt.Amount,
+				Denom:  amt.Denom,
+			}
+		}
+		// Convert maxDeposit from []Coin to dataTypes.Amount
+		maxDeposit := make([]dataTypes.Amount, len(msg.MaxDeposit))
+		for j, amt := range msg.MaxDeposit {
+			maxDeposit[j] = dataTypes.Amount{
+				Amount: amt.Amount,
+				Denom:  amt.Denom,
+			}
+		}
+		dbGroups.MsgAddPkg[i] = dataTypes.MsgAddPackage{
+			TxHash:     txHash,
+			ChainName:  chainName,
+			Creator:    addressResolver.GetAddress(msg.Creator),
+			PkgPath:    msg.PkgPath,
+			PkgName:    msg.PkgName,
+			Send:       send,
+			MaxDeposit: maxDeposit,
+			Timestamp:  timestamp,
+		}
+	}
+
+	// Convert MsgRun
+	for i, msg := range mg.MsgRun {
+		// Convert send from []Coin to dataTypes.Amount
+		send := make([]dataTypes.Amount, len(msg.Send))
+		for j, amt := range msg.Send {
+			send[j] = dataTypes.Amount{
+				Amount: amt.Amount,
+				Denom:  amt.Denom,
+			}
+		}
+		// Convert maxDeposit from []Coin to dataTypes.Amount
+		maxDeposit := make([]dataTypes.Amount, len(msg.MaxDeposit))
+		for j, amt := range msg.MaxDeposit {
+			maxDeposit[j] = dataTypes.Amount{
+				Amount: amt.Amount,
+				Denom:  amt.Denom,
+			}
+		}
+		dbGroups.MsgRun[i] = dataTypes.MsgRun{
+			TxHash:     txHash,
+			ChainName:  chainName,
+			Caller:     addressResolver.GetAddress(msg.Caller),
+			PkgPath:    msg.PkgPath,
+			PkgName:    msg.PkgName,
+			Send:       send,
+			MaxDeposit: maxDeposit,
+			Timestamp:  timestamp,
+		}
+	}
+
+	return dbGroups
+}
+
 // ConvertToStructuredMessages converts the decoded message maps to structured message types
 // Returns MessageGroups with messages organized by type for efficient batch insertion
 func (dm *DecodedMsg) ConvertToStructuredMessages(chainName string, timestamp time.Time) (*MessageGroups, error) {
 	groups := &MessageGroups{
-		MsgSend:   make([]dataTypes.MsgSend, 0),
-		MsgCall:   make([]dataTypes.MsgCall, 0),
-		MsgAddPkg: make([]dataTypes.MsgAddPackage, 0),
-		MsgRun:    make([]dataTypes.MsgRun, 0),
+		MsgSend:   make([]MsgSend, 0),
+		MsgCall:   make([]MsgCall, 0),
+		MsgAddPkg: make([]MsgAddPackage, 0),
+		MsgRun:    make([]MsgRun, 0),
 	}
 
 	for _, msgMap := range dm.Messages {
@@ -124,7 +331,12 @@ func (dm *DecodedMsg) ConvertToStructuredMessages(chainName string, timestamp ti
 // Returns:
 //   - *dataTypes.MsgSend: a MsgSend struct
 //   - error: an error if the conversion fails
-func (dm *DecodedMsg) convertToMsgSend(msgMap map[string]any, chainName string, timestamp time.Time) (*dataTypes.MsgSend, error) {
+func (dm *DecodedMsg) convertToMsgSend(msgMap map[string]any, chainName string, timestamp time.Time) (*MsgSend, error) {
+	msgType, ok := msgMap["msg_type"].(string)
+	if !ok {
+		return nil, fmt.Errorf("missing msg_type")
+	}
+
 	fromAddress, ok := msgMap["from_address"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing from_address")
@@ -136,18 +348,16 @@ func (dm *DecodedMsg) convertToMsgSend(msgMap map[string]any, chainName string, 
 	}
 
 	// Convert amount from []Coin to string representation
-	amount, err := dm.convertAmountToString(msgMap["amount"])
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert amount: %w", err)
+	amount, ok := msgMap["amount"].([]Coin)
+	if !ok {
+		return nil, fmt.Errorf("missing amount")
 	}
 
-	return &dataTypes.MsgSend{
-		TxHash:      dm.BasicData.TxHash,
-		ChainName:   chainName,
+	return &MsgSend{
+		MsgType:     msgType,
 		FromAddress: fromAddress,
 		ToAddress:   toAddress,
 		Amount:      amount,
-		Timestamp:   timestamp,
 	}, nil
 }
 
@@ -161,7 +371,12 @@ func (dm *DecodedMsg) convertToMsgSend(msgMap map[string]any, chainName string, 
 // Returns:
 //   - *dataTypes.MsgCall: a MsgCall struct
 //   - error: an error if the conversion fails
-func (dm *DecodedMsg) convertToMsgCall(msgMap map[string]any, chainName string, timestamp time.Time) (*dataTypes.MsgCall, error) {
+func (dm *DecodedMsg) convertToMsgCall(msgMap map[string]any, chainName string, timestamp time.Time) (*MsgCall, error) {
+	msgType, ok := msgMap["msg_type"].(string)
+	if !ok {
+		return nil, fmt.Errorf("missing msg_type")
+	}
+
 	caller, ok := msgMap["caller"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing caller")
@@ -183,19 +398,24 @@ func (dm *DecodedMsg) convertToMsgCall(msgMap map[string]any, chainName string, 
 		return nil, fmt.Errorf("missing args")
 	}
 
-	var args []string
-	if argsStr != "" {
-		args = strings.Split(argsStr, ",")
+	send, ok := msgMap["send"].([]Coin)
+	if !ok {
+		return nil, fmt.Errorf("missing send")
 	}
 
-	return &dataTypes.MsgCall{
-		TxHash:    dm.BasicData.TxHash,
-		ChainName: chainName,
-		Caller:    caller,
-		PkgPath:   pkgPath,
-		FuncName:  funcName,
-		Args:      args,
-		Timestamp: timestamp,
+	maxDeposit, ok := msgMap["max_deposit"].([]Coin)
+	if !ok {
+		return nil, fmt.Errorf("missing max_deposit")
+	}
+
+	return &MsgCall{
+		MsgType:    msgType,
+		Caller:     caller,
+		PkgPath:    pkgPath,
+		FuncName:   funcName,
+		Args:       argsStr,
+		Send:       send,
+		MaxDeposit: maxDeposit,
 	}, nil
 }
 
@@ -209,7 +429,12 @@ func (dm *DecodedMsg) convertToMsgCall(msgMap map[string]any, chainName string, 
 // Returns:
 //   - *dataTypes.MsgAddPackage: a MsgAddPackage struct
 //   - error: an error if the conversion fails
-func (dm *DecodedMsg) convertToMsgAddPackage(msgMap map[string]any, chainName string, timestamp time.Time) (*dataTypes.MsgAddPackage, error) {
+func (dm *DecodedMsg) convertToMsgAddPackage(msgMap map[string]any, chainName string, timestamp time.Time) (*MsgAddPackage, error) {
+	msgType, ok := msgMap["msg_type"].(string)
+	if !ok {
+		return nil, fmt.Errorf("missing msg_type")
+	}
+
 	creator, ok := msgMap["creator"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing creator")
@@ -225,13 +450,23 @@ func (dm *DecodedMsg) convertToMsgAddPackage(msgMap map[string]any, chainName st
 		return nil, fmt.Errorf("missing pkg_name")
 	}
 
-	return &dataTypes.MsgAddPackage{
-		TxHash:    dm.BasicData.TxHash,
-		ChainName: chainName,
-		Creator:   creator,
-		PkgPath:   pkgPath,
-		PkgName:   pkgName,
-		Timestamp: timestamp,
+	send, ok := msgMap["send"].([]Coin)
+	if !ok {
+		return nil, fmt.Errorf("missing send")
+	}
+
+	maxDeposit, ok := msgMap["max_deposit"].([]Coin)
+	if !ok {
+		return nil, fmt.Errorf("missing max_deposit")
+	}
+
+	return &MsgAddPackage{
+		MsgType:    msgType,
+		Creator:    creator,
+		PkgPath:    pkgPath,
+		PkgName:    pkgName,
+		Send:       send,
+		MaxDeposit: maxDeposit,
 	}, nil
 }
 
@@ -245,7 +480,12 @@ func (dm *DecodedMsg) convertToMsgAddPackage(msgMap map[string]any, chainName st
 // Returns:
 //   - *dataTypes.MsgRun: a MsgRun struct
 //   - error: an error if the conversion fails
-func (dm *DecodedMsg) convertToMsgRun(msgMap map[string]any, chainName string, timestamp time.Time) (*dataTypes.MsgRun, error) {
+func (dm *DecodedMsg) convertToMsgRun(msgMap map[string]any, chainName string, timestamp time.Time) (*MsgRun, error) {
+	msgType, ok := msgMap["msg_type"].(string)
+	if !ok {
+		return nil, fmt.Errorf("missing msg_type")
+	}
+
 	caller, ok := msgMap["caller"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing caller")
@@ -261,18 +501,29 @@ func (dm *DecodedMsg) convertToMsgRun(msgMap map[string]any, chainName string, t
 		return nil, fmt.Errorf("missing pkg_name")
 	}
 
-	return &dataTypes.MsgRun{
-		TxHash:    dm.BasicData.TxHash,
-		ChainName: chainName,
-		Caller:    caller,
-		PkgPath:   pkgPath,
-		PkgName:   pkgName,
-		Timestamp: timestamp,
+	send, ok := msgMap["send"].([]Coin)
+	if !ok {
+		return nil, fmt.Errorf("missing send")
+	}
+
+	maxDeposit, ok := msgMap["max_deposit"].([]Coin)
+	if !ok {
+		return nil, fmt.Errorf("missing max_deposit")
+	}
+
+	return &MsgRun{
+		MsgType:    msgType,
+		Caller:     caller,
+		PkgPath:    pkgPath,
+		PkgName:    pkgName,
+		Send:       send,
+		MaxDeposit: maxDeposit,
 	}, nil
 }
 
 // Helper function to convert amount from various formats to string
 // for now leave it like this, until further reaserch maybe the progema should use special type for any amount
+// depricated for now
 func (dm *DecodedMsg) convertAmountToString(amountInterface any) (string, error) {
 	switch amt := amountInterface.(type) {
 	case []Coin:

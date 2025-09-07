@@ -85,11 +85,11 @@ func (t *TimescaleDb) InsertBlocks(blocks []sql_data_types.Blocks) error {
 func (t *TimescaleDb) InsertValidatorBlockSignings(validatorBlockSigning []sql_data_types.ValidatorBlockSigning) error {
 	// create a copy from slice to the db
 	copy_from_slice := pgx.CopyFromSlice(len(validatorBlockSigning), func(i int) ([]any, error) {
-		return []any{validatorBlockSigning[i].BlockHeight, validatorBlockSigning[i].Timestamp, validatorBlockSigning[i].SignedVals, validatorBlockSigning[i].ChainName, validatorBlockSigning[i].MissedVals}, nil
+		return []any{validatorBlockSigning[i].BlockHeight, validatorBlockSigning[i].Timestamp, validatorBlockSigning[i].SignedVals, validatorBlockSigning[i].ChainName}, nil
 	})
 
 	// mark the columns to be inserted
-	columns := []string{"block_height", "timestamp", "signed_vals", "chain_name", "missed_vals"}
+	columns := []string{"block_height", "timestamp", "signed_vals", "chain_name"}
 
 	// insert the data to the db
 	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"validator_block_signing"}, columns, copy_from_slice)

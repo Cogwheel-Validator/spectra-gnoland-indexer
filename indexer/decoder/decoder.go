@@ -89,7 +89,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 	for i, signer := range signers {
 		signersString[i] = signer.String()
 	}
-	fee := dataTypes.Fee{
+	fee := dataTypes.Amount{
 		Amount: uint64(tx.Fee.GasFee.Amount),
 		Denom:  tx.Fee.GasFee.Denom,
 	}
@@ -110,7 +110,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 			// amount should have something like 1000000 ugnot we just need to split it and convert it to uint64
 			amount, err := extractCoins(m.Amount)
 			if err != nil {
-				return BasicTxData{}, nil, err
+				amount = []Coin{}
 			}
 			messages = append(messages, map[string]any{
 				"msg_type":     "bank_msg_send",
@@ -122,7 +122,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 			caller := m.Caller.String()
 			send, err := extractCoins(m.Send)
 			if err != nil {
-				return BasicTxData{}, nil, err
+				send = []Coin{}
 			}
 			pkgPath := m.PkgPath
 			// max deposit could be empty and there is a chance it will return an error
@@ -140,8 +140,6 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 				"pkg_path":    pkgPath,
 				"func_name":   funcName,
 				"args":        args,
-				"fee":         fee,
-				"signers":     signersString,
 				"send":        send,
 				"max_deposit": maxDeposit,
 			})
@@ -152,7 +150,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 			creator := m.Creator.String()
 			send, err := extractCoins(m.Send)
 			if err != nil {
-				return BasicTxData{}, nil, err
+				send = []Coin{}
 			}
 			maxDeposit, err := extractCoins(m.MaxDeposit)
 			if err != nil {
@@ -175,7 +173,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 			pkgFileNames := m.Package.FileNames()
 			send, err := extractCoins(m.Send)
 			if err != nil {
-				return BasicTxData{}, nil, err
+				send = []Coin{}
 			}
 			// max deposit could be empty and there is a chance it will return an error
 			// so we need to handle that

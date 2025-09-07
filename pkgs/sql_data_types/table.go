@@ -100,7 +100,11 @@ type ValidatorBlockSigning struct {
 	Timestamp   time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	SignedVals  []int32   `db:"address" dbtype:"integer" nullable:"false" primary:"false"`
 	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"` // use type enum chain_name from postgres
-	MissedVals  []int32   `db:"missed_vals" dbtype:"integer" nullable:"false" primary:"false"`
+	// MissedVals  []int32   `db:"missed_vals" dbtype:"integer" nullable:"false" primary:"false"`
+	// can't confirm who is in the active set without making a smart contract query to the DAO smart contract
+	// which could cost a lot of gas if the program checks it constantly, also in "historical" mode when the program
+	// is running it can't check previous active set without having some over engeneered system to track the votes from the DAO
+	// so only store the signed validators because that is the only thing we can gather and confirm they did sign
 }
 
 // TableName returns the name of the table for the ValidatorBlockSigning struct
@@ -168,7 +172,7 @@ type TransactionGeneral struct {
 	TxEventsCompressed []byte    `db:"tx_events_compressed" dbtype:"bytea" nullable:"true" primary:"false"` // to be used for compressed events
 	GasUsed            uint64    `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
 	GasWanted          uint64    `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
-	Fee                Fee       `db:"fee" dbtype:"fee" nullable:"false" primary:"false"`
+	Fee                Amount    `db:"fee" dbtype:"amount" nullable:"false" primary:"false"`
 }
 
 // TableName returns the name of the table for the TransactionGeneral struct
@@ -185,21 +189,24 @@ func (tg TransactionGeneral) GetTableInfo() (*dbinit.TableInfo, error) {
 //
 // Stores:
 // - TxHash (bytea)
-// - ChainName (string)
-// - FromAddress (string)
-// - ToAddress (string)
-// - Amount (string)
 // - Timestamp (time.Time)
+// - ChainName (string)
+// - FromAddress (int32)
+// - ToAddress (int32)
+// - Amount (Amount[])
+// - Signers (int32[])
 //
 // PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgSend struct {
-	TxHash      []byte `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
-	ChainName   string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
-	FromAddress string `db:"from_address" dbtype:"TEXT" nullable:"false" primary:"false"`
-	// need to test this out later leave it as a possible null value
-	ToAddress string    `db:"to_address" dbtype:"TEXT" nullable:"true" primary:"false"`
-	Amount    string    `db:"amount" dbtype:"TEXT" nullable:"false" primary:"false"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	// gno address, pull from the gno_addresses table
+	FromAddress int32 `db:"from_address" dbtype:"INTEGER" nullable:"false" primary:"false"`
+	// gno address, pull from the gno_addresses table
+	ToAddress int32    `db:"to_address" dbtype:"INTEGER" nullable:"true" primary:"false"`
+	Amount    []Amount `db:"amount" dbtype:"amount[]" nullable:"false" primary:"false"`
+	Signers   []int32  `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
 }
 
 // TableName returns the name of the table for the MsgSend struct
@@ -227,24 +234,30 @@ func (ms MsgSend) TableColumns() []string {
 // MsgCall represents a VM function call message
 //
 // Stores:
-// - TxHash (bytea)
-// - ChainName (string)
-// - Caller (string)
-// - PkgPath (string)
-// - FuncName (string)
-// - Args (string[])
-// - Timestamp (time.Time)
+//   - TxHash (bytea)
+//   - Timestamp (time.Time)
+//   - ChainName (string)
+//   - Caller (int32)
+//   - PkgPath (string)
+//   - FuncName (string)
+//   - Args (string)
+//   - Send (Amount[])
+//   - MaxDeposit (Amount[])
+//   - Signers (int32[])
 //
 // PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgCall struct {
-	TxHash    []byte `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
-	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
-	Caller    string `db:"caller" dbtype:"TEXT" nullable:"false" primary:"false"`
-	PkgPath   string `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
-	FuncName  string `db:"func_name" dbtype:"TEXT" nullable:"false" primary:"false"`
-	// could be a null value but maybe return an empty array, leave false for now
-	Args      []string  `db:"args" dbtype:"TEXT[]" nullable:"false" primary:"false"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	// gno address, pull from the gno_addresses table
+	Caller     int32    `db:"caller" dbtype:"INTEGER" nullable:"false" primary:"false"`
+	PkgPath    string   `db:"pkg_path" dbtype:"TEXT" nullable:"true" primary:"false"`
+	FuncName   string   `db:"func_name" dbtype:"TEXT" nullable:"true" primary:"false"`
+	Args       string   `db:"args" dbtype:"TEXT" nullable:"true" primary:"false"`
+	Send       []Amount `db:"send" dbtype:"amount[]" nullable:"true" primary:"false"`
+	MaxDeposit []Amount `db:"max_deposit" dbtype:"amount[]" nullable:"true" primary:"false"`
+	Signers    []int32  `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
 }
 
 func (mc MsgCall) TableName() string {
@@ -276,16 +289,26 @@ func (mc MsgCall) TableColumns() []string {
 // - Creator (string)
 // - PkgPath (string)
 // - PkgName (string)
+// - PkgFileNames (string[])
+// - Send (Amount[])
+// - MaxDeposit (Amount[])
+// - Signers (int32[])
 // - Timestamp (time.Time)
 //
 // PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgAddPackage struct {
 	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
-	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
-	Creator   string    `db:"creator" dbtype:"TEXT" nullable:"false" primary:"false"`
-	PkgPath   string    `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
-	PkgName   string    `db:"pkg_name" dbtype:"TEXT" nullable:"false" primary:"false"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	// gno address, pull from the gno_addresses table
+	Creator      int32    `db:"creator" dbtype:"INTEGER" nullable:"false" primary:"false"`
+	PkgPath      string   `db:"pkg_path" dbtype:"TEXT" nullable:"true" primary:"false"`
+	PkgName      string   `db:"pkg_name" dbtype:"TEXT" nullable:"true" primary:"false"`
+	PkgFileNames []string `db:"pkg_file_names" dbtype:"TEXT[]" nullable:"true" primary:"false"`
+	Send         []Amount `db:"send" dbtype:"amount[]" nullable:"true" primary:"false"`
+	MaxDeposit   []Amount `db:"max_deposit" dbtype:"amount[]" nullable:"true" primary:"false"`
+	// signers are the addresses that signed the transaction
+	Signers []int32 `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
 }
 
 func (ma MsgAddPackage) TableName() string {
@@ -313,20 +336,30 @@ func (ma MsgAddPackage) TableColumns() []string {
 //
 // Stores:
 // - TxHash (bytea)
+// - Timestamp (time.Time)
 // - ChainName (string)
-// - Caller (string)
+// - Caller (int32)
 // - PkgPath (string)
 // - PkgName (string)
-// - Timestamp (time.Time)
+// - PkgFileNames (string[])
+// - Send (Amount[])
+// - MaxDeposit (Amount[])
+// - Signers (int32[])
 //
 // PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgRun struct {
 	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
-	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
-	Caller    string    `db:"caller" dbtype:"TEXT" nullable:"false" primary:"false"`
-	PkgPath   string    `db:"pkg_path" dbtype:"TEXT" nullable:"false" primary:"false"`
-	PkgName   string    `db:"pkg_name" dbtype:"TEXT" nullable:"false" primary:"false"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	// gno address, pull from the gno_addresses table
+	Caller       int32    `db:"caller" dbtype:"INTEGER" nullable:"false" primary:"false"`
+	PkgPath      string   `db:"pkg_path" dbtype:"TEXT" nullable:"true" primary:"false"`
+	PkgName      string   `db:"pkg_name" dbtype:"TEXT" nullable:"true" primary:"false"`
+	PkgFileNames []string `db:"pkg_file_names" dbtype:"TEXT[]" nullable:"true" primary:"false"`
+	Send         []Amount `db:"send" dbtype:"amount[]" nullable:"true" primary:"false"`
+	MaxDeposit   []Amount `db:"max_deposit" dbtype:"amount[]" nullable:"true" primary:"false"`
+	// signers are the addresses that signed the transaction
+	Signers []int32 `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
 }
 
 // A method to get the columns of the struct

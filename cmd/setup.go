@@ -116,7 +116,7 @@ var rootCmd = &cobra.Command{
 			// First create special types (custom postgres types that tables depend on)
 			// and type enums
 			specialTypes := []sql_data_types.DBSpecialType{
-				sql_data_types.Fee{},
+				sql_data_types.Amount{},
 				sql_data_types.Attribute{}, // this needs to be inserted prior to event type
 				sql_data_types.Event{},
 			}

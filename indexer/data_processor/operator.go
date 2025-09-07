@@ -244,8 +244,10 @@ func (d *DataProcessor) ProcessTransactions(
 	log.Printf("Transactions processed from %d to %d", fromHeight, toHeight)
 }
 
-// ProcessMessages processes all messages from transactions and stores them in their respective tables
-// This method aggregates messages by type and performs batch insertions for efficiency
+// ProcessMessages processes all messages from transactions using optimized address caching
+// This method uses a two-phase approach:
+// 1. Collect and resolve all addresses to IDs using the address cache
+// 2. Convert messages to database-ready format with address IDs and insert
 //
 // Args:
 //   - transactions: a map of transactions and timestamps
@@ -259,80 +261,122 @@ func (d *DataProcessor) ProcessMessages(
 	fromHeight uint64,
 	toHeight uint64) error {
 
-	// Aggregate all messages by type across all transactions
-	aggregatedGroups := &decoder.MessageGroups{
+	// Phase 1: Collect all addresses and resolve them to IDs
+	allAddresses := make([]string, 0)
+	transactionData := make([]*decoder.DecodedMsg, 0, len(transactions))
+
+	// Collect all addresses from all transactions
+	for transaction := range transactions {
+		decodedMsg := decoder.NewDecodedMsg(transaction.Result.Tx)
+		if decodedMsg == nil {
+			continue // Skip transactions that can't be decoded
+		}
+
+		// Collect addresses from this transaction
+		addresses := decodedMsg.CollectAllAddresses()
+		allAddresses = append(allAddresses, addresses...)
+		transactionData = append(transactionData, decodedMsg)
+	}
+
+	// Remove duplicates and resolve addresses to IDs
+	if len(allAddresses) > 0 {
+		// Use your existing AddressSolver method - it handles deduplication internally
+		d.addressCache.AddressSolver(allAddresses, d.chainName, false, 3, nil)
+		log.Printf("Resolved %d addresses for messages from %d to %d", len(allAddresses), fromHeight, toHeight)
+	}
+
+	// Phase 2: Process messages with resolved address IDs
+	aggregatedDbGroups := &decoder.DbMessageGroups{
 		MsgSend:   make([]sqlDataTypes.MsgSend, 0),
 		MsgCall:   make([]sqlDataTypes.MsgCall, 0),
 		MsgAddPkg: make([]sqlDataTypes.MsgAddPackage, 0),
 		MsgRun:    make([]sqlDataTypes.MsgRun, 0),
 	}
 
-	// Process each transaction to extract and convert messages
+	// Process each transaction and convert to database-ready messages
+	txIndex := 0
 	for transaction, timestamp := range transactions {
-		decodedMsg := decoder.NewDecodedMsg(transaction.Result.Tx)
-		if decodedMsg == nil {
-			// Skip transactions that can't be decoded
+		if txIndex >= len(transactionData) {
 			continue
 		}
 
-		// Convert messages to structured types
+		decodedMsg := transactionData[txIndex]
+		if decodedMsg == nil {
+			txIndex++
+			continue
+		}
+
+		// Convert to intermediate message groups
 		messageGroups, err := decodedMsg.ConvertToStructuredMessages(d.chainName, timestamp)
 		if err != nil {
 			log.Printf("Failed to convert messages for tx %s: %v", transaction.Result.Hash, err)
+			txIndex++
 			continue
 		}
 
-		// Aggregate messages by type
-		aggregatedGroups.MsgSend = append(aggregatedGroups.MsgSend, messageGroups.MsgSend...)
-		aggregatedGroups.MsgCall = append(aggregatedGroups.MsgCall, messageGroups.MsgCall...)
-		aggregatedGroups.MsgAddPkg = append(aggregatedGroups.MsgAddPkg, messageGroups.MsgAddPkg...)
-		aggregatedGroups.MsgRun = append(aggregatedGroups.MsgRun, messageGroups.MsgRun...)
+		// Convert intermediate messages to database-ready messages with address IDs
+		txHash, err := base64.StdEncoding.DecodeString(transaction.Result.Hash)
+		if err != nil {
+			log.Printf("Failed to decode tx hash %s: %v", transaction.Result.Hash, err)
+			txIndex++
+			continue
+		}
+
+		dbMessageGroups := messageGroups.ConvertToDbMessages(d.addressCache, txHash, d.chainName, timestamp)
+
+		// Aggregate database-ready messages
+		aggregatedDbGroups.MsgSend = append(aggregatedDbGroups.MsgSend, dbMessageGroups.MsgSend...)
+		aggregatedDbGroups.MsgCall = append(aggregatedDbGroups.MsgCall, dbMessageGroups.MsgCall...)
+		aggregatedDbGroups.MsgAddPkg = append(aggregatedDbGroups.MsgAddPkg, dbMessageGroups.MsgAddPkg...)
+		aggregatedDbGroups.MsgRun = append(aggregatedDbGroups.MsgRun, dbMessageGroups.MsgRun...)
+
+		txIndex++
 	}
 
-	// Batch insert messages by type
-	if err := d.insertMessageGroups(aggregatedGroups); err != nil {
-		return fmt.Errorf("failed to insert messages: %w", err)
+	// Batch insert optimized messages
+	if err := d.insertDbMessageGroups(aggregatedDbGroups); err != nil {
+		return fmt.Errorf("failed to insert optimized messages: %w", err)
 	}
 
 	log.Printf("Messages processed from %d to %d: MsgSend=%d, MsgCall=%d, MsgAddPkg=%d, MsgRun=%d",
 		fromHeight, toHeight,
-		len(aggregatedGroups.MsgSend),
-		len(aggregatedGroups.MsgCall),
-		len(aggregatedGroups.MsgAddPkg),
-		len(aggregatedGroups.MsgRun))
+		len(aggregatedDbGroups.MsgSend),
+		len(aggregatedDbGroups.MsgCall),
+		len(aggregatedDbGroups.MsgAddPkg),
+		len(aggregatedDbGroups.MsgRun))
 
 	return nil
 }
 
-// insertMessageGroups performs batch insertions for each message type
-func (d *DataProcessor) insertMessageGroups(groups *decoder.MessageGroups) error {
+// insertDbMessageGroups performs optimized batch insertions using address IDs
+func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) error {
 	var insertErrors []error
 
-	// Insert MsgSend messages
+	// Insert DbMsgSend messages with address IDs
 	if len(groups.MsgSend) > 0 {
 		if err := d.dbPool.InsertMsgSend(groups.MsgSend); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert MsgSend: %w", err))
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgSend: %w", err))
 		}
 	}
 
-	// Insert MsgCall messages
+	// Insert DbMsgCall messages with address IDs
 	if len(groups.MsgCall) > 0 {
 		if err := d.dbPool.InsertMsgCall(groups.MsgCall); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert MsgCall: %w", err))
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgCall: %w", err))
 		}
 	}
 
-	// Insert MsgAddPackage messages
+	// Insert DbMsgAddPackage messages with address IDs
 	if len(groups.MsgAddPkg) > 0 {
 		if err := d.dbPool.InsertMsgAddPackage(groups.MsgAddPkg); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert MsgAddPackage: %w", err))
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgAddPackage: %w", err))
 		}
 	}
 
-	// Insert MsgRun messages
+	// Insert DbMsgRun messages with address IDs
 	if len(groups.MsgRun) > 0 {
 		if err := d.dbPool.InsertMsgRun(groups.MsgRun); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert MsgRun: %w", err))
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgRun: %w", err))
 		}
 	}
 

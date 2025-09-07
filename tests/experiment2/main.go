@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"strings"
@@ -27,7 +28,12 @@ func DecodeStdTxFromBase64(s string) (*std.Tx, error) {
 func GetDataFromStdTx(tx *std.Tx) (string, error) {
 	fees := fmt.Sprint(tx.Fee.GasFee.Amount) + " " + string(tx.Fee.GasFee.Denom)
 	signatures := tx.GetSignatures()
-	fmt.Printf("signatures: %v\n", signatures)
+	for _, signature := range signatures {
+		pubKey := signature.PubKey.String()
+		signatureHex := hex.EncodeToString(signature.Signature)
+
+		fmt.Printf("signature: %v %v \n", pubKey, signatureHex)
+	}
 	signers := tx.GetSigners()
 
 	for _, msg := range tx.GetMsgs() {
@@ -36,27 +42,28 @@ func GetDataFromStdTx(tx *std.Tx) (string, error) {
 			fromAddress := m.FromAddress.String()
 			toAddress := m.ToAddress.String()
 			amount := m.Amount.String()
-			return fmt.Sprintf("bank.MsgSend: %s -> %s, %s, %s, %s, %s", fromAddress, toAddress, amount, fees, signatures, signers), nil
+			return fmt.Sprintf("bank.MsgSend: %s -> %s, amount: %s, fees: %s, signatures: %s, signers: %s \n", fromAddress, toAddress, amount, fees, signatures[0], signers), nil
 		case vm.MsgCall:
 			caller := m.Caller.String()
 			pkgPath := m.PkgPath
 			funcName := m.Func
 			args := strings.Join(m.Args, ",")
-			return fmt.Sprintf("vm.MsgCall: %s, %s, %s, %s, %s, %s, %s", caller, pkgPath, funcName, args, fees, signatures, signers), nil
+			return fmt.Sprintf("vm.MsgCall, caller: %s, pkgPath: %s, funcName: %s, args: %s, fees: %s, signatures: %s, signers: %s \n", caller, pkgPath, funcName, args, fees, signatures[0], signers), nil
 		case vm.MsgAddPackage:
 			creator := m.Creator.String()
 			pkgPath := m.Package.Path
 			pkgName := m.Package.Name
 			pkgFiles := m.Package.FileNames()
 			pkgType := m.Package.Type
-			return fmt.Sprintf("vm.MsgAddPackage: %s, %s, %s, %s, %s, %s, %s, %s", creator, pkgPath, pkgName, pkgFiles, pkgType, fees, signatures, signers), nil
+			return fmt.Sprintf(
+				"vm.MsgAddPackage, creator: %s, pkgPath: %s, pkgName: %s, pkgFiles: %s, pkgType: %s, fees: %s, signatures: %s, signers: %s \n", creator, pkgPath, pkgName, pkgFiles, pkgType, fees, signatures[0], signers), nil
 		case vm.MsgRun:
 			caller := m.Caller.String()
 			pkgPath := m.Package.Path
 			pkgName := m.Package.Name
 			pkgFiles := m.Package.FileNames()
 			pkgType := m.Package.Type
-			return fmt.Sprintf("vm.MsgRun: %s, %s, %s, %s, %s, %s, %s, %s", caller, pkgPath, pkgName, pkgFiles, pkgType, fees, signatures, signers), nil
+			return fmt.Sprintf("vm.MsgRun, caller: %s, pkgPath: %s, pkgName: %s, pkgFiles: %s, pkgType: %s, fees: %s, signatures: %s, signers: %s \n", caller, pkgPath, pkgName, pkgFiles, pkgType, fees, signatures[0], signers), nil
 		default:
 			return "", fmt.Errorf("unknown or unsupported message type: %T", m)
 		}
@@ -71,4 +78,11 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Println(GetDataFromStdTx(tx))
+
+	data2 := "Cn4KCi92bS5tX2NhbGwScAooZzFxMmhza3NuaDVxNTV4a20zZDh0dWwyOGdnOXV1d2wyZW04dmVyNiIXZ25vLmxhbmQvci9kZW1vL3Byb2ZpbGUqDlNldFN0cmluZ0ZpZWxkMgtEaXNwbGF5TmFtZTIObm9kZXJ1bm5lcmluZG8SEwiAh6cOEgwxMDAwMDAwdWdub3Qafgo6ChMvdG0uUHViS2V5U2VjcDI1NmsxEiMKIQNHbE/VfTVWkgdRu7mmAbi2MQuJrkFiIM9xHCA0e9/V+RJAVSpcFFNgOO8K/XrXfdUOW9SpDTwhsnYsWpWEWcOo0wVJRFtDVzTb2qkkm3vao2uteVkXIKrLh2vle2yGY5v8bA=="
+	tx2, err := DecodeStdTxFromBase64(data2)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(GetDataFromStdTx(tx2))
 }
