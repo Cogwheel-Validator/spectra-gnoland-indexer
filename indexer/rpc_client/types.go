@@ -108,7 +108,7 @@ type BlockResponse struct {
 						Hash  string `json:"hash"`
 					} `json:"parts"`
 				} `json:"block_id"`
-				Precommits []struct {
+				Precommits []*struct { // some of the slices can be nil
 					Type    int    `json:"type"`
 					Height  string `json:"height"`
 					Round   string `json:"round"`
@@ -123,7 +123,7 @@ type BlockResponse struct {
 					ValidatorAddress string    `json:"validator_address"`
 					ValidatorIndex   string    `json:"validator_index"`
 					Signature        string    `json:"signature"`
-				} `json:"precommits"`
+				} `json:"precommits"` // some of the slices can be nil
 			} `json:"last_commit"`
 		} `json:"block"`
 	} `json:"result"`

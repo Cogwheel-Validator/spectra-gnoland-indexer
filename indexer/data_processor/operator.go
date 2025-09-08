@@ -244,10 +244,10 @@ func (d *DataProcessor) ProcessTransactions(
 	log.Printf("Transactions processed from %d to %d", fromHeight, toHeight)
 }
 
-// ProcessMessages processes all messages from transactions using optimized address caching
-// This method uses a two-phase approach:
-// 1. Collect and resolve all addresses to IDs using the address cache
-// 2. Convert messages to database-ready format with address IDs and insert
+// ProcessMessages processes all messages from transactions using concurrent "swarm method"
+// This method uses a two-phase concurrent approach:
+// 1. Collect and resolve all addresses to IDs using concurrent workers and sync.Map
+// 2. Convert messages to database-ready format with address IDs using concurrent processing
 //
 // Args:
 //   - transactions: a map of transactions and timestamps
@@ -261,31 +261,114 @@ func (d *DataProcessor) ProcessMessages(
 	fromHeight uint64,
 	toHeight uint64) error {
 
-	// Phase 1: Collect all addresses and resolve them to IDs
-	allAddresses := make([]string, 0)
-	transactionData := make([]*decoder.DecodedMsg, 0, len(transactions))
+	// Phase 1: Concurrent address collection using sync.Map
+	var addressesMap sync.Map
+	addressCollectionChan := make(chan []*decoder.DecodedMsg, len(transactions))
+	wg1 := sync.WaitGroup{}
+	wg1.Add(len(transactions))
 
-	// Collect all addresses from all transactions
+	// Launch goroutines to collect addresses concurrently
 	for transaction := range transactions {
-		decodedMsg := decoder.NewDecodedMsg(transaction.Result.Tx)
-		if decodedMsg == nil {
-			continue // Skip transactions that can't be decoded
+		go func(transaction *rpcClient.TxResponse) {
+			defer wg1.Done()
+			decodedMsg := decoder.NewDecodedMsg(transaction.Result.Tx)
+			if decodedMsg == nil {
+				addressCollectionChan <- []*decoder.DecodedMsg{nil}
+				return
+			}
+
+			// Collect addresses from this transaction and store in sync.Map
+			addresses := decodedMsg.CollectAllAddresses()
+			for _, address := range addresses {
+				addressesMap.Store(address, true) // Thread-safe deduplication
+			}
+
+			addressCollectionChan <- []*decoder.DecodedMsg{decodedMsg}
+		}(transaction)
+	}
+
+	// Close channel when all address collection goroutines finish
+	go func() {
+		wg1.Wait()
+		close(addressCollectionChan)
+	}()
+
+	// Collect decoded messages
+	allDecodedMsgs := make([]*decoder.DecodedMsg, 0, len(transactions))
+	for decodedMsgs := range addressCollectionChan {
+		if decodedMsgs[0] != nil {
+			allDecodedMsgs = append(allDecodedMsgs, decodedMsgs[0])
+		}
+	}
+
+	// Extract addresses from sync.Map and resolve to IDs
+	allAddresses := make([]string, 0)
+	addressesMap.Range(func(key, value interface{}) bool {
+		allAddresses = append(allAddresses, key.(string))
+		return true
+	})
+
+	if len(allAddresses) > 0 {
+		d.addressCache.AddressSolver(allAddresses, d.chainName, false, 3, nil)
+		log.Printf("Resolved %d unique addresses for messages from %d to %d", len(allAddresses), fromHeight, toHeight)
+	}
+
+	// Phase 2: Concurrent message processing using channels
+	type processedResult struct {
+		dbGroups *decoder.DbMessageGroups
+		err      error
+	}
+
+	resultChan := make(chan processedResult, len(transactions))
+	wg2 := sync.WaitGroup{}
+	wg2.Add(len(transactions))
+
+	// Launch goroutines to process messages concurrently
+	txIndex := 0
+	for transaction, timestamp := range transactions {
+		if txIndex >= len(allDecodedMsgs) {
+			wg2.Done()
+			continue
 		}
 
-		// Collect addresses from this transaction
-		addresses := decodedMsg.CollectAllAddresses()
-		allAddresses = append(allAddresses, addresses...)
-		transactionData = append(transactionData, decodedMsg)
+		go func(transaction *rpcClient.TxResponse, timestamp time.Time, decodedMsg *decoder.DecodedMsg) {
+			defer wg2.Done()
+
+			if decodedMsg == nil {
+				resultChan <- processedResult{nil, nil}
+				return
+			}
+
+			// Convert to intermediate message groups
+			messageGroups, err := decodedMsg.ConvertToStructuredMessages(d.chainName, timestamp)
+			if err != nil {
+				log.Printf("Failed to convert messages for tx %s: %v", transaction.Result.Hash, err)
+				resultChan <- processedResult{nil, err}
+				return
+			}
+
+			// Convert intermediate messages to database-ready messages with address IDs
+			txHash, err := base64.StdEncoding.DecodeString(transaction.Result.Hash)
+			if err != nil {
+				log.Printf("Failed to decode tx hash %s: %v", transaction.Result.Hash, err)
+				resultChan <- processedResult{nil, err}
+				return
+			}
+
+			dbMessageGroups := messageGroups.ConvertToDbMessages(d.addressCache, txHash, d.chainName, timestamp)
+			resultChan <- processedResult{dbMessageGroups, nil}
+
+		}(transaction, timestamp, allDecodedMsgs[txIndex])
+		txIndex++
 	}
 
-	// Remove duplicates and resolve addresses to IDs
-	if len(allAddresses) > 0 {
-		// Use your existing AddressSolver method - it handles deduplication internally
-		d.addressCache.AddressSolver(allAddresses, d.chainName, false, 3, nil)
-		log.Printf("Resolved %d addresses for messages from %d to %d", len(allAddresses), fromHeight, toHeight)
-	}
+	// Close result channel when all processing goroutines finish
+	go func() {
+		wg2.Wait()
+		close(resultChan)
+	}()
 
-	// Phase 2: Process messages with resolved address IDs
+	// Aggregate results from all goroutines
 	aggregatedDbGroups := &decoder.DbMessageGroups{
 		MsgSend:   make([]sqlDataTypes.MsgSend, 0),
 		MsgCall:   make([]sqlDataTypes.MsgCall, 0),
@@ -293,44 +376,19 @@ func (d *DataProcessor) ProcessMessages(
 		MsgRun:    make([]sqlDataTypes.MsgRun, 0),
 	}
 
-	// Process each transaction and convert to database-ready messages
-	txIndex := 0
-	for transaction, timestamp := range transactions {
-		if txIndex >= len(transactionData) {
-			continue
+	for result := range resultChan {
+		if result.err != nil {
+			continue // Skip failed transactions
+		}
+		if result.dbGroups == nil {
+			continue // Skip nil results
 		}
 
-		decodedMsg := transactionData[txIndex]
-		if decodedMsg == nil {
-			txIndex++
-			continue
-		}
-
-		// Convert to intermediate message groups
-		messageGroups, err := decodedMsg.ConvertToStructuredMessages(d.chainName, timestamp)
-		if err != nil {
-			log.Printf("Failed to convert messages for tx %s: %v", transaction.Result.Hash, err)
-			txIndex++
-			continue
-		}
-
-		// Convert intermediate messages to database-ready messages with address IDs
-		txHash, err := base64.StdEncoding.DecodeString(transaction.Result.Hash)
-		if err != nil {
-			log.Printf("Failed to decode tx hash %s: %v", transaction.Result.Hash, err)
-			txIndex++
-			continue
-		}
-
-		dbMessageGroups := messageGroups.ConvertToDbMessages(d.addressCache, txHash, d.chainName, timestamp)
-
-		// Aggregate database-ready messages
-		aggregatedDbGroups.MsgSend = append(aggregatedDbGroups.MsgSend, dbMessageGroups.MsgSend...)
-		aggregatedDbGroups.MsgCall = append(aggregatedDbGroups.MsgCall, dbMessageGroups.MsgCall...)
-		aggregatedDbGroups.MsgAddPkg = append(aggregatedDbGroups.MsgAddPkg, dbMessageGroups.MsgAddPkg...)
-		aggregatedDbGroups.MsgRun = append(aggregatedDbGroups.MsgRun, dbMessageGroups.MsgRun...)
-
-		txIndex++
+		// Thread-safe aggregation (single-threaded collection)
+		aggregatedDbGroups.MsgSend = append(aggregatedDbGroups.MsgSend, result.dbGroups.MsgSend...)
+		aggregatedDbGroups.MsgCall = append(aggregatedDbGroups.MsgCall, result.dbGroups.MsgCall...)
+		aggregatedDbGroups.MsgAddPkg = append(aggregatedDbGroups.MsgAddPkg, result.dbGroups.MsgAddPkg...)
+		aggregatedDbGroups.MsgRun = append(aggregatedDbGroups.MsgRun, result.dbGroups.MsgRun...)
 	}
 
 	// Batch insert optimized messages
@@ -338,7 +396,7 @@ func (d *DataProcessor) ProcessMessages(
 		return fmt.Errorf("failed to insert optimized messages: %w", err)
 	}
 
-	log.Printf("Messages processed from %d to %d: MsgSend=%d, MsgCall=%d, MsgAddPkg=%d, MsgRun=%d",
+	log.Printf("Messages processed concurrently from %d to %d: MsgSend=%d, MsgCall=%d, MsgAddPkg=%d, MsgRun=%d",
 		fromHeight, toHeight,
 		len(aggregatedDbGroups.MsgSend),
 		len(aggregatedDbGroups.MsgCall),
@@ -390,4 +448,56 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 	}
 
 	return nil
+}
+
+func (d *DataProcessor) ProcessValidatorSignings(
+	blocks []*rpcClient.BlockResponse,
+	fromHeight uint64,
+	toHeight uint64) {
+
+	validatorChan := make(chan *sqlDataTypes.ValidatorBlockSigning, len(blocks))
+	wg := sync.WaitGroup{}
+	wg.Add(len(blocks))
+
+	// Process blocks concurrently
+	for _, block := range blocks {
+		go func(block *rpcClient.BlockResponse) {
+			defer wg.Done()
+
+			signedVals := make([]int32, 0)
+			precommits := block.Result.Block.LastCommit.Precommits
+			for _, precommit := range precommits {
+				if precommit != nil {
+					signedVals = append(signedVals, d.validatorCache.GetAddress(precommit.ValidatorAddress))
+				}
+			}
+
+			height, err := strconv.ParseUint(block.Result.Block.Header.Height, 10, 64)
+			if err != nil {
+				log.Printf("Failed to parse block height %s: %v", block.Result.Block.Header.Height, err)
+				return
+			}
+
+			validatorChan <- &sqlDataTypes.ValidatorBlockSigning{
+				BlockHeight: height,
+				Timestamp:   block.Result.Block.Header.Time,
+				SignedVals:  signedVals,
+				ChainName:   d.chainName,
+			}
+		}(block)
+	}
+
+	// Close channel when all goroutines finish
+	go func() {
+		wg.Wait()
+		close(validatorChan)
+	}()
+
+	validatorData := make([]sqlDataTypes.ValidatorBlockSigning, 0, len(blocks))
+	for validator := range validatorChan {
+		validatorData = append(validatorData, *validator)
+	}
+
+	d.dbPool.InsertValidatorBlockSignings(validatorData)
+	log.Printf("Validator block signings processed from %d to %d", fromHeight, toHeight)
 }
