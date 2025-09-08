@@ -68,8 +68,9 @@ const (
 	Block      = "block"
 	AbciQuery  = "abci_query"
 	// might be useful for health check
-	Health = "health"
-	Tx     = "tx"
+	Health            = "health"
+	Tx                = "tx"
+	LatestBlockHeight = "block_height"
 )
 
 func (r *RpcGnoland) performRequest(method string, params map[string]any, result interface{}) error {
@@ -176,6 +177,36 @@ func (r *RpcGnoland) GetBlock(height uint64) (*BlockResponse, *RpcHeightError) {
 		}
 	}
 	return response, nil
+}
+
+// This is method similar to GetBlock but it doesn't require a height
+// Whole purpose of this method is to get the latest block height from the rpc client
+// without having to query the block itself
+func (r *RpcGnoland) GetLatestBlockHeight() (uint64, *RpcHeightError) {
+	response := &BlockResponse{}
+	if err := r.performRequest(LatestBlockHeight, nil, response); err != nil {
+		return 0, &RpcHeightError{
+			Height:    0,
+			HasHeight: true,
+			Err:       err,
+		}
+	}
+	if response.Error != nil {
+		return 0, &RpcHeightError{
+			Height:    0,
+			HasHeight: true,
+			Err:       fmt.Errorf("rpc error: %v, %s", response.Error.Code, response.Error.Message),
+		}
+	}
+	height, err := strconv.ParseUint(response.Result.Block.Header.Height, 10, 64)
+	if err != nil {
+		return 0, &RpcHeightError{
+			Height:    0,
+			HasHeight: true,
+			Err:       err,
+		}
+	}
+	return height, nil
 }
 
 // GetTx method to get a tx from the rpc client.

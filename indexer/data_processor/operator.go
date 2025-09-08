@@ -108,12 +108,14 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 			// decode base64 hash
 			hash, err := base64.StdEncoding.DecodeString(block.Result.BlockMeta.BlockID.Hash)
 			if err != nil {
-				return
+				log.Printf("Failed to decode block hash %s: %v", block.Result.BlockMeta.BlockID.Hash, err)
+				return // can cause deadlock or goroutine leak because of unproper error handling look into this later!
 			}
 
 			// convert from string to uint64
 			height, err := strconv.ParseUint(block.Result.Block.Header.Height, 10, 64)
 			if err != nil {
+				log.Printf("Failed to parse block height %s: %v", block.Result.Block.Header.Height, err)
 				return
 			}
 
@@ -125,7 +127,8 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 				for _, tx := range *block.Result.Block.Data.Txs {
 					txHash, err := base64.StdEncoding.DecodeString(tx)
 					if err != nil {
-						return
+						log.Printf("Failed to decode tx hash %s: %v", tx, err)
+						continue
 					}
 					txs = append(txs, txHash)
 				}

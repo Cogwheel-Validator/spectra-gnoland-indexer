@@ -152,3 +152,11 @@ func (q *QueryOperator) GetTransactions(txs []string) []*rpcClient.TxResponse {
 	}
 	return transactions
 }
+
+func (q *QueryOperator) GetLatestBlockHeight() (uint64, error) {
+	latestBlockHeight, err := q.rpcClient.GetLatestBlockHeight()
+	if err != nil {
+		return 0, err
+	}
+	return latestBlockHeight, nil
+}

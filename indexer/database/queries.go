@@ -128,3 +128,30 @@ func (t *TimescaleDb) CheckCurrentDatabaseName() (string, error) {
 	}
 	return currentDb, nil
 }
+
+// GetLastBlockHeight gets the last block height from the database for a given chain
+//
+// Usage:
+//
+// # Used to get the last block height from the database for a given chain
+//
+// Args:
+//   - chainName: the name of the chain
+//
+// Returns:
+//   - uint64: the last block height
+//   - error: if the query fails
+func (t *TimescaleDb) GetLastBlockHeight(chainName string) (uint64, error) {
+	query := `
+	SELECT MAX(height)
+	FROM blocks
+	WHERE chain_name = $1
+	`
+	row := t.pool.QueryRow(context.Background(), query, chainName)
+	var lastBlockHeight uint64
+	err := row.Scan(&lastBlockHeight)
+	if err != nil {
+		return 0, err
+	}
+	return lastBlockHeight, nil
+}

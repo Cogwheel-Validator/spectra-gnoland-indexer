@@ -67,6 +67,12 @@ func (r *RateLimitedRpcClient) GetBlock(height uint64) (*BlockResponse, *RpcHeig
 	return r.client.GetBlock(height)
 }
 
+// GetLatestBlockHeight method with rate limiting
+func (r *RateLimitedRpcClient) GetLatestBlockHeight() (uint64, *RpcHeightError) {
+	r.rateLimiter.Wait()
+	return r.client.GetLatestBlockHeight()
+}
+
 // GetTx method with rate limiting
 func (r *RateLimitedRpcClient) GetTx(txHash string) (*TxResponse, *RpcStringError) {
 	r.rateLimiter.Wait()
@@ -102,6 +108,15 @@ func (r *RateLimitedRpcClient) TryGetBlock(height uint64) (*BlockResponse, *RpcH
 		return nil, nil, false // rate limited
 	}
 	response, err := r.client.GetBlock(height)
+	return response, err, true
+}
+
+// TryGetLatestBlockHeight - non-blocking version that returns false if rate limited
+func (r *RateLimitedRpcClient) TryGetLatestBlockHeight() (uint64, *RpcHeightError, bool) {
+	if !r.rateLimiter.Allow() {
+		return 0, nil, false // rate limited
+	}
+	response, err := r.client.GetLatestBlockHeight()
 	return response, err, true
 }
 
