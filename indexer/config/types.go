@@ -15,8 +15,9 @@ type Environment struct {
 }
 
 type Config struct {
-	PoolMaxConns              uint64        `yaml:"pool_max_conns"`
-	PoolMinConns              uint64        `yaml:"pool_min_conns"`
+	RpcUrl                    string        `yaml:"rpc"`
+	PoolMaxConns              int           `yaml:"pool_max_conns"`
+	PoolMinConns              int           `yaml:"pool_min_conns"`
 	PoolMaxConnLifetime       time.Duration `yaml:"pool_max_conn_lifetime"`
 	PoolMaxConnIdleTime       time.Duration `yaml:"pool_max_conn_idle_time"`
 	PoolHealthCheckPeriod     time.Duration `yaml:"pool_health_check_period"`
@@ -24,4 +25,9 @@ type Config struct {
 	LivePooling               uint64        `yaml:"live_pooling"`
 	MaxBlockChunkSize         uint64        `yaml:"max_block_chunk_size"`
 	MaxTransactionChunkSize   uint64        `yaml:"max_transaction_chunk_size"`
+	ChainName                 string        `yaml:"chain_name"`
+}
+
+func (c *Config) LoadEnvironment(envPath string) (any, error) {
+	panic("unimplemented")
 }

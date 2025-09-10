@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	addressCache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
 	dataProcessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
@@ -22,26 +21,25 @@ const (
 )
 
 func NewOrchestrator(
+	runningMode string,
+	config *config.Config,
+	chainName string,
 	db *database.TimescaleDb,
 	rpcClient *rpcClient.RateLimitedRpcClient,
-	validatorCache *addressCache.AddressCache,
-	chainName string,
 	dataProcessor *dataProcessor.DataProcessor,
 	queryOperator *queryOperator.QueryOperator,
-	runningMode string,
-	config *config.Config) *Orchestrator {
+) *Orchestrator {
 	if runningMode != Live && runningMode != Historic {
 		panic("invalid running mode, please choose between live and historic")
 	}
 	return &Orchestrator{
-		db:             db,
-		rpcClient:      rpcClient,
-		validatorCache: validatorCache,
-		chainName:      chainName,
-		dataProcessor:  dataProcessor,
-		queryOperator:  queryOperator,
-		runningMode:    runningMode,
-		config:         config,
+		runningMode:   runningMode,
+		config:        config,
+		chainName:     chainName,
+		db:            db,
+		rpcClient:     rpcClient,
+		dataProcessor: dataProcessor,
+		queryOperator: queryOperator,
 	}
 }
 

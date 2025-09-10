@@ -7,31 +7,59 @@ import (
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
 )
 
-func NewAddressCache(db *database.TimescaleDb) *AddressCache {
-	return &AddressCache{
-		address:      make(map[string]int32),
-		db:           db,
-		highestIndex: 0,
+// NewAddressCache is a constructor for the AddressCache struct
+// it will load the addresses from the database into the cache
+// it will also load the validator addresses if the loadVal is true
+// it will load the regular addresses if the loadVal is false
+//
+// Args:
+//   - chainName: the name of the chain
+//   - db: the database connection
+//   - loadVal: whether to load the validator addresses
+//
+// Returns:
+//   - *AddressCache: the AddressCache struct
+//
+// If something is wrong it will throw a fatal error and close the program
+func NewAddressCache(chainName string, db *database.TimescaleDb, loadVal bool) *AddressCache {
+	if loadVal == true {
+		// if true load the validator addresses
+		addresses, err := loadAddresses(chainName, loadVal, db)
+		if err != nil {
+			log.Fatalf("failed to load addresses: %v", err)
+		}
+		return &AddressCache{
+			address:      addresses,
+			db:           db,
+			highestIndex: 0,
+		}
+	} else {
+		// if false load the regular addresses
+		addresses, err := loadAddresses(chainName, loadVal, db)
+		if err != nil {
+			log.Fatalf("failed to load addresses: %v", err)
+		}
+		return &AddressCache{
+			address:      addresses,
+			db:           db,
+			highestIndex: 0,
+		}
 	}
 }
 
 // AddAddresses is a method to add addresses to the cache
+//
+// This method is used to add addresses to the cache
+// It will add the addresses to the cache and update the highest index
+//
+// Args:
+//   - newAddresses: the new addresses to add to the cache
+//
+// Returns:
+//   - nil
 func (a *AddressCache) AddAddresses(newAddresses map[string]int32) {
 	// add the addresses to the cache
 	maps.Copy(a.address, newAddresses)
-}
-
-// LoadAddresses is a method to load addresses from the database into the cache
-//
-// This method is called when the program starts and when the cache is empty
-// Should only be called once per program start
-func (a *AddressCache) LoadAddresses(chainName string, searchValidators bool) error {
-	addresses, err := a.db.GetAllAddresses(chainName, searchValidators)
-	if err != nil {
-		return err
-	}
-	a.address = addresses
-	return nil
 }
 
 // AddressSolver is a special method that is used to solve the addresses
@@ -153,4 +181,25 @@ func (a *AddressCache) GetAddress(address string) int32 {
 	} else {
 		return a.address[address]
 	}
+}
+
+// loadAddresses is int function to load addresses from the database into the cache
+//
+// This method is called when the program starts and when the cache is empty
+// Should only be called once per program start
+//
+// Args:
+//   - chainName: the name of the chain
+//   - loadVal: whether to load the validator addresses
+//   - db: the database connection
+//
+// Returns:
+//   - map[string]int32: the map of addresses and their ids
+//   - error: if the query fails
+func loadAddresses(chainName string, loadVal bool, db *database.TimescaleDb) (map[string]int32, error) {
+	addresses, err := db.GetAllAddresses(chainName, loadVal)
+	if err != nil {
+		return nil, err
+	}
+	return addresses, nil
 }

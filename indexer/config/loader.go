@@ -1,9 +1,11 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/joho/godotenv"
@@ -17,6 +19,17 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	var config Config
 	err = yaml.Unmarshal(yamlFile, &config)
+	// all fields except rpc and chain name will throw errors if they are not set
+	// so we need a checker for the rpc url
+	if config.RpcUrl == "" {
+		return nil, errors.New("rpc url is required")
+	} else if !strings.HasPrefix(config.RpcUrl, "http://") && !strings.HasPrefix(config.RpcUrl, "https://") {
+		return nil, errors.New("rpc url must start with http:// or https://")
+	}
+	if config.ChainName == "" {
+		return nil, errors.New("chain name is required")
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -37,6 +50,7 @@ func LoadEnvironment(path string) (*Environment, error) {
 	}
 	// if there are multiple files, decide which has highest priority
 	// 1. production , 2. development, 3. local, 4. default
+	// only use the regular .env for now return to this laster
 	if len(existingFiles) == 0 {
 		fmt.Println("No environment file found. Searching for os environment variables.")
 	} else if len(existingFiles) == 1 {
