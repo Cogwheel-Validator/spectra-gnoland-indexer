@@ -3,8 +3,6 @@ package addresscache
 import (
 	"log"
 	"maps"
-
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
 )
 
 // NewAddressCache is a constructor for the AddressCache struct
@@ -14,14 +12,14 @@ import (
 //
 // Args:
 //   - chainName: the name of the chain
-//   - db: the database connection
+//   - db: the database connection interface
 //   - loadVal: whether to load the validator addresses
 //
 // Returns:
 //   - *AddressCache: the AddressCache struct
 //
 // If something is wrong it will throw a fatal error and close the program
-func NewAddressCache(chainName string, db *database.TimescaleDb, loadVal bool) *AddressCache {
+func NewAddressCache(chainName string, db DatabaseForAddresses, loadVal bool) *AddressCache {
 	if loadVal == true {
 		// if true load the validator addresses
 		addresses, err := loadAddresses(chainName, loadVal, db)
@@ -47,7 +45,7 @@ func NewAddressCache(chainName string, db *database.TimescaleDb, loadVal bool) *
 	}
 }
 
-// AddAddresses is a method to add addresses to the cache
+// addAddresses is a internal method to add addresses to the cache
 //
 // This method is used to add addresses to the cache
 // It will add the addresses to the cache and update the highest index
@@ -57,7 +55,7 @@ func NewAddressCache(chainName string, db *database.TimescaleDb, loadVal bool) *
 //
 // Returns:
 //   - nil
-func (a *AddressCache) AddAddresses(newAddresses map[string]int32) {
+func (a *AddressCache) addAddresses(newAddresses map[string]int32) {
 	// add the addresses to the cache
 	maps.Copy(a.address, newAddresses)
 }
@@ -118,7 +116,7 @@ func (a *AddressCache) AddressSolver(
 	}
 
 	// if there are existing addresses, we need to add them to the cache
-	a.AddAddresses(existingAddresses)
+	a.addAddresses(existingAddresses)
 
 	// one last check to see if there are any addresses that are not in the cache
 	addressToAdd := make([]string, 0)
@@ -161,7 +159,7 @@ func (a *AddressCache) AddressSolver(
 		log.Println("Error finding existing accounts:", err)
 		return
 	}
-	a.AddAddresses(newAddrMap)
+	a.addAddresses(newAddrMap)
 }
 
 // GetAddress is a method to get the address from the cache
@@ -191,12 +189,12 @@ func (a *AddressCache) GetAddress(address string) int32 {
 // Args:
 //   - chainName: the name of the chain
 //   - loadVal: whether to load the validator addresses
-//   - db: the database connection
+//   - db: the database connection interface
 //
 // Returns:
 //   - map[string]int32: the map of addresses and their ids
 //   - error: if the query fails
-func loadAddresses(chainName string, loadVal bool, db *database.TimescaleDb) (map[string]int32, error) {
+func loadAddresses(chainName string, loadVal bool, db DatabaseForAddresses) (map[string]int32, error) {
 	addresses, err := db.GetAllAddresses(chainName, loadVal)
 	if err != nil {
 		return nil, err

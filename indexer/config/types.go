@@ -27,7 +27,3 @@ type Config struct {
 	MaxTransactionChunkSize   uint64        `yaml:"max_transaction_chunk_size"`
 	ChainName                 string        `yaml:"chain_name"`
 }
-
-func (c *Config) LoadEnvironment(envPath string) (any, error) {
-	panic("unimplemented")
-}

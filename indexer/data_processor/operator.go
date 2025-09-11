@@ -9,17 +9,27 @@ import (
 	"sync"
 	"time"
 
-	addressCache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/decoder"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 	sqlDataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 )
 
+// Constructor function for the DataProcessor struct
+//
+// Args:
+//   - db: the database connection interface
+//   - addressCache: the address cache interface
+//   - validatorCache: the validator cache interface
+//   - chainName: the name of the chain string
+//
+// Returns:
+//   - *DataProcessor: the data processor
+//
+// The method will not throw an error if the data processor is not found, it will just return nil
 func NewDataProcessor(
-	db *database.TimescaleDb,
-	addressCache *addressCache.AddressCache,
-	validatorCache *addressCache.AddressCache,
+	db Database,
+	addressCache AddressCache,
+	validatorCache AddressCache,
 	chainName string) *DataProcessor {
 	return &DataProcessor{
 		dbPool:         db,

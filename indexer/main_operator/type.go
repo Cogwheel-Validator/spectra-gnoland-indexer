@@ -12,7 +12,7 @@ import (
 // for the indexer
 type MajorConstructors struct {
 	db             *database.TimescaleDb
-	rpcClient      *rpcClient.RateLimitedRpcClient
+	gnoRpcClient   *rpcClient.RateLimitedRpcClient
 	validatorCache *addressCache.AddressCache
 	addressCache   *addressCache.AddressCache
 	dataProcessor  *dataProcessor.DataProcessor

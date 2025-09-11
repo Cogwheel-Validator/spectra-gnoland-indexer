@@ -3,6 +3,8 @@ package rpcclient
 import (
 	"net/http"
 	"time"
+
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rate_limit"
 )
 
 type RpcGnoland struct {
@@ -165,4 +167,30 @@ type TxResponse struct {
 		} `json:"tx_result"`
 		Tx string `json:"tx"`
 	} `json:"result"`
+}
+
+type Client interface {
+	Health() error
+	GetValidators(height uint64) (*ValidatorsResponse, *RpcHeightError)
+	GetBlock(height uint64) (*BlockResponse, *RpcHeightError)
+	GetLatestBlockHeight() (uint64, *RpcHeightError)
+	GetTx(txHash string) (*TxResponse, *RpcStringError)
+	GetAbciQuery(path string, data string, height *uint64, prove *bool) (any, error)
+}
+
+type RateLimiter interface {
+	Allow() bool
+	Wait()
+	Close()
+	GetStatus() rate_limit.ChannelRateLimiterStatus
+}
+
+// RateLimitedRpcClient wraps the original RPC client with rate limiting
+//
+// The struct contains the client and the rate limiter
+// The client is the original RPC client
+// The rate limiter is the rate limiter for the client
+type RateLimitedRpcClient struct {
+	client      Client
+	rateLimiter RateLimiter
 }

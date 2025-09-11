@@ -9,9 +9,6 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
-	dataProcessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
-	queryOperator "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/query"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 )
 
@@ -24,10 +21,10 @@ func NewOrchestrator(
 	runningMode string,
 	config *config.Config,
 	chainName string,
-	db *database.TimescaleDb,
-	rpcClient *rpcClient.RateLimitedRpcClient,
-	dataProcessor *dataProcessor.DataProcessor,
-	queryOperator *queryOperator.QueryOperator,
+	db DatabaseHeight,
+	gnoRpcClient GnolandRpcClient,
+	dataProcessor DataProcessor,
+	queryOperator QueryOperator,
 ) *Orchestrator {
 	if runningMode != Live && runningMode != Historic {
 		panic("invalid running mode, please choose between live and historic")
@@ -37,7 +34,7 @@ func NewOrchestrator(
 		config:        config,
 		chainName:     chainName,
 		db:            db,
-		rpcClient:     rpcClient,
+		gnoRpcClient:  gnoRpcClient,
 		dataProcessor: dataProcessor,
 		queryOperator: queryOperator,
 	}
@@ -103,9 +100,9 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		log.Printf("Retrieved last processed height from database: %d", lastProcessedHeight)
 	} else {
 		// Get latest block height from chain
-		latestHeight, rpcErr := or.rpcClient.GetLatestBlockHeight()
+		latestHeight, rpcErr := or.gnoRpcClient.GetLatestBlockHeight()
 		if rpcErr != nil {
-			log.Printf("Failed to get latest block height from chain: %v", rpcErr.Err)
+			log.Printf("Failed to get latest block height from chain: %v", rpcErr)
 			return
 		}
 		lastProcessedHeight = latestHeight
@@ -124,9 +121,9 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		}
 
 		// Get the latest block height from the chain
-		latestHeight, rpcErr := or.rpcClient.GetLatestBlockHeight()
+		latestHeight, rpcErr := or.gnoRpcClient.GetLatestBlockHeight()
 		if rpcErr != nil {
-			log.Printf("Error fetching latest block height: %v", rpcErr.Err)
+			log.Printf("Error fetching latest block height: %v", rpcErr)
 			time.Sleep(time.Duration(or.config.LivePooling) * time.Second)
 			continue
 		}

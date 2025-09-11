@@ -1,8 +1,6 @@
 package decoder
 
 import (
-	"time"
-
 	datatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 )
 
@@ -61,48 +59,21 @@ type MsgRun struct {
 	MaxDeposit   []Coin
 }
 
-// Database-ready message types using address IDs instead of strings
-// These types are optimized for storage using int32 address references
-
-type DbMsgSend struct {
-	TxHash      []byte
-	ChainName   string
-	FromAddress int32 // Address ID from cache
-	ToAddress   int32 // Address ID from cache
-	Amount      []Coin
-	Timestamp   time.Time
+// AddressResolver interface to make the code testable and flexible
+// the iterface is related to the type struct AddressCache
+//
+// The only method needed is GetAddress which returns the address id
+type AddressResolver interface {
+	GetAddress(address string) int32
 }
 
-type DbMsgCall struct {
-	TxHash     []byte
-	ChainName  string
-	Caller     int32 // Address ID from cache
-	Send       []Coin
-	PkgPath    string
-	FuncName   string
-	Args       string
-	MaxDeposit []Coin
-	Timestamp  time.Time
-}
-
-type DbMsgAddPackage struct {
-	TxHash     []byte
-	ChainName  string
-	Creator    int32 // Address ID from cache
-	PkgPath    string
-	PkgName    string
-	Send       []Coin
-	MaxDeposit []Coin
-	Timestamp  time.Time
-}
-
-type DbMsgRun struct {
-	TxHash     []byte
-	ChainName  string
-	Caller     int32 // Address ID from cache
-	PkgPath    string
-	PkgName    string
-	Send       []Coin
-	MaxDeposit []Coin
-	Timestamp  time.Time
+// DecodedMsg struct to hold the basic data and messages of the decoded message
+//
+// The struct contains the basic data and messages of the decoded message
+// The basic data contains the tx hash, signers, memo, and fee
+// The messages contains the messages of the decoded message
+// The messages are stored in a map with the message type as the key and the message as the value
+type DecodedMsg struct {
+	BasicData BasicTxData
+	Messages  []map[string]any
 }

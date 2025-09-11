@@ -7,16 +7,16 @@ import (
 	dataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 )
 
-// AddressResolver interface to make the code testable and flexible
-type AddressResolver interface {
-	GetAddress(address string) int32
-}
-
-type DecodedMsg struct {
-	BasicData BasicTxData
-	Messages  []map[string]any
-}
-
+// NewDecodedMsg creates a new DecodedMsg struct
+//
+// Args:
+//   - encodedTx: the encoded transaction
+//
+// Returns:
+//   - *DecodedMsg: the decoded message
+//   - error: an error if the decoding fails
+//
+// The method will not throw an error if the decoded message is not found, it will just return nil
 func NewDecodedMsg(encodedTx string) *DecodedMsg {
 	decoder := NewDecoder(encodedTx)
 	basicData, messages, err := decoder.GetMessageFromStdTx()
@@ -29,14 +29,32 @@ func NewDecodedMsg(encodedTx string) *DecodedMsg {
 	}
 }
 
+// GetBasicData returns the basic data of the decoded message
+//
+// Returns:
+//   - BasicTxData: the basic data of the decoded message
+//
+// The method will not throw an error if the basic data is not found, it will just return nil
 func (dm *DecodedMsg) GetBasicData() BasicTxData {
 	return dm.BasicData
 }
 
+// GetMessages returns the messages of the decoded message
+//
+// Returns:
+//   - []map[string]any: the messages of the decoded message
+//
+// The method will not throw an error if the messages are not found, it will just return nil
 func (dm *DecodedMsg) GetMessages() []map[string]any {
 	return dm.Messages
 }
 
+// GetMsgTypes returns the message types of the decoded message
+//
+// Returns:
+//   - []string: the message types of the decoded message
+//
+// The method will not throw an error if the message types are not found, it will just return nil
 func (dm *DecodedMsg) GetMsgTypes() []string {
 	msgTypes := make([]string, len(dm.Messages))
 	for _, message := range dm.Messages {
@@ -45,14 +63,32 @@ func (dm *DecodedMsg) GetMsgTypes() []string {
 	return msgTypes
 }
 
+// GetSigners returns the signers of the decoded message
+//
+// Returns:
+//   - []string: the signers of the decoded message
+//
+// The method will not throw an error if the signers are not found, it will just return nil
 func (dm *DecodedMsg) GetSigners() []string {
 	return dm.BasicData.Signers
 }
 
+// GetMemo returns the memo of the decoded message
+//
+// Returns:
+//   - string: the memo of the decoded message
+//
+// The method will not throw an error if the memo is not found, it will just return nil
 func (dm *DecodedMsg) GetMemo() string {
 	return dm.BasicData.Memo
 }
 
+// GetFee returns the fee of the decoded message
+//
+// Returns:
+//   - dataTypes.Amount: the fee of the decoded message
+//
+// The method will not throw an error if the fee is not found, it will just return nil
 func (dm *DecodedMsg) GetFee() dataTypes.Amount {
 	return dm.BasicData.Fee
 }

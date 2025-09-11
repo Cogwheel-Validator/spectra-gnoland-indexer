@@ -6,12 +6,6 @@ import (
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rate_limit"
 )
 
-// RateLimitedRpcClient wraps the original RPC client with rate limiting
-type RateLimitedRpcClient struct {
-	client      *RpcGnoland
-	rateLimiter *rate_limit.ChannelRateLimiter
-}
-
 // NewRateLimitedRpcClient creates a new rate-limited RPC client wrapper
 //
 // Args:

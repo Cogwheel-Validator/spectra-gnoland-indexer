@@ -1,6 +1,15 @@
 package database
 
-import "time"
+import (
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// TimescaleDb is the database connection pool
+type TimescaleDb struct {
+	pool *pgxpool.Pool
+}
 
 // DatabasePoolConfig is the configuration for the database pool.
 type DatabasePoolConfig struct {

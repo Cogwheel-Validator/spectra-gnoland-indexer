@@ -4,11 +4,11 @@ import (
 	"log"
 	"sync"
 
-	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
+	rc "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 )
 
 // NewQueryOperator creates a new query operator
-func NewQueryOperator(rpcClient *rpcClient.RateLimitedRpcClient) *QueryOperator {
+func NewQueryOperator(rpcClient RpcClient) *QueryOperator {
 	return &QueryOperator{
 		rpcClient: rpcClient,
 		// TODO: add some kind of retry mechanism so other methods can use it
@@ -49,14 +49,14 @@ func NewQueryOperator(rpcClient *rpcClient.RateLimitedRpcClient) *QueryOperator 
 //	for _, block := range blocks {
 //		fmt.Println(block.Height)
 //	}
-func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*rpcClient.BlockResponse {
+func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*rc.BlockResponse {
 	diff := toHeight - fromHeight + 1 // example from 1 to 50 means 50 blocks so +1 is needed because 100-51+1=50
 	if diff < 1 {
 		return nil
 	}
 
 	// Use buffered channel for speed
-	blockChan := make(chan *rpcClient.BlockResponse, diff)
+	blockChan := make(chan *rc.BlockResponse, diff)
 	wg := sync.WaitGroup{}
 	wg.Add(int(diff))
 
@@ -82,7 +82,7 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 	}()
 
 	// Collect results from the channel
-	blocks := make([]*rpcClient.BlockResponse, 0, diff)
+	blocks := make([]*rc.BlockResponse, 0, diff)
 	for block := range blockChan {
 		blocks = append(blocks, block)
 	}
@@ -112,7 +112,7 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 //	for _, transaction := range transactions {
 //		fmt.Println(transaction.Hash)
 //	}
-func (q *QueryOperator) GetTransactions(txs []string) []*rpcClient.TxResponse {
+func (q *QueryOperator) GetTransactions(txs []string) []*rc.TxResponse {
 	nTxs := len(txs)
 
 	if nTxs < 1 {
@@ -120,7 +120,7 @@ func (q *QueryOperator) GetTransactions(txs []string) []*rpcClient.TxResponse {
 	}
 
 	// Set up the channel and the wait group
-	txChan := make(chan *rpcClient.TxResponse, nTxs)
+	txChan := make(chan *rc.TxResponse, nTxs)
 	wg := sync.WaitGroup{}
 	wg.Add(nTxs)
 
@@ -146,7 +146,7 @@ func (q *QueryOperator) GetTransactions(txs []string) []*rpcClient.TxResponse {
 	}()
 
 	// Collect results from the channel
-	transactions := make([]*rpcClient.TxResponse, 0, nTxs)
+	transactions := make([]*rc.TxResponse, 0, nTxs)
 	for tx := range txChan {
 		transactions = append(transactions, tx)
 	}

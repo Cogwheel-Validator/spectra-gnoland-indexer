@@ -41,7 +41,7 @@ func InitMainOperator(
 
 	// initialize the orchestrator
 	orch := orchestrator.NewOrchestrator(
-		runningFlags.RunningMode, conf, *chainName, mc.db, mc.rpcClient, mc.dataProcessor, mc.queryOperator,
+		runningFlags.RunningMode, conf, *chainName, mc.db, mc.gnoRpcClient, mc.dataProcessor, mc.queryOperator,
 	)
 
 	// let the orchestrator do it's thing
@@ -149,7 +149,7 @@ func initializeMajorConstructors(
 	db := initializeDatabase(conf, env)
 
 	// initialize the rpc client
-	rpcClient, err := rpcClient.NewRateLimitedRpcClient(
+	gnoRpcClient, err := rpcClient.NewRateLimitedRpcClient(
 		conf.RpcUrl, nil, rpcFlags.RequestsPerWindow, rpcFlags.TimeWindow,
 	)
 	if err != nil {
@@ -166,11 +166,11 @@ func initializeMajorConstructors(
 	dataProcessor := dp.NewDataProcessor(db, addressCache, validatorCache, chainName)
 
 	// initialize the query operator
-	queryOperator := query.NewQueryOperator(rpcClient)
+	queryOperator := query.NewQueryOperator(gnoRpcClient)
 
 	return &MajorConstructors{
 		db:             db,
-		rpcClient:      rpcClient,
+		gnoRpcClient:   gnoRpcClient,
 		validatorCache: validatorCache,
 		addressCache:   addressCache,
 		dataProcessor:  dataProcessor,
