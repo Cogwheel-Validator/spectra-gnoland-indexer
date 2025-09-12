@@ -43,12 +43,25 @@ type GnolandRpcClient interface {
 // - the query operator interface
 // - the running mode
 // - the config
+// - processing state tracking
 type Orchestrator struct {
-	db            DatabaseHeight
-	gnoRpcClient  GnolandRpcClient
-	chainName     string
-	dataProcessor DataProcessor
-	queryOperator QueryOperator
-	runningMode   string
-	config        *config.Config
+	db                      DatabaseHeight
+	gnoRpcClient            GnolandRpcClient
+	chainName               string
+	dataProcessor           DataProcessor
+	queryOperator           QueryOperator
+	runningMode             string
+	config                  *config.Config
+	isProcessing            bool
+	currentProcessingHeight uint64
+}
+
+// ProcessingState represents the current state of processing for state dumps
+type ProcessingState struct {
+	ChainName               string    `json:"chain_name"`
+	RunningMode             string    `json:"running_mode"`
+	IsProcessing            bool      `json:"is_processing"`
+	CurrentProcessingHeight uint64    `json:"current_processing_height"`
+	Timestamp               time.Time `json:"timestamp"`
+	Reason                  string    `json:"reason"`
 }

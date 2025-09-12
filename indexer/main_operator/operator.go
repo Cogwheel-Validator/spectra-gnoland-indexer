@@ -1,12 +1,16 @@
 package mainoperator
 
 import (
-	"context"
+	"encoding/json"
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	addressCache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
+	contextHook "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/context_hook"
 	dp "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
 	mainTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/main_types"
@@ -44,15 +48,60 @@ func InitMainOperator(
 		runningFlags.RunningMode, conf, *chainName, mc.db, mc.gnoRpcClient, mc.dataProcessor, mc.queryOperator,
 	)
 
+	// Setup signal handling with proper cleanup and state dump functions
+	signalHandler := contextHook.NewSignalHandler(
+		func() error {
+			log.Printf("Starting main operator cleanup...")
+			// Cleanup orchestrator first
+			if err := orch.Cleanup(); err != nil {
+				log.Printf("Orchestrator cleanup failed: %v", err)
+			}
+
+			// Cleanup major constructors
+			if err := mc.cleanup(); err != nil {
+				log.Printf("Major constructors cleanup failed: %v", err)
+			}
+
+			log.Printf("Main operator cleanup completed")
+			return nil
+		},
+		func() error {
+			log.Printf("Creating emergency state dump...")
+			// Dump orchestrator state
+			if err := orch.DumpState(); err != nil {
+				log.Printf("Orchestrator state dump failed: %v", err)
+			}
+
+			// Dump major constructors state if needed
+			if err := mc.dumpState(); err != nil {
+				log.Printf("Major constructors state dump failed: %v", err)
+			}
+
+			log.Printf("Emergency state dump completed")
+			return nil
+		},
+	)
+
+	// Start signal listening
+	signalHandler.StartListening()
+	log.Printf("Signal handler started, listening for termination signals")
+
 	// let the orchestrator do it's thing
 	if runningFlags.RunningMode == "live" {
-		orch.LiveProcess(context.Background(), runningFlags.SkipInitialDbCheck)
+		// Use the signal handler's context for proper shutdown handling
+		orch.LiveProcess(signalHandler.Context(), runningFlags.SkipInitialDbCheck)
 	} else if runningFlags.RunningMode == "historic" {
 		if runningFlags.FromHeight == 0 || runningFlags.ToHeight == 0 {
 			log.Fatalf("from height and to height are required for historic mode")
 		} else if runningFlags.FromHeight > runningFlags.ToHeight {
 			log.Fatalf("from height must be less than to height")
 		}
+		// Historic processing doesn't need context cancellation in the same way,
+		// but we should still respect shutdown signals
+		go func() {
+			<-signalHandler.Context().Done()
+			log.Printf("Shutdown signal received during historic processing")
+		}()
 		orch.HistoricProcess(runningFlags.FromHeight, runningFlags.ToHeight)
 	} else {
 		log.Fatalf("invalid running mode, please choose between live and historic")
@@ -122,6 +171,17 @@ func initializeDatabase(conf *config.Config, env *config.Environment) *database.
 	return db
 }
 
+// initializeMajorConstructors is a private function to initialize the major constructors
+// it is used to initialize the major constructors for the main operator
+//
+// Args:
+//   - conf: the config
+//   - env: the environment
+//   - chainName: the chain name
+//   - rpcFlags: the rpc flags
+//
+// Returns:
+//   - the major constructors struct
 func initializeMajorConstructors(
 	conf *config.Config,
 	env *config.Environment,
@@ -176,4 +236,80 @@ func initializeMajorConstructors(
 		dataProcessor:  dataProcessor,
 		queryOperator:  queryOperator,
 	}
+}
+
+// cleanup performs cleanup operations on all major constructors
+func (mc *MajorConstructors) cleanup() error {
+	log.Printf("Starting major constructors cleanup...")
+
+	// Close database connection pool
+	if mc.db != nil {
+		log.Printf("Closing database connection pool...")
+		mc.db.GetPool().Close()
+		log.Printf("Database connection pool closed successfully")
+	}
+
+	// Close RPC client (closes the rate limiter)
+	if mc.gnoRpcClient != nil {
+		log.Printf("Closing RPC client...")
+		mc.gnoRpcClient.Close()
+		log.Printf("RPC client closed successfully")
+	}
+
+	// Other components (caches, data processor, query operator) don't need explicit cleanup
+	// as they rely on the database and RPC client connections that we've already closed
+	log.Printf("Address caches, data processor, and query operator don't require explicit cleanup")
+
+	log.Printf("Major constructors cleanup completed successfully")
+	return nil
+}
+
+// dumpState creates a state dump of the major constructors
+func (mc *MajorConstructors) dumpState() error {
+	log.Printf("Creating major constructors state dump...")
+
+	// Create basic state information
+	state := map[string]interface{}{
+		"timestamp": time.Now(),
+		"components": map[string]interface{}{
+			"database":        mc.db != nil,
+			"gno_rpc_client":  mc.gnoRpcClient != nil,
+			"validator_cache": mc.validatorCache != nil,
+			"address_cache":   mc.addressCache != nil,
+			"data_processor":  mc.dataProcessor != nil,
+			"query_operator":  mc.queryOperator != nil,
+		},
+	}
+
+	// Add more detailed state if components support it
+	if mc.gnoRpcClient != nil {
+		// Try to get RPC client state if it has a method for it
+		if stateProvider, ok := interface{}(mc.gnoRpcClient).(interface{ GetState() map[string]interface{} }); ok {
+			state["rpc_client_state"] = stateProvider.GetState()
+		}
+	}
+
+	// Create diagnostics directory if it doesn't exist
+	diagDir := "diagnostics"
+	if err := os.MkdirAll(diagDir, 0755); err != nil {
+		return fmt.Errorf("failed to create diagnostics directory: %w", err)
+	}
+
+	// Create filename with timestamp
+	filename := fmt.Sprintf("major_constructors_dump_%s.json", time.Now().Format("20060102_150405"))
+	filepath := filepath.Join(diagDir, filename)
+
+	// Marshal to JSON
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal major constructors state: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(filepath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write major constructors state: %w", err)
+	}
+
+	log.Printf("Major constructors state dump saved to %s", filepath)
+	return nil
 }

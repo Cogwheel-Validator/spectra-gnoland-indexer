@@ -2,8 +2,11 @@ package orchestrator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -30,13 +33,15 @@ func NewOrchestrator(
 		panic("invalid running mode, please choose between live and historic")
 	}
 	return &Orchestrator{
-		runningMode:   runningMode,
-		config:        config,
-		chainName:     chainName,
-		db:            db,
-		gnoRpcClient:  gnoRpcClient,
-		dataProcessor: dataProcessor,
-		queryOperator: queryOperator,
+		runningMode:             runningMode,
+		config:                  config,
+		chainName:               chainName,
+		db:                      db,
+		gnoRpcClient:            gnoRpcClient,
+		dataProcessor:           dataProcessor,
+		queryOperator:           queryOperator,
+		isProcessing:            false,
+		currentProcessingHeight: 0,
 	}
 }
 
@@ -46,11 +51,22 @@ func (or *Orchestrator) HistoricProcess(
 	log.Printf("Starting historic process from %d to %d", fromHeight, toHeight)
 	startTime := time.Now()
 
+	// Track processing state
+	or.isProcessing = true
+	or.currentProcessingHeight = fromHeight
+	defer func() {
+		or.isProcessing = false
+		log.Printf("Historic processing completed at height %d", or.currentProcessingHeight)
+	}()
+
 	for startHeight := fromHeight; startHeight <= toHeight; startHeight += or.config.MaxBlockChunkSize {
 		chunkEndHeight := min(startHeight+or.config.MaxBlockChunkSize, toHeight)
 
 		chunkStartTime := time.Now()
 		log.Printf("Processing chunk from %d to %d", startHeight, chunkEndHeight)
+
+		// Update current processing height
+		or.currentProcessingHeight = startHeight
 
 		// Step 1: Get blocks concurrently
 		blocks := or.queryOperator.GetFromToBlocks(startHeight, chunkEndHeight)
@@ -71,6 +87,9 @@ func (or *Orchestrator) HistoricProcess(
 			continue
 		}
 
+		// Update processing height to end of chunk
+		or.currentProcessingHeight = chunkEndHeight
+
 		// Progress logging
 		chunkDuration := time.Since(chunkStartTime)
 		totalDuration := time.Since(startTime)
@@ -87,6 +106,14 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 
 	var lastProcessedHeight uint64
 	var err error
+
+	// Track our current processing state for potential cleanup
+	or.isProcessing = true
+	or.currentProcessingHeight = 0
+	defer func() {
+		or.isProcessing = false
+		log.Printf("Live processing stopped at height %d", or.currentProcessingHeight)
+	}()
 
 	// Initial setup - get starting height
 	if !skipInitialDbCheck {
@@ -109,6 +136,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		log.Printf("Starting from latest chain height: %d (skipping database check)", lastProcessedHeight)
 	}
 
+	or.currentProcessingHeight = lastProcessedHeight
 	lastProgressTime := time.Now()
 
 	// Main processing loop
@@ -116,6 +144,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		select {
 		case <-ctx.Done():
 			log.Printf("Live process interrupted by context cancellation")
+			or.saveProcessingState(lastProcessedHeight, "live_interrupted")
 			return
 		default:
 		}
@@ -145,6 +174,9 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 
 		log.Printf("Processing live chunk %d-%d (behind by %d blocks)", chunkStart, chunkEnd, blocksBehind)
 
+		// Update current processing height
+		or.currentProcessingHeight = chunkStart
+
 		// Process this chunk
 		err = or.processLiveChunk(chunkStart, chunkEnd)
 		if err != nil {
@@ -155,6 +187,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 
 		// Update progress
 		lastProcessedHeight = chunkEnd
+		or.currentProcessingHeight = chunkEnd
 		or.updateProgressMetrics(chunkStart, chunkEnd, blocksBehind, &lastProgressTime)
 
 		// Small delay to prevent overwhelming the API
@@ -344,5 +377,119 @@ func (or *Orchestrator) processAllConcurrently(
 	wg2.Wait()
 
 	log.Printf("All processing completed successfully from %d to %d", fromHeight, toHeight)
+	return nil
+}
+
+// saveProcessingState is a private method that saves
+// the current processing state to a file
+//
+// Args:
+//   - height: the height of the processing state
+//   - reason: the reason for the processing state
+//
+// Returns:
+//   - none
+//
+// The method will not throw an error if the processing state is not found, it will just return nil
+func (or *Orchestrator) saveProcessingState(height uint64, reason string) {
+	state := ProcessingState{
+		ChainName:               or.chainName,
+		RunningMode:             or.runningMode,
+		IsProcessing:            or.isProcessing,
+		CurrentProcessingHeight: height,
+		// it would be hard to read timestamp from the height since the program might not have the
+		// data so use current time
+		Timestamp: time.Now(),
+		Reason:    reason,
+	}
+
+	// Create state directory if it doesn't exist
+	stateDir := "state_dumps"
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		log.Printf("Failed to create state directory: %v", err)
+		return
+	}
+
+	// Create filename with timestamp
+	filename := fmt.Sprintf("processing_state_%s_%d.json",
+		time.Now().Format("20060102_150405"), height)
+	filepath := filepath.Join(stateDir, filename)
+
+	// Marshal to JSON
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		log.Printf("Failed to marshal processing state: %v", err)
+		return
+	}
+
+	// Write to file
+	if err := os.WriteFile(filepath, data, 0644); err != nil {
+		log.Printf("Failed to write processing state: %v", err)
+		return
+	}
+
+	log.Printf("Processing state saved to %s", filepath)
+}
+
+// Cleanup performs cleanup operations for the orchestrator
+//
+// Returns:
+//   - error: if cleanup fails
+func (or *Orchestrator) Cleanup() error {
+	log.Printf("Starting orchestrator cleanup...")
+
+	// Save current state before cleanup
+	or.saveProcessingState(or.currentProcessingHeight, "cleanup_requested")
+	log.Printf("Orchestrator cleanup completed - state saved successfully")
+
+	return nil
+}
+
+// DumpState creates an emergency state dump with current processing information
+func (or *Orchestrator) DumpState() error {
+	log.Printf("Creating emergency state dump...")
+
+	// Save processing state
+	or.saveProcessingState(or.currentProcessingHeight, "emergency_dump")
+
+	// Create additional diagnostic information
+	diagnostics := map[string]interface{}{
+		"chain_name":                or.chainName,
+		"running_mode":              or.runningMode,
+		"is_processing":             or.isProcessing,
+		"current_processing_height": or.currentProcessingHeight,
+		"config": map[string]interface{}{
+			"max_block_chunk_size": or.config.MaxBlockChunkSize,
+			"live_pooling":         or.config.LivePooling,
+			"rpc_url":              or.config.RpcUrl,
+		},
+		// it would be hard to read timestamp from the height since the program might not have the data so use
+		// current time
+		"timestamp":   time.Now(),
+		"dump_reason": "emergency_shutdown",
+	}
+
+	// Create diagnostics directory if it doesn't exist
+	diagDir := "diagnostics"
+	if err := os.MkdirAll(diagDir, 0755); err != nil {
+		return fmt.Errorf("failed to create diagnostics directory: %w", err)
+	}
+
+	// Create filename with timestamp
+	filename := fmt.Sprintf("emergency_dump_%s.json", time.Now().Format("20060102_150405"))
+	filepath := filepath.Join(diagDir, filename)
+
+	// Marshal to JSON
+	data, err := json.MarshalIndent(diagnostics, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal diagnostics: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(filepath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write diagnostics: %w", err)
+	}
+
+	log.Printf("Emergency state dump saved to %s", filepath)
 	return nil
 }

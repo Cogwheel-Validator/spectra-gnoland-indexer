@@ -108,7 +108,8 @@ var rootCmd = &cobra.Command{
 			}
 			// switch to the new database
 			log.Printf("Switching to the new database %s", "gnoland")
-			err = database.SwitchDatabase(db, dbConfig)
+			// only for now later add dbName value, it is only for the testing now
+			err = database.SwitchDatabase(db, dbConfig, "gnoland")
 			if err != nil {
 				log.Fatalf("failed to switch database: %v", err)
 			}
