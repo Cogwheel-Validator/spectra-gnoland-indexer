@@ -245,13 +245,18 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 	blockTimestamps := make(map[string]time.Time) // txHash -> block timestamp
 
 	for _, block := range blocks {
-		if block == nil || block.Result.Block.Data.Txs == nil {
+		if block == nil {
 			continue
 		}
 
-		for _, txHash := range *block.Result.Block.Data.Txs {
+		txHashes := block.GetTxHashes()
+		if txHashes == nil {
+			continue
+		}
+
+		for _, txHash := range txHashes {
 			allTxHashes = append(allTxHashes, txHash)
-			blockTimestamps[txHash] = block.Result.Block.Header.Time
+			blockTimestamps[txHash] = block.GetTimestamp()
 		}
 	}
 
@@ -268,7 +273,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 	txMap := make(map[*rpcClient.TxResponse]time.Time)
 	for _, tx := range transactions {
 		if tx != nil {
-			if timestamp, exists := blockTimestamps[tx.Result.Hash]; exists {
+			if timestamp, exists := blockTimestamps[tx.GetHash()]; exists {
 				txMap[tx] = timestamp
 			}
 		}

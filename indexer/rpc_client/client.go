@@ -198,7 +198,7 @@ func (r *RpcGnoland) GetLatestBlockHeight() (uint64, *RpcHeightError) {
 			Err:       fmt.Errorf("rpc error: %v, %s", response.Error.Code, response.Error.Message),
 		}
 	}
-	height, err := strconv.ParseUint(response.Result.Block.Header.Height, 10, 64)
+	height, err := response.GetHeight()
 	if err != nil {
 		return 0, &RpcHeightError{
 			Height:    0,

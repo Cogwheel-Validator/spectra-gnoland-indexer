@@ -22,7 +22,7 @@ type MockRpcClient struct {
 func (m *MockRpcClient) GetBlock(height uint64) (*rpcClient.BlockResponse, *rpcClient.RpcHeightError) {
 	m.GetBlockCalled = true
 	m.GetBlockCallCount++
-	return &rpcClient.BlockResponse{}, nil
+	return rpcClient.NewTestBlockResponse(height, "test-chain"), nil
 }
 
 // Mock method for GetLatestBlockHeight
@@ -41,7 +41,7 @@ func (m *MockRpcClient) Health() error {
 func (m *MockRpcClient) GetTx(txHash string) (*rpcClient.TxResponse, *rpcClient.RpcStringError) {
 	m.GetTxCalled = true
 	m.GetTxCallCount++
-	return &rpcClient.TxResponse{}, nil
+	return rpcClient.NewTestTxResponse(txHash, 1), nil
 }
 
 // Mock method for GetAbciQuery
