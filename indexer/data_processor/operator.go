@@ -119,7 +119,7 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 			hash, err := base64.StdEncoding.DecodeString(block.Result.BlockMeta.BlockID.Hash)
 			if err != nil {
 				log.Printf("Failed to decode block hash %s: %v", block.Result.BlockMeta.BlockID.Hash, err)
-				return // can cause deadlock or goroutine leak because of unproper error handling look into this later!
+				return
 			}
 
 			// convert from string to uint64

@@ -1,15 +1,13 @@
-package responses
-
-import rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
+package rpcclient
 
 // ValidatorsResponse is the response from the rpc client for the validators method
 // Probably won't be used as much since the signing data is part of the block data
 // but it's still useful to have it
 type ValidatorsResponse struct {
-	Jsonrpc string                  `json:"jsonrpc"`
-	ID      int                     `json:"id"`
-	Error   *rpcClient.JsonRpcError `json:"error,omitempty"`
-	Result  ValidatorResult         `json:"result"`
+	Jsonrpc string          `json:"jsonrpc"`
+	ID      int             `json:"id"`
+	Error   *JsonRpcError   `json:"error,omitempty"`
+	Result  ValidatorResult `json:"result"`
 }
 
 type ValidatorResult struct {
