@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rate_limit"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client/rate_limit"
 )
 
 type RpcGnoland struct {
