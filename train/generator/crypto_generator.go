@@ -2,7 +2,6 @@ package generator
 
 import (
 	"encoding/hex"
-	"fmt"
 	"math/rand"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -35,13 +34,13 @@ type KeyPair struct {
 func (cg *CryptoGenerator) GenerateKeyPair() *KeyPair {
 	// Generate a new private key using secp256k1
 	privKey := secp256k1.GenPrivKey()
-	
+
 	// Derive the public key from the private key
 	pubKey := privKey.PubKey()
-	
+
 	// Derive the address from the public key
 	address := pubKey.Address()
-	
+
 	return &KeyPair{
 		PrivateKey:    privKey,
 		PublicKey:     pubKey,
@@ -98,20 +97,20 @@ func ValidateAddress(address string) bool {
 	if len(address) != 40 || address[:2] != "g1" {
 		return false
 	}
-	
+
 	// Try to parse it back to ensure it's valid bech32
 	_, err := crypto.AddressFromBech32(address)
 	return err == nil
 }
 
-// ValidatePubKey checks if a public key follows proper Gno bech32 format  
+// ValidatePubKey checks if a public key follows proper Gno bech32 format
 func ValidatePubKey(pubkey string) bool {
 	// Basic validation: should start with "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq"
 	expectedPrefix := "gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq"
 	if len(pubkey) < len(expectedPrefix) || pubkey[:len(expectedPrefix)] != expectedPrefix {
 		return false
 	}
-	
+
 	// Try to parse it back to ensure it's valid bech32
 	_, err := crypto.PubKeyFromBech32(pubkey)
 	return err == nil
@@ -125,29 +124,4 @@ func (cg *CryptoGenerator) GenerateSignature(keyPair *KeyPair, data []byte) []by
 	signature := make([]byte, 64) // secp256k1 signatures are 64 bytes
 	cg.rand.Read(signature)
 	return signature
-}
-
-// Example usage function
-func ExampleCryptoGeneration() {
-	fmt.Println("=== Crypto Generation Example ===")
-	
-	cg := NewCryptoGenerator(12345) // Use fixed seed for reproducible results
-	
-	// Generate a key pair pool for efficient reuse
-	pool := cg.GenerateKeyPairPool(10)
-	
-	fmt.Println("Generated Key Pool:")
-	for i, kp := range pool {
-		fmt.Printf("KeyPair %d: %s\n", i+1, kp.AddressBech32)
-	}
-	
-	fmt.Println("\nGenerating addresses from pool:")
-	for i := 0; i < 5; i++ {
-		addr := cg.AddressFromPool(pool)
-		pubkey := cg.PubKeyFromPool(pool)
-		fmt.Printf("Address %d: %s\n", i+1, addr)
-		fmt.Printf("PubKey %d:  %s\n", i+1, pubkey)
-		fmt.Printf("Valid Address: %t, Valid PubKey: %t\n", ValidateAddress(addr), ValidatePubKey(pubkey))
-		fmt.Println()
-	}
 }
