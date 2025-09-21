@@ -1,0 +1,23 @@
+# database config
+
+# Be advised prior to starting the integration test you will need to set up the timescaledb
+# and create the database with all of the tables.
+# In the cmd directory there is a setup.go file that can do this for you.
+host: localhost
+port: 5432
+user: postgres
+password: 12345678 # do not use password default unless for development or testing!!!
+dbname: gnoland
+sslmode: disable # for the time being do not use any ssl mode because the indexer doesn't have the option to load the keys
+pool_max_conns: 50
+pool_min_conns: 2
+pool_max_conn_lifetime: 5m
+pool_max_conn_idle_time: 2m
+pool_health_check_period: 30s
+pool_max_conn_lifetime_jitter: 30s
+
+# synthetic test config
+chain_id: gnoland-synthetic-1
+max_height: 4000001
+from_height: 1
+to_height: 4000000

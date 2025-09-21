@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rate_limit"
 	rpcclient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client/rate_limit"
 )
 
 func TestRateLimitedRpcClient(t *testing.T) {

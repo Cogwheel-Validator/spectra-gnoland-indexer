@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rate_limit"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client/rate_limit"
 )
 
 // TestRateLimiter_Direct - Unit test the rate limiter component directly
