@@ -4,9 +4,8 @@ import (
 	"strconv"
 	"time"
 
-	eventsProto "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/events_proto"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/train/generator"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/generator"
 )
 
 type GenBlockInput struct {
@@ -127,7 +126,7 @@ type GenTransactionInput struct {
 	TxRaw  string
 	TxHash string
 	Height uint64
-	Events *eventsProto.TxEvents
+	Events *generator.TxEvents
 }
 
 func GenerateTransactionResponse(input GenTransactionInput) *rpcClient.TxResponse {
@@ -137,7 +136,8 @@ func GenerateTransactionResponse(input GenTransactionInput) *rpcClient.TxRespons
 	// this sucks but it is what it is...
 
 	rpcEvents := make([]rpcClient.Event, 0, len(input.Events.Events))
-	for _, event := range input.Events.Events {
+	for i := range input.Events.Events {
+		event := &input.Events.Events[i]
 		rpcAttributes := make([]rpcClient.EventAttribute, 0, len(event.Attributes))
 		for _, attribute := range event.Attributes {
 			rpcAttributes = append(rpcAttributes, rpcClient.EventAttribute{
@@ -149,7 +149,7 @@ func GenerateTransactionResponse(input GenTransactionInput) *rpcClient.TxRespons
 			AtType:  event.AtType,
 			Type:    event.Type,
 			Attrs:   rpcAttributes,
-			PkgPath: *event.PkgPath, // this is a string but a poitner because it can be null
+			PkgPath: *event.PkgPath, // this is a string but it is defined as a pointer because it can be null
 		})
 	}
 
