@@ -39,11 +39,13 @@ CREATE TYPE event AS (
 
 CREATE TABLE account (
     id INTEGER,
+	height BIGINT,
     events event[]
 );
 */
 type Account struct {
 	ID     int     `db:"id"`
+	Height uint64  `db:"height"`
 	Events []Event `db:"events"`
 }
 
@@ -92,7 +94,8 @@ func main() {
 	// Create a synthetic data for testing
 	accounts := []Account{
 		{
-			ID: 1,
+			ID:     1,
+			Height: 1,
 			Events: []Event{
 				{
 					AtType:  "tm.GnoEvent",
@@ -118,16 +121,17 @@ func main() {
 		},
 		{
 			ID:     2,
+			Height: 2,
 			Events: []Event{}, // empty events
 		},
 	}
 
 	// Copy from slice
 	pgxSlice := pgx.CopyFromSlice(len(accounts), func(i int) ([]any, error) {
-		return []any{accounts[i].ID, accounts[i].Events}, nil
+		return []any{accounts[i].ID, accounts[i].Height, accounts[i].Events}, nil
 	})
 
-	_, err = pool.CopyFrom(ctx, pgx.Identifier{"account"}, []string{"id", "events"}, pgxSlice)
+	_, err = pool.CopyFrom(ctx, pgx.Identifier{"account"}, []string{"id", "height", "events"}, pgxSlice)
 	if err != nil {
 		panic(fmt.Errorf("failed to copy data: %w", err))
 	}

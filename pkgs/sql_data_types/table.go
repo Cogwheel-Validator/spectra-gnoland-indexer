@@ -73,7 +73,7 @@ type Blocks struct {
 	ChainID   string    `db:"chain_id" dbtype:"TEXT" nullable:"false" primary:"false"`
 	// proposer address is the validator address hence why this should be an integer
 	ProposerAddress int32    `db:"proposer_address" dbtype:"integer" nullable:"false" primary:"false"`
-	Txs             [][]byte `db:"txs" dbtype:"bytea" primary:"false" nullable:"true"` // can be a null value
+	Txs             [][]byte `db:"txs" dbtype:"bytea[]" primary:"false" nullable:"true"` // can be a null value
 	ChainName       string   `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 }
 
@@ -164,15 +164,18 @@ func (at AddressTx) GetTableInfo() (*dbinit.TableInfo, error) {
 // But what kind of data will be stored should be managed by the config.
 // It is not recommended to use both modes at the same time.
 type TransactionGeneral struct {
-	TxHash             []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
-	ChainName          string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
-	Timestamp          time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
-	MsgTypes           []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
-	TxEvents           []Event   `db:"tx_events" dbtype:"event[]" nullable:"true" primary:"false"`          // to be used if "native format" is used
-	TxEventsCompressed []byte    `db:"tx_events_compressed" dbtype:"bytea" nullable:"true" primary:"false"` // to be used for compressed events
-	GasUsed            uint64    `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
-	GasWanted          uint64    `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
-	Fee                Amount    `db:"fee" dbtype:"amount" nullable:"false" primary:"false"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	MsgTypes  []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
+	// tx events in the future there should be an option to have this compressed
+	// for now only store the native format but keep the option to have it compressed
+	TxEvents           []Event `db:"tx_events" dbtype:"event[]" nullable:"true" primary:"false"`
+	TxEventsCompressed []byte  `db:"tx_events_compressed" dbtype:"bytea" nullable:"true" primary:"false"`
+	CompressionOn      bool    `db:"compression_on" dbtype:"boolean" nullable:"false" primary:"false"`
+	GasUsed            uint64  `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
+	GasWanted          uint64  `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
+	Fee                Amount  `db:"fee" dbtype:"amount" nullable:"false" primary:"false"`
 }
 
 // TableName returns the name of the table for the TransactionGeneral struct

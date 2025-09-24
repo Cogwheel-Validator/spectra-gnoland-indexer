@@ -1,62 +1,40 @@
 package sql_data_types
 
-import dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
+import (
+	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
+	"github.com/jackc/pgx/v5/pgtype"
+)
 
-// Fee is a postgres type that is used to store the fee of a transaction
-//
-// It is a custom type that is used to store the fee of a transaction
-// Stores:
-// - Amount (uint64)
-// - Denom (string)
-// PRIMARY KEY (amount, denom)
 type Amount struct {
-	Amount uint64 `db:"amount" dbtype:"NUMERIC"`
-	Denom  string `db:"denom" dbtype:"TEXT"`
+	Amount pgtype.Numeric `db:"amount" dbtype:"NUMERIC"`
+	Denom  string         `db:"denom" dbtype:"TEXT"`
 }
 
-// TypeName returns the name of the type for the Fee struct
-func (f Amount) TypeName() string {
+// TypeName returns the name of the type for the Amount struct
+func (amt Amount) TypeName() string {
 	return "amount"
 }
 
-// GetSpecialTypeInfo returns the special type info for the Fee struct
-func (f Amount) GetSpecialTypeInfo() (*dbinit.SpecialType, error) {
-	return dbinit.GetSpecialTypeInfo(f, f.TypeName())
+// GetSpecialTypeInfo returns the special type info for the Amount struct
+func (amt Amount) GetSpecialTypeInfo() (*dbinit.SpecialType, error) {
+	return dbinit.GetSpecialTypeInfo(amt, amt.TypeName())
 }
 
-// Attribute is a postgres type that is used to store the attribute of an event
-//
-// It is a custom type that is used to store the attribute of an event
-// Stores:
-// - Key (string)
-// - Value (string)
 type Attribute struct {
 	Key   string `db:"key" dbtype:"TEXT"`
 	Value string `db:"value" dbtype:"TEXT"`
 }
 
 // TypeName returns the name of the type for the Attribute struct
-func (a Attribute) TypeName() string {
+func (att Attribute) TypeName() string {
 	return "attribute"
 }
 
 // GetSpecialTypeInfo returns the special type info for the Attribute struct
-func (a Attribute) GetSpecialTypeInfo() (*dbinit.SpecialType, error) {
-	return dbinit.GetSpecialTypeInfo(a, a.TypeName())
+func (att Attribute) GetSpecialTypeInfo() (*dbinit.SpecialType, error) {
+	return dbinit.GetSpecialTypeInfo(att, att.TypeName())
 }
 
-// Event is a postgres type that is used to store the event of a transaction
-//
-// Usage:
-//
-//	This is used to store transaction events in "native format"
-//
-// It is a custom type that is used to store the event of a transaction
-// Stores:
-// - AtType (string)
-// - Type (string)
-// - Attributes (Attribute[])
-// - PkgPath (string)
 type Event struct {
 	AtType     string      `db:"at_type" dbtype:"TEXT"`
 	Type       string      `db:"type" dbtype:"TEXT"`
@@ -84,4 +62,25 @@ type DataTypes interface {
 type DBSpecialType interface {
 	GetSpecialTypeInfo() (*dbinit.SpecialType, error)
 	TypeName() string
+}
+
+// Returns the names of every custom type
+// to be used to register the types with pgx
+func CustomTypeNames() []string {
+	return []string{
+		// Amount
+		Amount{}.TypeName(),
+		// Amount[]
+		string("_" + Amount{}.TypeName()),
+		// Attribute
+		Attribute{}.TypeName(),
+		// Attribute[]
+		string("_" + Attribute{}.TypeName()),
+		// Event
+		Event{}.TypeName(),
+		// Event[]
+		string("_" + Event{}.TypeName()),
+		// chain_name it is a type enum so it doesn't have it's struct type
+		"chain_name",
+	}
 }

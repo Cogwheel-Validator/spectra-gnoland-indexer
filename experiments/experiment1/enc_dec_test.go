@@ -34,4 +34,12 @@ func TestEncodeDecode(t *testing.T) {
 	// encode the encoded sha256 to base64
 	base64Encoded := base64.StdEncoding.EncodeToString(hash[:])
 	fmt.Println(base64Encoded)
+
+	// decode the last base64 to the sha256
+	rawByte, err := base64.StdEncoding.DecodeString(base64Encoded)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("The final base64 decoded has %v bytes", len(rawByte))
+	fmt.Printf("The first decoded base64 has %v bytes", len(base64Decoded))
 }

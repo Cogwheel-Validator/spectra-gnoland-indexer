@@ -145,11 +145,16 @@ func GenerateTransactionResponse(input GenTransactionInput) *rpcClient.TxRespons
 				Value: attribute.GetStringValue(), // most of the time it will be a string so what the hell keep it as string
 			})
 		}
+		var pkgPath string
+		if event.PkgPath != nil {
+			pkgPath = *event.PkgPath
+		}
+
 		rpcEvents = append(rpcEvents, rpcClient.Event{
 			AtType:  event.AtType,
 			Type:    event.Type,
 			Attrs:   rpcAttributes,
-			PkgPath: *event.PkgPath, // this is a string but it is defined as a pointer because it can be null
+			PkgPath: pkgPath,
 		})
 	}
 
@@ -160,12 +165,15 @@ func GenerateTransactionResponse(input GenTransactionInput) *rpcClient.TxRespons
 			Hash:   input.TxHash,
 			Height: strconv.FormatUint(input.Height, 10),
 			Index:  0,
+			Tx:     input.TxRaw,
 			TxResult: rpcClient.TxResult{
 				ResponseBase: rpcClient.ResponseBase{
 					Error:  nil,
 					Data:   input.TxRaw,
 					Events: rpcEvents,
 				},
+				GasWanted: "1000000", // Add some values for testing
+				GasUsed:   "750000",
 			},
 		},
 	}

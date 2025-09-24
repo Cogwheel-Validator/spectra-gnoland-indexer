@@ -87,7 +87,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// create a new database connection
-		db := database.NewTimescaleDb(dbConfig)
+		db := database.NewTimescaleDbSetup(dbConfig)
 
 		// create a new database named "gnoland"
 		// but check if the current database is "gnoland"

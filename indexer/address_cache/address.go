@@ -132,7 +132,7 @@ func (a *AddressCache) AddressSolver(
 			if loopErr != nil {
 				// in the events the oneByOne is true the program will try to insert the addresses one by one
 				// as a final resort with this some might be inserted but some might not
-				if *oneByOne && i == retryAttempts-1 {
+				if oneByOne != nil && *oneByOne && i == retryAttempts-1 {
 					for _, addr := range addressToAdd {
 						loopErr := a.db.InsertAddresses([]string{addr}, chainName, insertValidators)
 						if loopErr != nil {

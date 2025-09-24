@@ -13,7 +13,7 @@ type BasicTxData struct {
 }
 
 type Coin struct {
-	Amount uint64
+	Amount int64
 	Denom  string
 }
 

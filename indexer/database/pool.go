@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -27,7 +28,19 @@ func NewTimescaleDb(config DatabasePoolConfig) *TimescaleDb {
 	}
 }
 
-// connectToDb is a internal function that connects to the database
+// NewTimescaleDbSetup is a constructor function that creates a new TimescaleDb instance
+// Should be used to create the database and switch to it
+func NewTimescaleDbSetup(config DatabasePoolConfig) *TimescaleDb {
+	pool, err := setupConnection(config)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	return &TimescaleDb{
+		pool: pool,
+	}
+}
+
+// connectToDb is a internal function that connects to the database for the indexer
 //
 // Args:
 //   - config: the database config, a struct that contains the necessary data from the config file
@@ -59,10 +72,62 @@ func connectToDb(config DatabasePoolConfig) (*pgxpool.Pool, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	conn, err := pgxpool.NewWithConfig(context.Background(), parseConfig)
 	if err != nil {
 		return nil, err
 	}
+
+	liveConn, err := conn.Acquire(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	// register custom types
+	dataTypeNames := sql_data_types.CustomTypeNames()
+	for _, typeName := range dataTypeNames {
+		dataType, err := liveConn.Conn().LoadType(context.Background(), typeName)
+		if err != nil {
+			return nil, err
+		}
+		liveConn.Conn().TypeMap().RegisterType(dataType)
+	}
+
+	return conn, nil
+}
+
+// setupConnection is a internal function that connects to the database
+// should only be used as a part of the set up process
+// to be used to create the database and switch to it
+func setupConnection(config DatabasePoolConfig) (*pgxpool.Pool, error) {
+	parseConfig, err := pgxpool.ParseConfig(
+		fmt.Sprintf(
+			`host=%s port=%d user=%s password=%s 
+			dbname=%s sslmode=%s pool_max_conns=%d 
+			pool_min_conns=%d pool_max_conn_lifetime=%s 
+			pool_max_conn_idle_time=%s pool_health_check_period=%s 
+			pool_max_conn_lifetime_jitter=%s`,
+			config.Host,
+			config.Port,
+			config.User,
+			config.Password,
+			config.Dbname,
+			config.Sslmode,
+			config.PoolMaxConns,
+			config.PoolMinConns,
+			config.PoolMaxConnLifetime,
+			config.PoolMaxConnIdleTime,
+			config.PoolHealthCheckPeriod,
+			config.PoolMaxConnLifetimeJitter))
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := pgxpool.NewWithConfig(context.Background(), parseConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	return conn, nil
 }
 
@@ -105,7 +170,7 @@ func SwitchDatabase(db *TimescaleDb, config DatabasePoolConfig, dbname string) e
 	newConfig.Dbname = dbname
 
 	// Create a new connection to the target database
-	newPool, err := connectToDb(newConfig)
+	newPool, err := setupConnection(newConfig)
 	if err != nil {
 		return fmt.Errorf("failed to connect to %s database: %w", dbname, err)
 	}

@@ -33,11 +33,11 @@ func (t *TimescaleDb) InsertAddresses(addresses []string, chainName string, inse
 		table_name = "gno_addresses"
 	}
 	// create interface to copy from slice to the db
-	copy_from_slice := pgx.CopyFromSlice(len(addresses), func(i int) ([]any, error) {
+	pgxSlice := pgx.CopyFromSlice(len(addresses), func(i int) ([]any, error) {
 		return []any{addresses[i], chainName}, nil
 	})
 	// copy the addresses to the db
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{table_name}, column_names, copy_from_slice)
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{table_name}, column_names, pgxSlice)
 	return err
 }
 
@@ -55,7 +55,7 @@ func (t *TimescaleDb) InsertAddresses(addresses []string, chainName string, inse
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertBlocks(blocks []sql_data_types.Blocks) error {
 	// create a copy from slice to the db
-	copy_from_slice := pgx.CopyFromSlice(len(blocks), func(i int) ([]any, error) {
+	pgxSlice := pgx.CopyFromSlice(len(blocks), func(i int) ([]any, error) {
 		return []any{
 			blocks[i].Hash, blocks[i].Height, blocks[i].Timestamp,
 			blocks[i].ChainID, blocks[i].ProposerAddress, blocks[i].Txs,
@@ -66,7 +66,7 @@ func (t *TimescaleDb) InsertBlocks(blocks []sql_data_types.Blocks) error {
 	columns := []string{"hash", "height", "timestamp", "chain_id", "proposer_address", "txs", "chain_name"}
 
 	// insert the data to the db
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"blocks"}, columns, copy_from_slice)
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"blocks"}, columns, pgxSlice)
 	return err
 }
 
@@ -84,7 +84,7 @@ func (t *TimescaleDb) InsertBlocks(blocks []sql_data_types.Blocks) error {
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertValidatorBlockSignings(validatorBlockSigning []sql_data_types.ValidatorBlockSigning) error {
 	// create a copy from slice to the db
-	copy_from_slice := pgx.CopyFromSlice(len(validatorBlockSigning), func(i int) ([]any, error) {
+	pgxSlice := pgx.CopyFromSlice(len(validatorBlockSigning), func(i int) ([]any, error) {
 		return []any{validatorBlockSigning[i].BlockHeight, validatorBlockSigning[i].Timestamp, validatorBlockSigning[i].SignedVals, validatorBlockSigning[i].ChainName}, nil
 	})
 
@@ -92,7 +92,7 @@ func (t *TimescaleDb) InsertValidatorBlockSignings(validatorBlockSigning []sql_d
 	columns := []string{"block_height", "timestamp", "signed_vals", "chain_name"}
 
 	// insert the data to the db
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"validator_block_signing"}, columns, copy_from_slice)
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"validator_block_signing"}, columns, pgxSlice)
 	return err
 }
 
@@ -110,7 +110,7 @@ func (t *TimescaleDb) InsertValidatorBlockSignings(validatorBlockSigning []sql_d
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertTransactionsGeneral(transactionsGeneral []sql_data_types.TransactionGeneral) error {
 	// create a copy from the slice
-	copy_from_slice := pgx.CopyFromSlice(len(transactionsGeneral), func(i int) ([]any, error) {
+	pgxSlice := pgx.CopyFromSlice(len(transactionsGeneral), func(i int) ([]any, error) {
 		return []any{transactionsGeneral[i].TxHash, transactionsGeneral[i].ChainName, transactionsGeneral[i].Timestamp, transactionsGeneral[i].MsgTypes, transactionsGeneral[i].TxEvents, transactionsGeneral[i].TxEventsCompressed, transactionsGeneral[i].GasUsed, transactionsGeneral[i].GasWanted, transactionsGeneral[i].Fee}, nil
 	})
 
@@ -118,7 +118,7 @@ func (t *TimescaleDb) InsertTransactionsGeneral(transactionsGeneral []sql_data_t
 	columns := []string{"tx_hash", "chain_name", "timestamp", "msg_types", "tx_events", "tx_events_compressed", "gas_used", "gas_wanted", "fee"}
 
 	// insert the data to the db
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"transaction_general"}, columns, copy_from_slice)
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"transaction_general"}, columns, pgxSlice)
 	return err
 }
 
@@ -130,7 +130,7 @@ func (t *TimescaleDb) InsertTransactionsGeneral(transactionsGeneral []sql_data_t
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertMsgSend(messages []sql_data_types.MsgSend) error {
-	copy_from_slice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
+	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
 			messages[i].TxHash,
 			messages[i].ChainName,
@@ -142,7 +142,7 @@ func (t *TimescaleDb) InsertMsgSend(messages []sql_data_types.MsgSend) error {
 	})
 
 	columns := []string{"tx_hash", "chain_name", "from_address", "to_address", "amount", "timestamp"}
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"bank_msg_send"}, columns, copy_from_slice)
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"bank_msg_send"}, columns, pgxSlice)
 	return err
 }
 
@@ -154,7 +154,7 @@ func (t *TimescaleDb) InsertMsgSend(messages []sql_data_types.MsgSend) error {
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertMsgCall(messages []sql_data_types.MsgCall) error {
-	copy_from_slice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
+	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
 			messages[i].TxHash,
 			messages[i].ChainName,
@@ -167,7 +167,7 @@ func (t *TimescaleDb) InsertMsgCall(messages []sql_data_types.MsgCall) error {
 	})
 
 	columns := []string{"tx_hash", "chain_name", "caller", "pkg_path", "func_name", "args", "timestamp"}
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_call"}, columns, copy_from_slice)
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_call"}, columns, pgxSlice)
 	return err
 }
 
@@ -179,7 +179,7 @@ func (t *TimescaleDb) InsertMsgCall(messages []sql_data_types.MsgCall) error {
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertMsgAddPackage(messages []sql_data_types.MsgAddPackage) error {
-	copy_from_slice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
+	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
 			messages[i].TxHash,
 			messages[i].ChainName,
@@ -191,7 +191,7 @@ func (t *TimescaleDb) InsertMsgAddPackage(messages []sql_data_types.MsgAddPackag
 	})
 
 	columns := []string{"tx_hash", "chain_name", "creator", "pkg_path", "pkg_name", "timestamp"}
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_add_package"}, columns, copy_from_slice)
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_add_package"}, columns, pgxSlice)
 	return err
 }
 
@@ -203,7 +203,7 @@ func (t *TimescaleDb) InsertMsgAddPackage(messages []sql_data_types.MsgAddPackag
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertMsgRun(messages []sql_data_types.MsgRun) error {
-	copy_from_slice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
+	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
 			messages[i].TxHash,
 			messages[i].ChainName,
@@ -215,6 +215,6 @@ func (t *TimescaleDb) InsertMsgRun(messages []sql_data_types.MsgRun) error {
 	})
 
 	columns := []string{"tx_hash", "chain_name", "caller", "pkg_path", "pkg_name", "timestamp"}
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_run"}, columns, copy_from_slice)
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_run"}, columns, pgxSlice)
 	return err
 }

@@ -309,9 +309,7 @@ func (d *DataProcessor) ProcessMessages(
 	// Collect decoded messages
 	allDecodedMsgs := make([]*decoder.DecodedMsg, 0, len(transactions))
 	for decodedMsgs := range addressCollectionChan {
-		if decodedMsgs[0] != nil {
-			allDecodedMsgs = append(allDecodedMsgs, decodedMsgs[0])
-		}
+		allDecodedMsgs = append(allDecodedMsgs, decodedMsgs[0])
 	}
 
 	// Extract addresses from sync.Map and resolve to IDs
@@ -368,7 +366,7 @@ func (d *DataProcessor) ProcessMessages(
 				return
 			}
 
-			dbMessageGroups := messageGroups.ConvertToDbMessages(d.addressCache, txHash, d.chainName, timestamp)
+			dbMessageGroups := messageGroups.ConvertToDbMessages(d.addressCache, txHash, d.chainName, timestamp, decodedMsg.GetSigners())
 			resultChan <- processedResult{dbMessageGroups, nil}
 
 		}(transaction, timestamp, allDecodedMsgs[txIndex])

@@ -100,9 +100,14 @@ func (sq *SyntheticQueryOperator) preGenerateData(maxHeight uint64) {
 	// Generate blocks from 1 to maxHeight
 	for height := uint64(1); height <= maxHeight; height++ {
 		sq.createSynthBlock(height)
+
+		// Log progress every 100 blocks
+		if height%100 == 0 {
+			log.Printf("Generated %d/%d blocks (%.1f%%)", height, maxHeight, float64(height)/float64(maxHeight)*100)
+		}
 	}
 	log.Printf("Pre-generated data for blocks from 1 to %d", maxHeight)
-
+	log.Printf("Total transactions generated: %d", len(sq.transactions))
 }
 
 // getBlock returns existing block or creates a new one
@@ -144,7 +149,6 @@ func (sq *SyntheticQueryOperator) createSynthBlock(height uint64) (*rpcClient.Bl
 			log.Fatal(err)
 		}
 		base64Encoded := base64.StdEncoding.EncodeToString(bz)
-		txHashes[i] = base64Encoded
 
 		// to get the "nice hash" decode the txRaw to base64 and then to sha256
 		txRawBytes, err := base64.StdEncoding.DecodeString(base64Encoded)
@@ -153,6 +157,9 @@ func (sq *SyntheticQueryOperator) createSynthBlock(height uint64) (*rpcClient.Bl
 		}
 		txHash := sha256.Sum256(txRawBytes)
 		txHashString := base64.StdEncoding.EncodeToString(txHash[:])
+
+		txHashes[i] = txHashString
+
 		txResponse := sq.createTransaction(txHashString, height, base64Encoded, &txEvents)
 		txResponses = append(txResponses, txResponse)
 	}
@@ -180,7 +187,6 @@ func (sq *SyntheticQueryOperator) getTransaction(txHash string) *rpcClient.TxRes
 	if tx, ok := sq.transactions[txHash]; ok {
 		return tx
 	}
-	// untill I test this let it throw an error and shut down the program
 	log.Fatal("transaction not found")
 	return nil
 }
