@@ -335,6 +335,10 @@ func (or *Orchestrator) processAllConcurrently(
 		defer wg1.Done()
 		log.Printf("Phase 1: Starting ProcessMessages")
 		if err := or.dataProcessor.ProcessMessages(transactions, fromHeight, toHeight); err != nil {
+			// remove this after debugging
+			for tx, _ := range transactions {
+				log.Printf("DEBUG: Transaction: %v \n", tx.Result)
+			}
 			errorsMutex.Lock()
 			errors = append(errors, fmt.Errorf("ProcessMessages failed: %w", err))
 			errorsMutex.Unlock()

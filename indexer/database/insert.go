@@ -153,12 +153,12 @@ func (t *TimescaleDb) InsertMsgSend(messages []sql_data_types.MsgSend) error {
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
 			messages[i].TxHash,
+			messages[i].Timestamp,
 			messages[i].ChainName,
 			messages[i].FromAddress,
 			messages[i].ToAddress,
 			makePgxArray(messages[i].Amount),
 			makePgxArray(messages[i].Signers),
-			messages[i].Timestamp,
 		}, nil
 	})
 

@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -73,24 +74,24 @@ func connectToDb(config DatabasePoolConfig) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 
+	// Register custom types for every connection in the pool
+	parseConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		dataTypeNames := sql_data_types.CustomTypeNames()
+
+		for _, typeName := range dataTypeNames {
+			dataType, err := conn.LoadType(ctx, typeName)
+			if err != nil {
+				return err
+			}
+			conn.TypeMap().RegisterType(dataType)
+		}
+
+		return nil
+	}
+
 	conn, err := pgxpool.NewWithConfig(context.Background(), parseConfig)
 	if err != nil {
 		return nil, err
-	}
-
-	liveConn, err := conn.Acquire(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	// register custom types
-	dataTypeNames := sql_data_types.CustomTypeNames()
-	for _, typeName := range dataTypeNames {
-		dataType, err := liveConn.Conn().LoadType(context.Background(), typeName)
-		if err != nil {
-			return nil, err
-		}
-		liveConn.Conn().TypeMap().RegisterType(dataType)
 	}
 
 	return conn, nil
