@@ -350,15 +350,7 @@ func (d *DataProcessor) ProcessMessages(
 				return
 			}
 
-			// Convert to intermediate message groups
-			messageGroups, err := decodedMsg.ConvertToStructuredMessages(d.chainName, timestamp)
-			if err != nil {
-				log.Printf("Failed to convert messages for tx %s: %v", transaction.Result.Hash, err)
-				resultChan <- processedResult{nil, err}
-				return
-			}
-
-			// Convert intermediate messages to database-ready messages with address IDs
+			// Convert directly to database-ready messages with address IDs
 			txHash, err := base64.StdEncoding.DecodeString(transaction.Result.Hash)
 			if err != nil {
 				log.Printf("Failed to decode tx hash %s: %v", transaction.Result.Hash, err)
@@ -366,7 +358,12 @@ func (d *DataProcessor) ProcessMessages(
 				return
 			}
 
-			dbMessageGroups := messageGroups.ConvertToDbMessages(d.addressCache, txHash, d.chainName, timestamp, decodedMsg.GetSigners())
+			dbMessageGroups, err := decodedMsg.ConvertToDbMessages(d.addressCache, txHash, d.chainName, timestamp, decodedMsg.GetSigners())
+			if err != nil {
+				log.Printf("Failed to convert messages for tx %s: %v", transaction.Result.Hash, err)
+				resultChan <- processedResult{nil, err}
+				return
+			}
 			resultChan <- processedResult{dbMessageGroups, nil}
 
 		}(transaction, timestamp, allDecodedMsgs[txIndex])

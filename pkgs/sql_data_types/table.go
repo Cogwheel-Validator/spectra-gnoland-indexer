@@ -86,6 +86,16 @@ func (b Blocks) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(b, b.TableName())
 }
 
+func (b Blocks) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(b)
+	for i := 0; i < fields.NumField(); i++ {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
+}
+
 // ValidatorBlockSigning represents a validator block signing with database mapping information
 // Stores:
 //   - Block height (uint64)
@@ -117,6 +127,17 @@ func (vbs ValidatorBlockSigning) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(vbs, vbs.TableName())
 }
 
+func (vbs ValidatorBlockSigning) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(vbs)
+	numFields := fields.NumField()
+	for i := range numFields {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
+}
+
 // AddressTx represents a transaction with database mapping information
 //
 // Stores:
@@ -142,6 +163,16 @@ func (at AddressTx) TableName() string {
 // GetTableInfo returns the table info for the AddressTx struct
 func (at AddressTx) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(at, at.TableName())
+}
+func (at AddressTx) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(at)
+	numFields := fields.NumField()
+	for i := range numFields {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
 }
 
 // TransactionGeneral represents a transaction general data with database mapping information
@@ -186,6 +217,17 @@ func (tg TransactionGeneral) TableName() string {
 // GetTableInfo returns the table info for the TransactionGeneral struct
 func (tg TransactionGeneral) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(tg, tg.TableName())
+}
+
+func (tg TransactionGeneral) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(tg)
+	numFields := fields.NumField()
+	for i := range numFields {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
 }
 
 // MsgSend represents a bank send message
@@ -277,7 +319,8 @@ func (mc MsgCall) GetTableInfo() (*dbinit.TableInfo, error) {
 func (mc MsgCall) TableColumns() []string {
 	columns := make([]string, 0)
 	fields := reflect.TypeOf(mc)
-	for i := 0; i < fields.NumField(); i++ {
+	numFields := fields.NumField()
+	for i := range numFields {
 		field := fields.Field(i)
 		columns = append(columns, field.Tag.Get("db"))
 	}
@@ -328,7 +371,8 @@ func (ma MsgAddPackage) GetTableInfo() (*dbinit.TableInfo, error) {
 func (ma MsgAddPackage) TableColumns() []string {
 	columns := make([]string, 0)
 	fields := reflect.TypeOf(ma)
-	for i := 0; i < fields.NumField(); i++ {
+	numFields := fields.NumField()
+	for i := range numFields {
 		field := fields.Field(i)
 		columns = append(columns, field.Tag.Get("db"))
 	}
@@ -371,7 +415,8 @@ func (mr MsgRun) TableColumns() []string {
 	columns := make([]string, 0)
 	// get the fields of the struct
 	fields := reflect.TypeOf(mr)
-	for i := 0; i < fields.NumField(); i++ {
+	numFields := fields.NumField()
+	for i := range numFields {
 		field := fields.Field(i)
 		columns = append(columns, field.Tag.Get("db"))
 	}
