@@ -235,6 +235,7 @@ func (d *DataProcessor) ProcessTransactions(
 				MsgTypes:           msgTypes,
 				TxEvents:           events.GetNativeEvents(),
 				TxEventsCompressed: events.GetCompressedData(),
+				CompressionOn:      compressEvents,
 				GasUsed:            gasUsed,
 				GasWanted:          gasWanted,
 				Fee:                fee,
