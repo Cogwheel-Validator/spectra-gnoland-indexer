@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-beta.1] - 2025-09-25
+
+The indexer had some bug fixes and some small improvments. The integration test was technically successful but there seems there is some kind of bug with the indexer. The indexer is not ready for production use.
+
+### Changed
+
+- When the indexer decodes the data using Amino decoder it unloads the data into a map[string]any, then from there it would make 2 conversions, one for the general data struct and the second for the sql data types. The idea was to have seperated logic for the general data struct and sql types. However at this point the indexer already needs to call the copy from method where the data is again being unloaded into some sort of tuple. So the first conversion was removed. [50ca1f2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/50ca1f2e0d3ee1a3637ca26cdd70e5b48732da8d)
+- Updated all of the dependencies to the latest version [5370a5c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5370a5c5486be5ef3803f16f968c383598e7f033)
+
+### Fixed
+
+- Fixed the sql related bugs, added some missing types, switched to pgtype.Numeric for the amount type [8aea191](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/tree/8aea1919ad7c3ad16c75a4bd2d1afe934a810dc4), [2b7ed52](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/2b7ed528e23c52c2849d2731cd187e921bf6223e),[ddfdcc1](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ddfdcc1955784ad510de7f7c847d1a8cf3009e71)
+- In some instances the pgx data need to be in the pgtype.Array for instance Txs for the block need to be stored into the pgtype.Array. The indexer now uses a generics function to convert the data into the pgtype.Array [2b7ed52](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/2b7ed528e23c52c2849d2731cd187e921bf6223e)
+- The chunk end height was incremented by 1 when the indexer started the historic process. This caused the chunks to overlap and the indexer to throw an error about the duplication. The indexer now correctly sets the chunk end height to the max height [ddfdcc1](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ddfdcc1955784ad510de7f7c847d1a8cf3009e71)
+- Fixed a bug where the data processor would ask the address from the regular address cache instead from the validator address cache [ddfdcc1](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ddfdcc1955784ad510de7f7c847d1a8cf3009e71)
+
+
 ## [0.1.0-alpha.2] - 2025-09-21
 
 This is a second alpha release although the indexer is not yet ready. 
