@@ -90,7 +90,7 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 	})
 
 	// retry 3 times just for the sake of it
-	d.addressCache.AddressSolver(addresses, d.chainName, true, 3, nil)
+	d.validatorCache.AddressSolver(addresses, d.chainName, true, 3, nil)
 	log.Printf("Validator addresses processed from %d to %d", fromHeight, toHeight)
 }
 
@@ -149,7 +149,7 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 				Height:          height,
 				Timestamp:       block.Result.Block.Header.Time,
 				ChainID:         block.Result.Block.Header.ChainID,
-				ProposerAddress: d.addressCache.GetAddress(block.Result.Block.Header.ProposerAddress),
+				ProposerAddress: d.validatorCache.GetAddress(block.Result.Block.Header.ProposerAddress),
 				Txs:             txs,
 				ChainName:       d.chainName,
 			}
@@ -235,6 +235,7 @@ func (d *DataProcessor) ProcessTransactions(
 				MsgTypes:           msgTypes,
 				TxEvents:           events.GetNativeEvents(),
 				TxEventsCompressed: events.GetCompressedData(),
+				CompressionOn:      compressEvents,
 				GasUsed:            gasUsed,
 				GasWanted:          gasWanted,
 				Fee:                fee,
@@ -309,9 +310,7 @@ func (d *DataProcessor) ProcessMessages(
 	// Collect decoded messages
 	allDecodedMsgs := make([]*decoder.DecodedMsg, 0, len(transactions))
 	for decodedMsgs := range addressCollectionChan {
-		if decodedMsgs[0] != nil {
-			allDecodedMsgs = append(allDecodedMsgs, decodedMsgs[0])
-		}
+		allDecodedMsgs = append(allDecodedMsgs, decodedMsgs[0])
 	}
 
 	// Extract addresses from sync.Map and resolve to IDs
@@ -352,15 +351,7 @@ func (d *DataProcessor) ProcessMessages(
 				return
 			}
 
-			// Convert to intermediate message groups
-			messageGroups, err := decodedMsg.ConvertToStructuredMessages(d.chainName, timestamp)
-			if err != nil {
-				log.Printf("Failed to convert messages for tx %s: %v", transaction.Result.Hash, err)
-				resultChan <- processedResult{nil, err}
-				return
-			}
-
-			// Convert intermediate messages to database-ready messages with address IDs
+			// Convert directly to database-ready messages with address IDs
 			txHash, err := base64.StdEncoding.DecodeString(transaction.Result.Hash)
 			if err != nil {
 				log.Printf("Failed to decode tx hash %s: %v", transaction.Result.Hash, err)
@@ -368,7 +359,12 @@ func (d *DataProcessor) ProcessMessages(
 				return
 			}
 
-			dbMessageGroups := messageGroups.ConvertToDbMessages(d.addressCache, txHash, d.chainName, timestamp)
+			dbMessageGroups, err := decodedMsg.ConvertToDbMessages(d.addressCache, txHash, d.chainName, timestamp, decodedMsg.GetSigners())
+			if err != nil {
+				log.Printf("Failed to convert messages for tx %s: %v", transaction.Result.Hash, err)
+				resultChan <- processedResult{nil, err}
+				return
+			}
 			resultChan <- processedResult{dbMessageGroups, nil}
 
 		}(transaction, timestamp, allDecodedMsgs[txIndex])

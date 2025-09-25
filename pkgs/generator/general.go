@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -8,7 +9,6 @@ import (
 	"time"
 
 	eventsProto "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/events_proto"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -40,15 +40,16 @@ type DataGenerator struct {
 	keyPairPool []*KeyPair
 }
 
-func NewDataGenerator() *DataGenerator {
+func NewDataGenerator(size int) *DataGenerator {
 	// totally random seed
 	seed := time.Now().UnixNano()
 	cryptoGen := NewCryptoGenerator(seed)
 
 	return &DataGenerator{
-		rand:        rand.New(rand.NewSource(seed)),
-		cryptoGen:   cryptoGen,
-		keyPairPool: cryptoGen.GenerateKeyPairPool(50), // Pre-generate 50 key pairs for efficiency
+		rand:      rand.New(rand.NewSource(seed)),
+		cryptoGen: cryptoGen,
+		// declare ammount of keys by size integer
+		keyPairPool: cryptoGen.GenerateKeyPairPool(size),
 	}
 }
 
@@ -80,11 +81,18 @@ func (g *DataGenerator) GetRandomKeyPair() *KeyPair {
 	return g.keyPairPool[g.rand.Intn(len(g.keyPairPool))]
 }
 
+type Amount struct {
+	Amount int64
+	Denom  string
+}
+
 // Generate amount with ugnot suffix
-func (g *DataGenerator) GenerateAmount() sql_data_types.Amount {
-	amount := uint64(g.rand.Intn(10000000000) + 1000) // from 0.001 to 10K GNOT because 1 GNOT = 1000000 ugnot
-	return sql_data_types.Amount{
-		Amount: amount,
+func (g *DataGenerator) GenerateAmount() Amount {
+	// from 0.001 to 10K GNOT because 1 GNOT = 1000000 ugnot
+	amount := int64(g.rand.Intn(10000000000) + 1000)
+
+	return Amount{
+		Amount: int64(amount),
 		Denom:  "ugnot",
 	}
 }
@@ -102,13 +110,12 @@ func (g *DataGenerator) GenerateBytesValue() string {
 
 // Generate blocks hash
 func (g *DataGenerator) GenerateBlockHash() string {
-	chars := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
-	result := ""
-	length := g.rand.Intn(44)
+	data := make([]byte, 33)
 
-	for i := 0; i < length; i++ {
-		result += string(chars[g.rand.Intn(len(chars))])
+	for i := range 33 {
+		data[i] = byte((g.rand.Intn(1000000)*31 + i*17) % 256) // try to generate value that can be encoded to base64
 	}
+	result := base64.StdEncoding.EncodeToString(data)
 	return result
 }
 
@@ -125,6 +132,14 @@ func (g *DataGenerator) GeneratePackagePath() string {
 		"gno.land/r/dex/trade",
 	}
 	return packages[g.rand.Intn(len(packages))]
+}
+
+func (g *DataGenerator) GetAllBech32Addresses() []string {
+	addresses := make([]string, len(g.keyPairPool))
+	for _, a := range g.keyPairPool {
+		addresses = append(addresses, a.AddressBech32)
+	}
+	return addresses
 }
 
 // Event type templates
@@ -284,7 +299,7 @@ func (g *DataGenerator) GenerateTransaction() (TxEvents, std.Tx) {
 	tx := std.Tx{
 		Fee: std.Fee{
 			GasFee: std.Coin{
-				Amount: int64(g.GenerateAmount().Amount),
+				Amount: g.GenerateAmount().Amount,
 				Denom:  g.GenerateAmount().Denom,
 			},
 			GasWanted: 1000000,
@@ -327,7 +342,7 @@ func (g *DataGenerator) genMsgData(transactionType string) std.Msg {
 			Func:    g.GenerateFuncName(),
 			Args:    []string{g.GenerateArgs()},
 			Send: []std.Coin{
-				{Amount: int64(g.GenerateAmount().Amount), Denom: g.GenerateAmount().Denom},
+				{Amount: g.GenerateAmount().Amount, Denom: g.GenerateAmount().Denom},
 			},
 		}
 	case "vm_msg_run":
@@ -354,7 +369,7 @@ func (g *DataGenerator) genMsgData(transactionType string) std.Msg {
 				{Amount: int64(g.GenerateAmount().Amount), Denom: g.GenerateAmount().Denom},
 			},
 			MaxDeposit: []std.Coin{
-				{Amount: int64(g.GenerateAmount().Amount), Denom: g.GenerateAmount().Denom},
+				{Amount: g.GenerateAmount().Amount, Denom: g.GenerateAmount().Denom},
 			},
 		}
 	case "vm_msg_add_package":
@@ -378,10 +393,10 @@ func (g *DataGenerator) genMsgData(transactionType string) std.Msg {
 				Files: files,
 			},
 			Send: []std.Coin{
-				{Amount: int64(g.GenerateAmount().Amount), Denom: g.GenerateAmount().Denom},
+				{Amount: g.GenerateAmount().Amount, Denom: g.GenerateAmount().Denom},
 			},
 			MaxDeposit: []std.Coin{
-				{Amount: int64(g.GenerateAmount().Amount), Denom: g.GenerateAmount().Denom},
+				{Amount: g.GenerateAmount().Amount, Denom: g.GenerateAmount().Denom},
 			},
 		}
 	}
@@ -467,7 +482,7 @@ func (g *DataGenerator) GeneratePackageFileName() []string {
 
 // Generate dataset for training
 func GenerateTrainingDataset(numTransactions int) [][]byte {
-	generator := NewDataGenerator()
+	generator := NewDataGenerator(500)
 	dataset := make([][]byte, numTransactions)
 
 	for i := 0; i < numTransactions; i++ {

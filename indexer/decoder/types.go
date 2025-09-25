@@ -13,50 +13,8 @@ type BasicTxData struct {
 }
 
 type Coin struct {
-	Amount uint64
+	Amount int64
 	Denom  string
-}
-
-type MsgSend struct {
-	MsgType string
-	// gno address
-	FromAddress string
-	// gno address
-	ToAddress string
-	Amount    []Coin
-}
-
-type MsgCall struct {
-	MsgType string
-	// gno address
-	Caller     string
-	Send       []Coin
-	PkgPath    string
-	FuncName   string
-	Args       string
-	MaxDeposit []Coin
-}
-
-type MsgAddPackage struct {
-	MsgType string
-	// gno address
-	Creator      string
-	PkgPath      string
-	PkgName      string
-	PkgFileNames []string
-	Send         []Coin
-	MaxDeposit   []Coin
-}
-
-type MsgRun struct {
-	MsgType string
-	// gno address
-	Caller       string
-	PkgPath      string
-	PkgName      string
-	PkgFileNames []string
-	Send         []Coin
-	MaxDeposit   []Coin
 }
 
 // AddressResolver interface to make the code testable and flexible

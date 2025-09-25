@@ -73,7 +73,7 @@ type Blocks struct {
 	ChainID   string    `db:"chain_id" dbtype:"TEXT" nullable:"false" primary:"false"`
 	// proposer address is the validator address hence why this should be an integer
 	ProposerAddress int32    `db:"proposer_address" dbtype:"integer" nullable:"false" primary:"false"`
-	Txs             [][]byte `db:"txs" dbtype:"bytea" primary:"false" nullable:"true"` // can be a null value
+	Txs             [][]byte `db:"txs" dbtype:"bytea[]" primary:"false" nullable:"true"` // can be a null value
 	ChainName       string   `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 }
 
@@ -84,6 +84,16 @@ func (b Blocks) TableName() string {
 // GetTableInfo returns the table info for the Blocks struct
 func (b Blocks) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(b, b.TableName())
+}
+
+func (b Blocks) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(b)
+	for i := 0; i < fields.NumField(); i++ {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
 }
 
 // ValidatorBlockSigning represents a validator block signing with database mapping information
@@ -98,7 +108,7 @@ func (b Blocks) GetTableInfo() (*dbinit.TableInfo, error) {
 type ValidatorBlockSigning struct {
 	BlockHeight uint64    `db:"block_height" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp   time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
-	SignedVals  []int32   `db:"address" dbtype:"integer" nullable:"false" primary:"false"`
+	SignedVals  []int32   `db:"address" dbtype:"integer[]" nullable:"false" primary:"false"`
 	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"` // use type enum chain_name from postgres
 	// MissedVals  []int32   `db:"missed_vals" dbtype:"integer" nullable:"false" primary:"false"`
 	// can't confirm who is in the active set without making a smart contract query to the DAO smart contract
@@ -115,6 +125,17 @@ func (vbs ValidatorBlockSigning) TableName() string {
 // GetTableInfo returns the table info for the ValidatorBlockSigning struct
 func (vbs ValidatorBlockSigning) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(vbs, vbs.TableName())
+}
+
+func (vbs ValidatorBlockSigning) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(vbs)
+	numFields := fields.NumField()
+	for i := range numFields {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
 }
 
 // AddressTx represents a transaction with database mapping information
@@ -143,6 +164,16 @@ func (at AddressTx) TableName() string {
 func (at AddressTx) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(at, at.TableName())
 }
+func (at AddressTx) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(at)
+	numFields := fields.NumField()
+	for i := range numFields {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
+}
 
 // TransactionGeneral represents a transaction general data with database mapping information
 //
@@ -164,15 +195,18 @@ func (at AddressTx) GetTableInfo() (*dbinit.TableInfo, error) {
 // But what kind of data will be stored should be managed by the config.
 // It is not recommended to use both modes at the same time.
 type TransactionGeneral struct {
-	TxHash             []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
-	ChainName          string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
-	Timestamp          time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
-	MsgTypes           []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
-	TxEvents           []Event   `db:"tx_events" dbtype:"event[]" nullable:"true" primary:"false"`          // to be used if "native format" is used
-	TxEventsCompressed []byte    `db:"tx_events_compressed" dbtype:"bytea" nullable:"true" primary:"false"` // to be used for compressed events
-	GasUsed            uint64    `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
-	GasWanted          uint64    `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
-	Fee                Amount    `db:"fee" dbtype:"amount" nullable:"false" primary:"false"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	MsgTypes  []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
+	// tx events in the future there should be an option to have this compressed
+	// for now only store the native format but keep the option to have it compressed
+	TxEvents           []Event `db:"tx_events" dbtype:"event[]" nullable:"true" primary:"false"`
+	TxEventsCompressed []byte  `db:"tx_events_compressed" dbtype:"bytea" nullable:"true" primary:"false"`
+	CompressionOn      bool    `db:"compression_on" dbtype:"boolean" nullable:"false" primary:"false"`
+	GasUsed            uint64  `db:"gas_used" dbtype:"bigint" nullable:"false" primary:"false"`
+	GasWanted          uint64  `db:"gas_wanted" dbtype:"bigint" nullable:"false" primary:"false"`
+	Fee                Amount  `db:"fee" dbtype:"amount" nullable:"false" primary:"false"`
 }
 
 // TableName returns the name of the table for the TransactionGeneral struct
@@ -183,6 +217,17 @@ func (tg TransactionGeneral) TableName() string {
 // GetTableInfo returns the table info for the TransactionGeneral struct
 func (tg TransactionGeneral) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(tg, tg.TableName())
+}
+
+func (tg TransactionGeneral) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(tg)
+	numFields := fields.NumField()
+	for i := range numFields {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
 }
 
 // MsgSend represents a bank send message
@@ -274,7 +319,8 @@ func (mc MsgCall) GetTableInfo() (*dbinit.TableInfo, error) {
 func (mc MsgCall) TableColumns() []string {
 	columns := make([]string, 0)
 	fields := reflect.TypeOf(mc)
-	for i := 0; i < fields.NumField(); i++ {
+	numFields := fields.NumField()
+	for i := range numFields {
 		field := fields.Field(i)
 		columns = append(columns, field.Tag.Get("db"))
 	}
@@ -325,7 +371,8 @@ func (ma MsgAddPackage) GetTableInfo() (*dbinit.TableInfo, error) {
 func (ma MsgAddPackage) TableColumns() []string {
 	columns := make([]string, 0)
 	fields := reflect.TypeOf(ma)
-	for i := 0; i < fields.NumField(); i++ {
+	numFields := fields.NumField()
+	for i := range numFields {
 		field := fields.Field(i)
 		columns = append(columns, field.Tag.Get("db"))
 	}
@@ -368,7 +415,8 @@ func (mr MsgRun) TableColumns() []string {
 	columns := make([]string, 0)
 	// get the fields of the struct
 	fields := reflect.TypeOf(mr)
-	for i := 0; i < fields.NumField(); i++ {
+	numFields := fields.NumField()
+	for i := range numFields {
 		field := fields.Field(i)
 		columns = append(columns, field.Tag.Get("db"))
 	}

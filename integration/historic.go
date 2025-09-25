@@ -41,12 +41,18 @@ func configLoader() synthetic.SyntheticIntegrationTestConfig {
 	}
 	return synthetic.SyntheticIntegrationTestConfig{
 		DatabaseConfig: database.DatabasePoolConfig{
-			Host:     config.Host,
-			Port:     config.Port,
-			User:     config.User,
-			Password: config.Password,
-			Dbname:   config.Dbname,
-			Sslmode:  config.Sslmode,
+			Host:                      config.Host,
+			Port:                      config.Port,
+			User:                      config.User,
+			Password:                  config.Password,
+			Dbname:                    config.Dbname,
+			Sslmode:                   config.Sslmode,
+			PoolMaxConns:              config.PoolMaxConns,
+			PoolMinConns:              config.PoolMinConns,
+			PoolMaxConnLifetime:       config.PoolMaxConnLifetime,
+			PoolMaxConnIdleTime:       config.PoolMaxConnIdleTime,
+			PoolHealthCheckPeriod:     config.PoolHealthCheckPeriod,
+			PoolMaxConnLifetimeJitter: config.PoolMaxConnLifetimeJitter,
 		},
 		ChainID:    config.ChainID,
 		MaxHeight:  config.MaxHeight,
@@ -63,15 +69,10 @@ func main() {
 
 	// Run the synthetic integration test
 	startTime := time.Now()
-	log.Printf(
-		`Testing started at %s \n
-		Chain ID: %s \n
-		Processing blocks %d to %d \n
-		Max synthetic height: %d \n`,
-		startTime.Format(time.RFC3339),
-		testConfig.ChainID,
-		testConfig.FromHeight, testConfig.ToHeight,
-		testConfig.MaxHeight)
+	log.Printf("Testing started at %s", startTime.Format(time.RFC3339))
+	log.Printf("Chain ID: %s", testConfig.ChainID)
+	log.Printf("Processing blocks %d to %d", testConfig.FromHeight, testConfig.ToHeight)
+	log.Printf("Max synthetic height: %d ", testConfig.MaxHeight)
 
 	err := synthetic.RunSyntheticIntegrationTest(&testConfig)
 	if err != nil {

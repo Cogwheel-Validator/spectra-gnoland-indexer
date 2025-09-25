@@ -59,8 +59,8 @@ func (or *Orchestrator) HistoricProcess(
 		log.Printf("Historic processing completed at height %d", or.currentProcessingHeight)
 	}()
 
-	for startHeight := fromHeight; startHeight <= toHeight; startHeight += or.config.MaxBlockChunkSize {
-		chunkEndHeight := min(startHeight+or.config.MaxBlockChunkSize, toHeight)
+	for startHeight := fromHeight; startHeight <= toHeight; {
+		chunkEndHeight := min(startHeight+or.config.MaxBlockChunkSize-1, toHeight)
 
 		chunkStartTime := time.Now()
 		log.Printf("Processing chunk from %d to %d", startHeight, chunkEndHeight)
@@ -95,6 +95,8 @@ func (or *Orchestrator) HistoricProcess(
 		totalDuration := time.Since(startTime)
 		log.Printf("Chunk %d-%d completed in %v, total time: %v",
 			startHeight, chunkEndHeight, chunkDuration, totalDuration)
+
+		startHeight = chunkEndHeight + 1
 	}
 
 	totalDuration := time.Since(startTime)

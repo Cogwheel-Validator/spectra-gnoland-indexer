@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"math/big"
 	"strings"
 
 	dataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
@@ -11,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // Decoder is a struct that contains the encoded transaction and the decoded transaction
@@ -89,8 +91,10 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 	for i, signer := range signers {
 		signersString[i] = signer.String()
 	}
+	bigInt := big.NewInt(tx.Fee.GasFee.Amount)
+	feeAmount := pgtype.Numeric{Int: bigInt, Valid: true}
 	fee := dataTypes.Amount{
-		Amount: uint64(tx.Fee.GasFee.Amount),
+		Amount: feeAmount,
 		Denom:  tx.Fee.GasFee.Denom,
 	}
 
@@ -204,7 +208,7 @@ func extractCoins(amount std.Coins) ([]Coin, error) {
 	coins := make([]Coin, len(amount))
 	for _, coin := range amount {
 		coins = append(coins, Coin{
-			Amount: uint64(coin.Amount),
+			Amount: coin.Amount,
 			Denom:  coin.Denom,
 		})
 	}

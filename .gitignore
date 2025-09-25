@@ -35,6 +35,7 @@ go.work.sum
 
 # env and config files
 config.yml
+test_config.yml
 .env
 
 # State dumps and diagnostics directories
