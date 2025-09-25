@@ -90,7 +90,7 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 	})
 
 	// retry 3 times just for the sake of it
-	d.addressCache.AddressSolver(addresses, d.chainName, true, 3, nil)
+	d.validatorCache.AddressSolver(addresses, d.chainName, true, 3, nil)
 	log.Printf("Validator addresses processed from %d to %d", fromHeight, toHeight)
 }
 
@@ -149,7 +149,7 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 				Height:          height,
 				Timestamp:       block.Result.Block.Header.Time,
 				ChainID:         block.Result.Block.Header.ChainID,
-				ProposerAddress: d.addressCache.GetAddress(block.Result.Block.Header.ProposerAddress),
+				ProposerAddress: d.validatorCache.GetAddress(block.Result.Block.Header.ProposerAddress),
 				Txs:             txs,
 				ChainName:       d.chainName,
 			}

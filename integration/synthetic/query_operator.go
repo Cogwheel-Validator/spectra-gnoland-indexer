@@ -14,7 +14,7 @@ import (
 
 var (
 	// september 1st 2025, time is UTC at midnight
-	currentTimestamp = time.Date(2025, 9, 1, 0, 0, 0, 0, time.UTC)
+	baseTimestamp = time.Date(2025, 9, 1, 0, 0, 0, 0, time.UTC)
 	// 1 block per 5 seconds, real chain could be different
 	blockProductionRate = time.Second * 5
 )
@@ -34,13 +34,15 @@ type SyntheticQueryOperator struct {
 
 // NewSyntheticQueryOperator creates a new synthetic query operator
 func NewSyntheticQueryOperator(chainID string, maxHeight uint64) *SyntheticQueryOperator {
-	gen := generator.NewDataGenerator()
+	gen := generator.NewDataGenerator(500)
 
 	// Generate a consistent set of validator addresses for all blocks
 	numValidators := 50 //capped to 50
+	genVal := generator.NewDataGenerator(50)
+	valAddr := genVal.GetAllBech32Addresses()
 	validators := make([]string, numValidators)
 	for i := 0; i < numValidators; i++ {
-		validators[i] = gen.GenerateAddress()
+		validators[i] = valAddr[i]
 	}
 
 	sq := &SyntheticQueryOperator{
@@ -97,6 +99,7 @@ func (sq *SyntheticQueryOperator) GetLatestBlockHeight() (uint64, error) {
 
 // preGenerateData creates a consistent dataset of blocks and transactions
 func (sq *SyntheticQueryOperator) preGenerateData(maxHeight uint64) {
+	startTime := time.Now()
 	// Generate blocks from 1 to maxHeight
 	for height := uint64(1); height <= maxHeight; height++ {
 		sq.createSynthBlock(height)
@@ -106,7 +109,7 @@ func (sq *SyntheticQueryOperator) preGenerateData(maxHeight uint64) {
 			log.Printf("Generated %d/%d blocks (%.1f%%)", height, maxHeight, float64(height)/float64(maxHeight)*100)
 		}
 	}
-	log.Printf("Pre-generated data for blocks from 1 to %d", maxHeight)
+	log.Printf("Pre-generated data for blocks from 1 to %d in %v", maxHeight, time.Since(startTime))
 	log.Printf("Total transactions generated: %d", len(sq.transactions))
 }
 
@@ -164,13 +167,13 @@ func (sq *SyntheticQueryOperator) createSynthBlock(height uint64) (*rpcClient.Bl
 		txResponses = append(txResponses, txResponse)
 	}
 
-	// on every block we need to update the current timestamp
-	currentTimestamp = currentTimestamp.Add(blockProductionRate)
+	blockTimestamp := baseTimestamp.Add(time.Duration(height-1) * blockProductionRate)
+
 	// Create the block using existing synthetic response maker
 	blockInput := GenBlockInput{
 		Height:           height,
 		ChainID:          sq.chainID,
-		Timestamp:        currentTimestamp.Add(-time.Duration(sq.currentHeight-height) * blockProductionRate),
+		Timestamp:        blockTimestamp,
 		ProposerAddress:  sq.signedValidators[height%uint64(len(sq.signedValidators))], // random validator
 		SignedValidators: sq.signedValidators,
 		TxsRaw:           txHashes,

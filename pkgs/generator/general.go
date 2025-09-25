@@ -40,15 +40,16 @@ type DataGenerator struct {
 	keyPairPool []*KeyPair
 }
 
-func NewDataGenerator() *DataGenerator {
+func NewDataGenerator(size int) *DataGenerator {
 	// totally random seed
 	seed := time.Now().UnixNano()
 	cryptoGen := NewCryptoGenerator(seed)
 
 	return &DataGenerator{
-		rand:        rand.New(rand.NewSource(seed)),
-		cryptoGen:   cryptoGen,
-		keyPairPool: cryptoGen.GenerateKeyPairPool(50), // Pre-generate 50 key pairs for efficiency
+		rand:      rand.New(rand.NewSource(seed)),
+		cryptoGen: cryptoGen,
+		// declare ammount of keys by size integer
+		keyPairPool: cryptoGen.GenerateKeyPairPool(size),
 	}
 }
 
@@ -131,6 +132,14 @@ func (g *DataGenerator) GeneratePackagePath() string {
 		"gno.land/r/dex/trade",
 	}
 	return packages[g.rand.Intn(len(packages))]
+}
+
+func (g *DataGenerator) GetAllBech32Addresses() []string {
+	addresses := make([]string, len(g.keyPairPool))
+	for _, a := range g.keyPairPool {
+		addresses = append(addresses, a.AddressBech32)
+	}
+	return addresses
 }
 
 // Event type templates
@@ -473,7 +482,7 @@ func (g *DataGenerator) GeneratePackageFileName() []string {
 
 // Generate dataset for training
 func GenerateTrainingDataset(numTransactions int) [][]byte {
-	generator := NewDataGenerator()
+	generator := NewDataGenerator(500)
 	dataset := make([][]byte, numTransactions)
 
 	for i := 0; i < numTransactions; i++ {

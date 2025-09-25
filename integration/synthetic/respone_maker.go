@@ -18,7 +18,7 @@ type GenBlockInput struct {
 }
 
 func GenerateBlockResponse(input GenBlockInput) *rpcClient.BlockResponse {
-	gen := generator.NewDataGenerator()
+	gen := generator.NewDataGenerator(500)
 
 	// here is the deal the progrma will just make some hash here
 	// usually there are 2 hashes, new hash and hash from the previous block
