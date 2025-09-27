@@ -3,15 +3,45 @@ package query
 import (
 	"log"
 	"sync"
+	"time"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/retry"
 	rc "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 )
 
+var (
+	defaultRetryAmount        = 6
+	defaultPause              = 3
+	defaultPauseTime          = 15 * time.Second
+	defaultExponentialBackoff = 2 * time.Second
+)
+
 // NewQueryOperator creates a new query operator
-func NewQueryOperator(rpcClient RpcClient) *QueryOperator {
+func NewQueryOperator(
+	rpcClient RpcClient,
+	retryAmount *int,
+	pause *int,
+	pauseTime *time.Duration,
+	exponentialBackoff *time.Duration,
+) *QueryOperator {
+	if retryAmount == nil || *retryAmount == 0 {
+		retryAmount = &defaultRetryAmount
+	}
+	if pause == nil || *pause == 0 {
+		pause = &defaultPause
+	}
+	if pauseTime == nil || *pauseTime == 0 {
+		pauseTime = &defaultPauseTime
+	}
+	if exponentialBackoff == nil || *exponentialBackoff == 0 {
+		exponentialBackoff = &defaultExponentialBackoff
+	}
 	return &QueryOperator{
-		rpcClient: rpcClient,
-		// TODO: add some kind of retry mechanism so other methods can use it
+		rpcClient:          rpcClient,
+		retryAmount:        *retryAmount,
+		pause:              *pause,
+		pauseTime:          *pauseTime,
+		exponentialBackoff: *exponentialBackoff,
 	}
 }
 
@@ -66,9 +96,29 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 			defer wg.Done()
 			block, err := q.rpcClient.GetBlock(height)
 			if err != nil {
-				// TODO: add retry mechanism
-				log.Printf("error getting block %d: %v", height, err)
-				blockChan <- nil // send nil for failed requests
+				// Use retry mechanism with callback pattern
+				retry.RetryWithContext(
+					q.retryAmount,
+					q.pause,
+					q.pauseTime,
+					q.exponentialBackoff,
+					func(args ...any) (*rc.BlockResponse, error) {
+						h := args[0].(uint64)
+						result, rpcErr := q.rpcClient.GetBlock(h)
+						if rpcErr != nil {
+							return nil, rpcErr
+						}
+						return result, nil
+					},
+					func(result *rc.BlockResponse) {
+						blockChan <- result
+					},
+					func(retryErr error) {
+						log.Printf("failed to get block %d after retries: %v", height, retryErr)
+						blockChan <- nil
+					},
+					height,
+				)
 				return
 			}
 			blockChan <- block
@@ -130,9 +180,29 @@ func (q *QueryOperator) GetTransactions(txs []string) []*rc.TxResponse {
 			defer wg.Done()
 			txResponse, err := q.rpcClient.GetTx(tx)
 			if err != nil {
-				// TODO: add retry mechanism
-				log.Printf("error getting tx %s: %v", tx, err)
-				txChan <- nil // send nil for failed requests for the tx
+				// Use retry mechanism with callback pattern
+				retry.RetryWithContext(
+					q.retryAmount,
+					q.pause,
+					q.pauseTime,
+					q.exponentialBackoff,
+					func(args ...any) (*rc.TxResponse, error) {
+						txHash := args[0].(string)
+						result, rpcErr := q.rpcClient.GetTx(txHash)
+						if rpcErr != nil {
+							return nil, rpcErr
+						}
+						return result, nil
+					},
+					func(result *rc.TxResponse) {
+						txChan <- result
+					},
+					func(retryErr error) {
+						log.Printf("failed to get tx %s after retries: %v", tx, retryErr)
+						txChan <- nil
+					},
+					tx,
+				)
 				return
 			}
 			txChan <- txResponse

@@ -226,7 +226,9 @@ func initializeMajorConstructors(
 	dataProcessor := dp.NewDataProcessor(db, addressCache, validatorCache, chainName)
 
 	// initialize the query operator
-	queryOperator := query.NewQueryOperator(gnoRpcClient)
+	queryOperator := query.NewQueryOperator(
+		gnoRpcClient, conf.RetryAmount, conf.Pause, conf.PauseTime, conf.ExponentialBackoff,
+	)
 
 	return &MajorConstructors{
 		db:             db,
