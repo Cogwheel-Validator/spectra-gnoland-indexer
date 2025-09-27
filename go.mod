@@ -1,10 +1,10 @@
 module github.com/Cogwheel-Validator/spectra-gnoland-indexer
 
-go 1.24.6
+go 1.25.1
 
 require (
 	github.com/caarlos0/env/v6 v6.10.1
-	github.com/gnolang/gno v0.0.0-20250922044730-89d8028c2d5e
+	github.com/gnolang/gno v0.0.0-20250926165528-791c114918cd
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/compress v1.18.0

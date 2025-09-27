@@ -54,7 +54,10 @@ func TestQueryOperator(t *testing.T) {
 	mockRpcClient.GetLatestBlockHeightCalled = false
 
 	// Test GetLatestBlockHeight
-	queryOperator.GetLatestBlockHeight()
+	_, err := queryOperator.GetLatestBlockHeight()
+	if err != nil {
+		t.Errorf("GetLatestBlockHeight should not return an error")
+	}
 	if !mockRpcClient.GetLatestBlockHeightCalled {
 		t.Errorf("GetLatestBlockHeight should be called")
 	}

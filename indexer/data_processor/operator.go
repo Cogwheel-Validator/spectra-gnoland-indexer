@@ -166,7 +166,10 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 		blocksData = append(blocksData, *block)
 	}
 
-	d.dbPool.InsertBlocks(blocksData)
+	err := d.dbPool.InsertBlocks(blocksData)
+	if err != nil {
+		log.Printf("Failed to insert blocks: %v", err)
+	}
 	log.Printf("Blocks processed from %d to %d", fromHeight, toHeight)
 }
 
@@ -254,7 +257,10 @@ func (d *DataProcessor) ProcessTransactions(
 		transactionsData = append(transactionsData, *transaction)
 	}
 
-	d.dbPool.InsertTransactionsGeneral(transactionsData)
+	err := d.dbPool.InsertTransactionsGeneral(transactionsData)
+	if err != nil {
+		log.Printf("Failed to insert transactions: %v", err)
+	}
 	log.Printf("Transactions processed from %d to %d", fromHeight, toHeight)
 }
 
@@ -507,6 +513,9 @@ func (d *DataProcessor) ProcessValidatorSignings(
 		validatorData = append(validatorData, *validator)
 	}
 
-	d.dbPool.InsertValidatorBlockSignings(validatorData)
+	err := d.dbPool.InsertValidatorBlockSignings(validatorData)
+	if err != nil {
+		log.Printf("Failed to insert validator block signings: %v", err)
+	}
 	log.Printf("Validator block signings processed from %d to %d", fromHeight, toHeight)
 }
