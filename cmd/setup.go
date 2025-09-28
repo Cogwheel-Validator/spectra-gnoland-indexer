@@ -14,77 +14,113 @@ import (
 	"golang.org/x/term"
 )
 
+var allowedSslModes = []string{"disable", "require", "verify-ca", "verify-full", "allow", "prefer"}
+
+// dbParams holds common database connection parameters
+type dbParams struct {
+	host     string
+	port     int
+	user     string
+	name     string
+	password string
+	sslMode  string
+}
+
+// parseCommonFlags extracts and validates common database flags
+func parseCommonFlags(cmd *cobra.Command, defaultDbName string) (*dbParams, error) {
+	params := &dbParams{}
+
+	params.host, _ = cmd.Flags().GetString("db-host")
+	params.port, _ = cmd.Flags().GetInt("db-port")
+	params.user, _ = cmd.Flags().GetString("db-user")
+	params.sslMode, _ = cmd.Flags().GetString("ssl-mode")
+	params.name, _ = cmd.Flags().GetString("db-name")
+
+	// Apply defaults
+	if params.sslMode == "" {
+		params.sslMode = "disable"
+	}
+	if params.host == "" {
+		params.host = "localhost"
+	}
+	if params.port == 0 {
+		params.port = 5432
+	}
+	if params.user == "" {
+		params.user = "postgres"
+	}
+	if params.name == "" {
+		params.name = defaultDbName
+	}
+
+	// Validate
+	if !slices.Contains(allowedSslModes, params.sslMode) {
+		return nil, fmt.Errorf("invalid ssl mode: %s", params.sslMode)
+	}
+	if params.port > 65535 {
+		return nil, fmt.Errorf("invalid port: %d", params.port)
+	}
+
+	return params, nil
+}
+
+// promptPassword prompts user for password input
+func promptPassword() (string, error) {
+	fmt.Print("Enter the database password: ")
+	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		return "", fmt.Errorf("failed to read password: %v", err)
+	}
+	fmt.Println()
+	return string(bytePassword), nil
+}
+
+// createDatabaseConfig creates a DatabasePoolConfig from dbParams
+func (p *dbParams) createDatabaseConfig() database.DatabasePoolConfig {
+	return database.DatabasePoolConfig{
+		Host:                      p.host,
+		Port:                      p.port,
+		User:                      p.user,
+		Dbname:                    p.name,
+		Password:                  p.password,
+		Sslmode:                   p.sslMode,
+		PoolMaxConns:              10,
+		PoolMinConns:              1,
+		PoolMaxConnLifetime:       10 * time.Minute,
+		PoolMaxConnIdleTime:       5 * time.Minute,
+		PoolHealthCheckPeriod:     1 * time.Minute,
+		PoolMaxConnLifetimeJitter: 1 * time.Minute,
+	}
+}
+
 var rootCmd = &cobra.Command{
+	Use:   "setup",
+	Short: "Database setup tools for the gnoland indexer",
+	Long:  `A collection of tools to set up and manage the database for the gnoland indexer.`,
+}
+
+var createDbCmd = &cobra.Command{
 	Use:   "create-db",
 	Short: "Create a new database named gnoland",
 	Long: `Create a new database named gnoland for the indexer. It goes
 		throught a lot of steps to create the database and insert the tables and data.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log.Printf("Initiating the cmd to set up the database for the indexer...")
-		var dbHost string
-		var dbPort int
-		var dbUser string
-		var dbName string
-		var dbPassword string
-		var sslMode string
 
-		var allowedSslModes = []string{"disable", "require", "verify-ca", "verify-full", "allow", "prefer"}
-
-		dbHost, _ = cmd.Flags().GetString("db-host")
-		dbPort, _ = cmd.Flags().GetInt("db-port")
-		dbUser, _ = cmd.Flags().GetString("db-user")
-		sslMode, _ = cmd.Flags().GetString("ssl-mode")
-		dbName, _ = cmd.Flags().GetString("db-name")
-
-		if sslMode == "" {
-			sslMode = "disable" // if not specified, default to disable
+		// Parse and validate common database flags
+		params, err := parseCommonFlags(cmd, "postgres")
+		if err != nil {
+			log.Fatalf("failed to parse flags: %v", err)
 		}
 
-		if !slices.Contains(allowedSslModes, sslMode) {
-			log.Fatalf("invalid ssl mode: %s", sslMode)
-		}
-
-		if dbHost == "" {
-			dbHost = "localhost" // if not specified, default to localhost
-		}
-
-		if dbPort == 0 {
-			dbPort = 5432 // if not specified, default to 5432
-		} else if dbPort > 65535 {
-			log.Fatalf("invalid port: %d", dbPort)
-		}
-
-		if dbUser == "" {
-			dbUser = "postgres" // if not specified, default to postgres
-		}
-
-		if dbName == "" {
-			dbName = "postgres" // if not specified, default to postgres
-		}
-
-		fmt.Print("Enter the database password: ")
-		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		// Prompt for password
+		params.password, err = promptPassword()
 		if err != nil {
 			log.Fatalf("failed to read password: %v", err)
 		}
-		dbPassword = string(bytePassword)
-		fmt.Println()
 
-		// create database config
-		dbConfig := database.DatabasePoolConfig{
-			Host:                      dbHost,
-			Port:                      dbPort,
-			User:                      dbUser,
-			Dbname:                    dbName,
-			Password:                  dbPassword,
-			Sslmode:                   sslMode,
-			PoolMaxConns:              10,
-			PoolMinConns:              1,
-			PoolMaxConnLifetime:       10 * time.Minute,
-			PoolMaxConnIdleTime:       5 * time.Minute,
-			PoolHealthCheckPeriod:     1 * time.Minute,
-			PoolMaxConnLifetimeJitter: 1 * time.Minute,
-		}
+		// Create database config
+		dbConfig := params.createDatabaseConfig()
 
 		// create a new database connection
 		db := database.NewTimescaleDbSetup(dbConfig)
@@ -192,12 +228,75 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+var createUserCmd = &cobra.Command{
+	Use:   "create-user",
+	Short: "Create a new user for the database",
+	Long:  `Create a new user for the database. It will ask for the password and create the user.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Parse and validate common database flags
+		params, err := parseCommonFlags(cmd, "gnoland")
+		if err != nil {
+			log.Fatalf("failed to parse flags: %v", err)
+		}
+
+		// Get privilege flag
+		privilege, _ := cmd.Flags().GetString("privilege")
+		if privilege == "" {
+			log.Fatalf("privilege is required")
+		} else if privilege != "reader" && privilege != "writer" {
+			log.Fatalf("invalid privilege: %s", privilege)
+		}
+
+		// get the user name from the flags
+		userName, _ := cmd.Flags().GetString("user")
+		if userName == "" {
+			log.Fatalf("user name is required")
+		}
+
+		// Prompt for password
+		params.password, err = promptPassword()
+		if err != nil {
+			log.Fatalf("failed to read password: %v", err)
+		}
+
+		// Create database config and connection
+		dbConfig := params.createDatabaseConfig()
+		db := database.NewTimescaleDbSetup(dbConfig)
+		dbInit := dbinit.NewDBInitializer(db.GetPool())
+
+		// Create a new user
+		err = dbInit.CreateUser(userName)
+		if err != nil {
+			log.Fatalf("failed to create user: %v", err)
+		}
+
+		// Appoint privileges to the user
+		err = dbInit.AppointPrivileges(params.user, privilege, []string{})
+		if err != nil {
+			log.Fatalf("failed to appoint privileges to user: %v", err)
+		}
+
+		log.Printf("Successfully created user %s with privilege %s", params.user, privilege)
+		return nil
+	},
+}
+
 func init() {
-	rootCmd.PersistentFlags().String("db-host", "", "The database host, default is localhost")
-	rootCmd.PersistentFlags().Int("db-port", 0, "The database port, default is 5432")
-	rootCmd.PersistentFlags().String("db-user", "", "The database user, default is postgres")
-	rootCmd.PersistentFlags().String("db-name", "", "The database name, default is postgres")
-	rootCmd.PersistentFlags().String("ssl-mode", "", "The SSL mode for the database connection, default is disable")
+	// Common database flags to both commands
+	for _, cmd := range []*cobra.Command{createDbCmd, createUserCmd} {
+		cmd.Flags().String("db-host", "", "The database host, default is localhost")
+		cmd.Flags().Int("db-port", 0, "The database port, default is 5432")
+		cmd.Flags().String("db-user", "", "The database user, default is postgres")
+		cmd.Flags().String("db-name", "", "The database name, default is postgres")
+		cmd.Flags().String("ssl-mode", "", "The SSL mode for the database connection, default is disable")
+	}
+
+	// Add create-user command specific flags
+	createUserCmd.Flags().String("privilege", "", "The privilege level for the user (reader or writer)")
+	createUserCmd.Flags().String("user", "", "The user name for the user to create")
+
+	rootCmd.AddCommand(createDbCmd)
+	rootCmd.AddCommand(createUserCmd)
 }
 
 func main() {

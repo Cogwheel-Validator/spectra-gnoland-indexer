@@ -7,8 +7,10 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/term"
 )
 
 // TableInfo contains metadata about a database table structure
@@ -533,6 +535,70 @@ func (db *DBInitializer) CreateChainTypeEnum(enumValues []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to add value %s to type enum chain_name: %w", enumValue, err)
 		}
+	}
+	return nil
+}
+
+// CreateUser creates a user in the database
+//
+// The function will
+// Args:
+// - name: the name of the user to create
+//
+// Returns:
+// - nil: if the function is successful
+// - error: if the function fails
+func (db *DBInitializer) CreateUser(userName string) error {
+	fmt.Printf("Creating user %s.....\n", userName)
+	fmt.Printf("Enter the password for the new user: ")
+	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		log.Fatalf("failed to read password: %v", err)
+	}
+	password := string(bytePassword)
+
+	sql := fmt.Sprintf("CREATE USER %s WITH PASSWORD '%s'", userName, password)
+	_, err = db.pool.Exec(context.Background(), sql)
+	// if error is related to user already existing mark it as a warning and continue
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			log.Printf("User %s already exists, skipping creation", userName)
+			return nil
+		} else {
+			return fmt.Errorf("failed to create user %s: %w", userName, err)
+		}
+	}
+	return nil
+}
+
+func (db *DBInitializer) AppointPrivileges(
+	userName string,
+	privilage string,
+	tableNames []string,
+) error {
+	// kill if the privilage is not valid
+	if privilage != "reader" && privilage != "writer" {
+		return fmt.Errorf("invalid privilage: %s", privilage)
+	}
+
+	var sql strings.Builder
+
+	switch privilage {
+	case "reader":
+		for _, tableName := range tableNames {
+			sql.WriteString(fmt.Sprintf("GRANT SELECT ON TABLE %s TO %s;\n", tableName, userName))
+		}
+	case "writer":
+		for _, tableName := range tableNames {
+			sql.WriteString(fmt.Sprintf("GRANT SELECT, INSERT, UPDATE ON TABLE %s TO %s;\n", tableName, userName))
+		}
+	default:
+		return fmt.Errorf("invalid privilage: %s", privilage)
+	}
+
+	_, err := db.pool.Exec(context.Background(), sql.String())
+	if err != nil {
+		return fmt.Errorf("failed to appoint privileges to user %s: %w", userName, err)
 	}
 	return nil
 }
