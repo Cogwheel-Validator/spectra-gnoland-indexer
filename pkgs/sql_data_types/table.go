@@ -7,6 +7,11 @@ import (
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 )
 
+// AddrHash is a struct for returning a address and transaction hash
+// the use case for this is a helper struct for the data processor
+// when we need to insert the data into the address_tx table
+type AddrHash map[int32][]byte
+
 // GnoAddress represents a regular Gno address with database mapping information
 // Stores:
 // - Address (string)
@@ -230,6 +235,18 @@ func (tg TransactionGeneral) TableColumns() []string {
 	return columns
 }
 
+// GetTxHash returns the tx hash of the transaction general
+//
+// Returns:
+//   - []byte: the tx hash of the transaction general
+func (tg *TransactionGeneral) GetTxHash() []byte {
+	return tg.TxHash
+}
+
+func (tg *TransactionGeneral) GetMessageTypes() []string {
+	return tg.MsgTypes
+}
+
 // MsgSend represents a bank send message
 //
 // Stores:
@@ -274,6 +291,25 @@ func (ms MsgSend) TableColumns() []string {
 		columns = append(columns, field.Tag.Get("db"))
 	}
 	return columns
+}
+
+// GetAllAddresses returns all the addresses that are involved in the message
+// it will return the from address, to address, and signers
+// if the to address is not set it will not be included
+// if the signers are not set it will not be included
+//
+// Returns:
+//   - []AddrHash: a slice of address hashes
+func (ms *MsgSend) GetAllAddresses() []AddrHash {
+	addresses := make([]AddrHash, 2+len(ms.Signers))
+	addresses = append(addresses, AddrHash{ms.FromAddress: ms.TxHash})
+	if ms.ToAddress != 0 {
+		addresses = append(addresses, AddrHash{ms.ToAddress: ms.TxHash})
+	}
+	for _, address := range ms.Signers {
+		addresses = append(addresses, AddrHash{address: ms.TxHash})
+	}
+	return addresses
 }
 
 // MsgCall represents a VM function call message
@@ -325,6 +361,19 @@ func (mc MsgCall) TableColumns() []string {
 		columns = append(columns, field.Tag.Get("db"))
 	}
 	return columns
+}
+
+// GetAllAddresses returns all the addresses that are involved in the message
+
+// Returns:
+//   - []AddrHash: a slice of address hashes
+func (mc *MsgCall) GetAllAddresses() []AddrHash {
+	addresses := make([]AddrHash, 1+len(mc.Signers))
+	addresses = append(addresses, AddrHash{mc.Caller: mc.TxHash})
+	for _, addr := range mc.Signers {
+		addresses = append(addresses, AddrHash{addr: mc.TxHash})
+	}
+	return addresses
 }
 
 // MsgAddPackage represents a VM package addition message
@@ -379,6 +428,19 @@ func (ma MsgAddPackage) TableColumns() []string {
 	return columns
 }
 
+// GetAllAddresses returns all the addresses that are involved in the message
+
+// Returns:
+//   - []AddrHash: a slice of address hashes
+func (ma *MsgAddPackage) GetAllAddresses() []AddrHash {
+	addresses := make([]AddrHash, 1+len(ma.Signers))
+	addresses = append(addresses, AddrHash{ma.Creator: ma.TxHash})
+	for _, addr := range ma.Signers {
+		addresses = append(addresses, AddrHash{addr: ma.TxHash})
+	}
+	return addresses
+}
+
 // MsgRun represents a VM package run message
 //
 // Stores:
@@ -430,6 +492,19 @@ func (mr MsgRun) TableName() string {
 // GetTableInfo returns the table info for the MsgRun struct
 func (mr MsgRun) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(mr, mr.TableName())
+}
+
+// GetAllAddresses returns all the addresses that are involved in the message
+
+// Returns:
+//   - []AddrHash: a slice of address hashes
+func (mr *MsgRun) GetAllAddresses() []AddrHash {
+	addresses := make([]AddrHash, 1+len(mr.Signers))
+	addresses = append(addresses, AddrHash{mr.Caller: mr.TxHash})
+	for _, addr := range mr.Signers {
+		addresses = append(addresses, AddrHash{addr: mr.TxHash})
+	}
+	return addresses
 }
 
 // DBTable is an interface for structs that represent database tables

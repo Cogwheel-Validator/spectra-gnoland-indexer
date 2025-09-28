@@ -44,6 +44,10 @@ func (m *MockDatabase) InsertMsgRun(messages []sqlDataTypes.MsgRun) error {
 	return m.LastInsertError
 }
 
+func (m *MockDatabase) InsertAddressTx(addresses []sqlDataTypes.AddressTx) error {
+	return m.LastInsertError
+}
+
 // Simple Mock AddressCache
 type MockAddressCache struct {
 	ReturnID int32
@@ -115,6 +119,11 @@ func TestDataProcessor_DatabaseInterface(t *testing.T) {
 	err = db.InsertTransactionsGeneral([]sqlDataTypes.TransactionGeneral{})
 	if err != nil {
 		t.Errorf("InsertTransactionsGeneral should not return error with nil input, got: %v", err)
+	}
+
+	err = db.InsertAddressTx([]sqlDataTypes.AddressTx{})
+	if err != nil {
+		t.Errorf("InsertAddressTx should not return error with nil input, got: %v", err)
 	}
 }
 

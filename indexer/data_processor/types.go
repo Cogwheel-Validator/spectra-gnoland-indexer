@@ -13,6 +13,7 @@ type Database interface {
 	InsertMsgCall(messages []sqlDataTypes.MsgCall) error
 	InsertMsgAddPackage(messages []sqlDataTypes.MsgAddPackage) error
 	InsertMsgRun(messages []sqlDataTypes.MsgRun) error
+	InsertAddressTx(addresses []sqlDataTypes.AddressTx) error
 }
 
 // Define interface for what DataProcessor needs from AddressCache
