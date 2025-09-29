@@ -39,7 +39,7 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 	log.Printf("Initialized data processor")
 
 	// Create synthetic query operator (this replaces the real RPC queries!)
-	syntheticQueryOp := NewSyntheticQueryOperator(testConfig.ChainID, testConfig.MaxHeight)
+	syntheticQueryOp := NewSyntheticQueryOperator(testConfig.ChainID, testConfig.FromHeight, testConfig.MaxHeight)
 	log.Printf("Created synthetic query operator with max height %d", testConfig.MaxHeight)
 
 	// Create a mock database height interface for the orchestrator

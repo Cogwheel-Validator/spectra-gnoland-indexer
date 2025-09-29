@@ -13,9 +13,9 @@ clean:
 # experimental build with greentea garbage collection
 # use at your own risk
 experimental-indexer:
-	GOEXPERIMENT=greentea go build -o build/indexer indexer/main.go
+	GOEXPERIMENT=greenteagc go build -o build/indexer indexer/main.go
 
 # experimental install with greentea garbage collection
 # use at your own risk
 experimental-install-indexer:
-	GOEXPERIMENT=greentea go install indexer/main.go
+	GOEXPERIMENT=greenteagc go install indexer/main.go

@@ -135,7 +135,7 @@ func (g *DataGenerator) GeneratePackagePath() string {
 }
 
 func (g *DataGenerator) GetAllBech32Addresses() []string {
-	addresses := make([]string, len(g.keyPairPool))
+	addresses := make([]string, 0, len(g.keyPairPool))
 	for _, a := range g.keyPairPool {
 		addresses = append(addresses, a.AddressBech32)
 	}
