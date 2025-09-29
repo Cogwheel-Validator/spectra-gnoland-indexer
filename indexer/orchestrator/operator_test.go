@@ -120,7 +120,7 @@ func (e *DatabaseError) Error() string {
 func createSimpleTestConfig() *config.Config {
 	return &config.Config{
 		MaxBlockChunkSize: 5,
-		LivePooling:       1,
+		LivePooling:       time.Second,
 		RpcUrl:            "http://test",
 	}
 }

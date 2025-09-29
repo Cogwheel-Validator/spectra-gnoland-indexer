@@ -71,7 +71,9 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 			// Process precommits
 			precommits := block.Result.Block.LastCommit.Precommits
 			for _, precommit := range precommits {
-				addressesMap.Store(precommit.ValidatorAddress, true)
+				if precommit != nil {
+					addressesMap.Store(precommit.ValidatorAddress, true)
+				}
 			}
 
 			// Process proposer

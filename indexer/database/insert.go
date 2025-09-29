@@ -55,6 +55,11 @@ func (t *TimescaleDb) InsertAddresses(addresses []string, chainName string, inse
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertBlocks(blocks []sql_data_types.Blocks) error {
+	// Return early if no blocks to insert
+	if len(blocks) == 0 {
+		return nil
+	}
+
 	// create a copy from slice to the db
 	pgxSlice := pgx.CopyFromSlice(len(blocks), func(i int) ([]any, error) {
 		return []any{
@@ -88,6 +93,11 @@ func (t *TimescaleDb) InsertBlocks(blocks []sql_data_types.Blocks) error {
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertValidatorBlockSignings(validatorBlockSigning []sql_data_types.ValidatorBlockSigning) error {
+	// Return early if no validator block signings to insert
+	if len(validatorBlockSigning) == 0 {
+		return nil
+	}
+
 	// create a copy from slice to the db
 	pgxSlice := pgx.CopyFromSlice(len(validatorBlockSigning), func(i int) ([]any, error) {
 		return []any{
@@ -118,6 +128,11 @@ func (t *TimescaleDb) InsertValidatorBlockSignings(validatorBlockSigning []sql_d
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertTransactionsGeneral(transactionsGeneral []sql_data_types.TransactionGeneral) error {
+	// Return early if no transactions to insert
+	if len(transactionsGeneral) == 0 {
+		return nil
+	}
+
 	// create a copy from the slice
 	pgxSlice := pgx.CopyFromSlice(len(transactionsGeneral), func(i int) ([]any, error) {
 		return []any{
@@ -150,6 +165,11 @@ func (t *TimescaleDb) InsertTransactionsGeneral(transactionsGeneral []sql_data_t
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertAddressTx(addresses []sql_data_types.AddressTx) error {
+	// Return early if no addresses to insert
+	if len(addresses) == 0 {
+		return nil
+	}
+
 	pgxSlice := pgx.CopyFromSlice(len(addresses), func(i int) ([]any, error) {
 		return []any{
 			addresses[i].Address,
@@ -173,6 +193,11 @@ func (t *TimescaleDb) InsertAddressTx(addresses []sql_data_types.AddressTx) erro
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertMsgSend(messages []sql_data_types.MsgSend) error {
+	// Return early if no messages to insert
+	if len(messages) == 0 {
+		return nil
+	}
+
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
 			messages[i].TxHash,
@@ -198,6 +223,11 @@ func (t *TimescaleDb) InsertMsgSend(messages []sql_data_types.MsgSend) error {
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertMsgCall(messages []sql_data_types.MsgCall) error {
+	// Return early if no messages to insert
+	if len(messages) == 0 {
+		return nil
+	}
+
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
 			messages[i].TxHash,
@@ -226,6 +256,11 @@ func (t *TimescaleDb) InsertMsgCall(messages []sql_data_types.MsgCall) error {
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertMsgAddPackage(messages []sql_data_types.MsgAddPackage) error {
+	// Return early if no messages to insert
+	if len(messages) == 0 {
+		return nil
+	}
+
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
 			messages[i].TxHash,
@@ -254,6 +289,11 @@ func (t *TimescaleDb) InsertMsgAddPackage(messages []sql_data_types.MsgAddPackag
 // Returns:
 //   - error: an error if the insertion fails
 func (t *TimescaleDb) InsertMsgRun(messages []sql_data_types.MsgRun) error {
+	// Return early if no messages to insert
+	if len(messages) == 0 {
+		return nil
+	}
+
 	pgxSlice := pgx.CopyFromSlice(len(messages), func(i int) ([]any, error) {
 		return []any{
 			messages[i].TxHash,
