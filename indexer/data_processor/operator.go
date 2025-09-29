@@ -559,20 +559,19 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 	for _, msgItem := range msg.MsgSend {
 		go func(msgItem sqlDataTypes.MsgSend) {
 			defer wg.Done()
-			addrHashes := msgItem.GetAllAddresses()
+			txAddresses := msgItem.GetAllAddresses()
 			timestamp := msgItem.Timestamp
 			msgTypes := []string{msgItem.TableName()}
-			for _, addrHash := range addrHashes {
-				for addr, txHash := range addrHash {
-					address := sqlDataTypes.AddressTx{
-						Address:   addr,
-						TxHash:    txHash,
-						ChainName: msgItem.ChainName,
-						Timestamp: timestamp,
-						MsgTypes:  msgTypes,
-					}
-					chanAddr <- address
+
+			for _, addr := range txAddresses.GetAddressList() {
+				address := sqlDataTypes.AddressTx{
+					Address:   addr,
+					TxHash:    txAddresses.TxHash,
+					ChainName: msgItem.ChainName,
+					Timestamp: timestamp,
+					MsgTypes:  msgTypes,
 				}
+				chanAddr <- address
 			}
 		}(msgItem)
 	}
@@ -581,20 +580,19 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 	for _, msgItem := range msg.MsgCall {
 		go func(msgItem sqlDataTypes.MsgCall) {
 			defer wg.Done()
-			addrHashes := msgItem.GetAllAddresses()
+			txAddresses := msgItem.GetAllAddresses()
 			timestamp := msgItem.Timestamp
 			msgTypes := []string{msgItem.TableName()}
-			for _, addrHash := range addrHashes {
-				for addr, txHash := range addrHash {
-					address := sqlDataTypes.AddressTx{
-						Address:   addr,
-						TxHash:    txHash,
-						ChainName: msgItem.ChainName,
-						Timestamp: timestamp,
-						MsgTypes:  msgTypes,
-					}
-					chanAddr <- address
+
+			for _, addr := range txAddresses.GetAddressList() {
+				address := sqlDataTypes.AddressTx{
+					Address:   addr,
+					TxHash:    txAddresses.TxHash,
+					ChainName: msgItem.ChainName,
+					Timestamp: timestamp,
+					MsgTypes:  msgTypes,
 				}
+				chanAddr <- address
 			}
 		}(msgItem)
 	}
@@ -603,20 +601,19 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 	for _, msgItem := range msg.MsgAddPkg {
 		go func(msgItem sqlDataTypes.MsgAddPackage) {
 			defer wg.Done()
-			addrHashes := msgItem.GetAllAddresses()
+			txAddresses := msgItem.GetAllAddresses()
 			timestamp := msgItem.Timestamp
 			msgTypes := []string{msgItem.TableName()}
-			for _, addrHash := range addrHashes {
-				for addr, txHash := range addrHash {
-					address := sqlDataTypes.AddressTx{
-						Address:   addr,
-						TxHash:    txHash,
-						ChainName: msgItem.ChainName,
-						Timestamp: timestamp,
-						MsgTypes:  msgTypes,
-					}
-					chanAddr <- address
+
+			for _, addr := range txAddresses.GetAddressList() {
+				address := sqlDataTypes.AddressTx{
+					Address:   addr,
+					TxHash:    txAddresses.TxHash,
+					ChainName: msgItem.ChainName,
+					Timestamp: timestamp,
+					MsgTypes:  msgTypes,
 				}
+				chanAddr <- address
 			}
 		}(msgItem)
 	}
@@ -625,20 +622,19 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 	for _, msgItem := range msg.MsgRun {
 		go func(msgItem sqlDataTypes.MsgRun) {
 			defer wg.Done()
-			addrHashes := msgItem.GetAllAddresses()
+			txAddresses := msgItem.GetAllAddresses()
 			timestamp := msgItem.Timestamp
 			msgTypes := []string{msgItem.TableName()}
-			for _, addrHash := range addrHashes {
-				for addr, txHash := range addrHash {
-					address := sqlDataTypes.AddressTx{
-						Address:   addr,
-						TxHash:    txHash,
-						ChainName: msgItem.ChainName,
-						Timestamp: timestamp,
-						MsgTypes:  msgTypes,
-					}
-					chanAddr <- address
+
+			for _, addr := range txAddresses.GetAddressList() {
+				address := sqlDataTypes.AddressTx{
+					Address:   addr,
+					TxHash:    txAddresses.TxHash,
+					ChainName: msgItem.ChainName,
+					Timestamp: timestamp,
+					MsgTypes:  msgTypes,
 				}
+				chanAddr <- address
 			}
 		}(msgItem)
 	}
