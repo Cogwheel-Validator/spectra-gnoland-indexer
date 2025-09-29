@@ -20,7 +20,7 @@ import (
 //
 // If something is wrong it will throw a fatal error and close the program
 func NewAddressCache(chainName string, db DatabaseForAddresses, loadVal bool) *AddressCache {
-	if loadVal == true {
+	if loadVal {
 		// if true load the validator addresses
 		addresses, err := loadAddresses(chainName, loadVal, db)
 		if err != nil {

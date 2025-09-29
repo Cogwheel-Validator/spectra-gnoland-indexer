@@ -142,6 +142,29 @@ func (t *TimescaleDb) InsertTransactionsGeneral(transactionsGeneral []sql_data_t
 	return err
 }
 
+// InsertAddressTx inserts a slice of AddressTx into the database
+//
+// Args:
+//   - addresses: a slice of AddressTx to insert
+//
+// Returns:
+//   - error: an error if the insertion fails
+func (t *TimescaleDb) InsertAddressTx(addresses []sql_data_types.AddressTx) error {
+	pgxSlice := pgx.CopyFromSlice(len(addresses), func(i int) ([]any, error) {
+		return []any{
+			addresses[i].Address,
+			addresses[i].TxHash,
+			addresses[i].ChainName,
+			addresses[i].Timestamp,
+			makePgxArray(addresses[i].MsgTypes),
+		}, nil
+	})
+
+	columns := addresses[0].TableColumns()
+	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"address_tx"}, columns, pgxSlice)
+	return err
+}
+
 // InsertMsgSend inserts a slice of MsgSend messages into the database
 //
 // Args:

@@ -166,7 +166,10 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 		blocksData = append(blocksData, *block)
 	}
 
-	d.dbPool.InsertBlocks(blocksData)
+	err := d.dbPool.InsertBlocks(blocksData)
+	if err != nil {
+		log.Printf("Failed to insert blocks: %v", err)
+	}
 	log.Printf("Blocks processed from %d to %d", fromHeight, toHeight)
 }
 
@@ -206,7 +209,7 @@ func (d *DataProcessor) ProcessTransactions(
 			msgTypes := decodedMsg.GetMsgTypes()
 
 			// convert the tx hash from base64 to sha256
-			txHash, err := base64.StdEncoding.DecodeString(transaction.Result.Hash)
+			txHash, err := base64.StdEncoding.DecodeString(transaction.GetHash())
 			if err != nil {
 				return
 			}
@@ -254,7 +257,10 @@ func (d *DataProcessor) ProcessTransactions(
 		transactionsData = append(transactionsData, *transaction)
 	}
 
-	d.dbPool.InsertTransactionsGeneral(transactionsData)
+	err := d.dbPool.InsertTransactionsGeneral(transactionsData)
+	if err != nil {
+		log.Printf("Failed to insert transactions: %v", err)
+	}
 	log.Printf("Transactions processed from %d to %d", fromHeight, toHeight)
 }
 
@@ -347,21 +353,25 @@ func (d *DataProcessor) ProcessMessages(
 			defer wg2.Done()
 
 			if decodedMsg == nil {
+				// There might be an error here
+				// but any kind of retry mechanism will probably not help
+				// log it for.
+				log.Printf("The transaction couldn't be decoded, tx hash: %s", transaction.GetHash())
 				resultChan <- processedResult{nil, nil}
 				return
 			}
 
 			// Convert directly to database-ready messages with address IDs
-			txHash, err := base64.StdEncoding.DecodeString(transaction.Result.Hash)
+			txHash, err := base64.StdEncoding.DecodeString(transaction.GetHash())
 			if err != nil {
-				log.Printf("Failed to decode tx hash %s: %v", transaction.Result.Hash, err)
+				log.Printf("Failed to decode tx hash %s: %v", transaction.GetHash(), err)
 				resultChan <- processedResult{nil, err}
 				return
 			}
 
 			dbMessageGroups, err := decodedMsg.ConvertToDbMessages(d.addressCache, txHash, d.chainName, timestamp, decodedMsg.GetSigners())
 			if err != nil {
-				log.Printf("Failed to convert messages for tx %s: %v", transaction.Result.Hash, err)
+				log.Printf("Failed to convert messages for tx %s: %v", transaction.GetHash(), err)
 				resultChan <- processedResult{nil, err}
 				return
 			}
@@ -398,6 +408,14 @@ func (d *DataProcessor) ProcessMessages(
 		aggregatedDbGroups.MsgCall = append(aggregatedDbGroups.MsgCall, result.dbGroups.MsgCall...)
 		aggregatedDbGroups.MsgAddPkg = append(aggregatedDbGroups.MsgAddPkg, result.dbGroups.MsgAddPkg...)
 		aggregatedDbGroups.MsgRun = append(aggregatedDbGroups.MsgRun, result.dbGroups.MsgRun...)
+	}
+
+	// Create a slice of sqlDataType.AddressTx
+	// we need to get all of the addresses from the aggregatedDbGroups
+	addresses := createAddressTx(aggregatedDbGroups)
+	err := d.dbPool.InsertAddressTx(addresses)
+	if err != nil {
+		return fmt.Errorf("failed to insert address tx: %w", err)
 	}
 
 	// Batch insert optimized messages
@@ -507,6 +525,128 @@ func (d *DataProcessor) ProcessValidatorSignings(
 		validatorData = append(validatorData, *validator)
 	}
 
-	d.dbPool.InsertValidatorBlockSignings(validatorData)
+	err := d.dbPool.InsertValidatorBlockSignings(validatorData)
+	if err != nil {
+		log.Printf("Failed to insert validator block signings: %v", err)
+	}
 	log.Printf("Validator block signings processed from %d to %d", fromHeight, toHeight)
+}
+
+// createAddressTx is a private func that creates a slice of sqlDataTypes.AddressTx from a
+// decoder.DbMessageGroups
+// it should be used to create the data for the address_tx table
+func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
+	txAmount := len(msg.MsgSend) + len(msg.MsgCall) + len(msg.MsgAddPkg) + len(msg.MsgRun)
+	if txAmount == 0 {
+		return []sqlDataTypes.AddressTx{}
+	}
+
+	chanAddr := make(chan sqlDataTypes.AddressTx)
+	wg := sync.WaitGroup{}
+	wg.Add(txAmount)
+
+	// Start a goroutine to collect all addresses
+	addresses := make([]sqlDataTypes.AddressTx, 0)
+	done := make(chan struct{})
+	go func() {
+		for address := range chanAddr {
+			addresses = append(addresses, address)
+		}
+		done <- struct{}{}
+	}()
+
+	// Process MsgSend messages
+	for _, msgItem := range msg.MsgSend {
+		go func(msgItem sqlDataTypes.MsgSend) {
+			defer wg.Done()
+			txAddresses := msgItem.GetAllAddresses()
+			timestamp := msgItem.Timestamp
+			msgTypes := []string{msgItem.TableName()}
+
+			for _, addr := range txAddresses.GetAddressList() {
+				address := sqlDataTypes.AddressTx{
+					Address:   addr,
+					TxHash:    txAddresses.TxHash,
+					ChainName: msgItem.ChainName,
+					Timestamp: timestamp,
+					MsgTypes:  msgTypes,
+				}
+				chanAddr <- address
+			}
+		}(msgItem)
+	}
+
+	// Process MsgCall messages
+	for _, msgItem := range msg.MsgCall {
+		go func(msgItem sqlDataTypes.MsgCall) {
+			defer wg.Done()
+			txAddresses := msgItem.GetAllAddresses()
+			timestamp := msgItem.Timestamp
+			msgTypes := []string{msgItem.TableName()}
+
+			for _, addr := range txAddresses.GetAddressList() {
+				address := sqlDataTypes.AddressTx{
+					Address:   addr,
+					TxHash:    txAddresses.TxHash,
+					ChainName: msgItem.ChainName,
+					Timestamp: timestamp,
+					MsgTypes:  msgTypes,
+				}
+				chanAddr <- address
+			}
+		}(msgItem)
+	}
+
+	// Process MsgAddPkg messages
+	for _, msgItem := range msg.MsgAddPkg {
+		go func(msgItem sqlDataTypes.MsgAddPackage) {
+			defer wg.Done()
+			txAddresses := msgItem.GetAllAddresses()
+			timestamp := msgItem.Timestamp
+			msgTypes := []string{msgItem.TableName()}
+
+			for _, addr := range txAddresses.GetAddressList() {
+				address := sqlDataTypes.AddressTx{
+					Address:   addr,
+					TxHash:    txAddresses.TxHash,
+					ChainName: msgItem.ChainName,
+					Timestamp: timestamp,
+					MsgTypes:  msgTypes,
+				}
+				chanAddr <- address
+			}
+		}(msgItem)
+	}
+
+	// Process MsgRun messages
+	for _, msgItem := range msg.MsgRun {
+		go func(msgItem sqlDataTypes.MsgRun) {
+			defer wg.Done()
+			txAddresses := msgItem.GetAllAddresses()
+			timestamp := msgItem.Timestamp
+			msgTypes := []string{msgItem.TableName()}
+
+			for _, addr := range txAddresses.GetAddressList() {
+				address := sqlDataTypes.AddressTx{
+					Address:   addr,
+					TxHash:    txAddresses.TxHash,
+					ChainName: msgItem.ChainName,
+					Timestamp: timestamp,
+					MsgTypes:  msgTypes,
+				}
+				chanAddr <- address
+			}
+		}(msgItem)
+	}
+
+	// Wait for all workers to finish, then close channel
+	go func() {
+		wg.Wait()
+		close(chanAddr)
+	}()
+
+	// Wait for the collector goroutine to finish
+	<-done
+
+	return addresses
 }

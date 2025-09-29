@@ -353,7 +353,7 @@ func (or *Orchestrator) processAllConcurrently(
 		for _, err := range errors {
 			errorMessages = append(errorMessages, err.Error())
 		}
-		return fmt.Errorf("Phase 1 errors: %s", strings.Join(errorMessages, "; "))
+		return fmt.Errorf("phase 1 errors: %s", strings.Join(errorMessages, "; "))
 	}
 
 	// Phase 2: Operations that depend on validator addresses

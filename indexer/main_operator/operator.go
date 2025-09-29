@@ -87,10 +87,10 @@ func InitMainOperator(
 	log.Printf("Signal handler started, listening for termination signals")
 
 	// let the orchestrator do it's thing
-	if runningFlags.RunningMode == "live" {
-		// Use the signal handler's context for proper shutdown handling
+	switch runningFlags.RunningMode {
+	case "live":
 		orch.LiveProcess(signalHandler.Context(), runningFlags.SkipInitialDbCheck)
-	} else if runningFlags.RunningMode == "historic" {
+	case "historic":
 		if runningFlags.FromHeight == 0 || runningFlags.ToHeight == 0 {
 			log.Fatalf("from height and to height are required for historic mode")
 		} else if runningFlags.FromHeight > runningFlags.ToHeight {
@@ -103,7 +103,7 @@ func InitMainOperator(
 			log.Printf("Shutdown signal received during historic processing")
 		}()
 		orch.HistoricProcess(runningFlags.FromHeight, runningFlags.ToHeight)
-	} else {
+	default:
 		log.Fatalf("invalid running mode, please choose between live and historic")
 	}
 }
@@ -226,7 +226,9 @@ func initializeMajorConstructors(
 	dataProcessor := dp.NewDataProcessor(db, addressCache, validatorCache, chainName)
 
 	// initialize the query operator
-	queryOperator := query.NewQueryOperator(gnoRpcClient)
+	queryOperator := query.NewQueryOperator(
+		gnoRpcClient, conf.RetryAmount, conf.Pause, conf.PauseTime, conf.ExponentialBackoff,
+	)
 
 	return &MajorConstructors{
 		db:             db,

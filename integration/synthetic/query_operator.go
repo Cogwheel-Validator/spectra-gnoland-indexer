@@ -33,16 +33,16 @@ type SyntheticQueryOperator struct {
 }
 
 // NewSyntheticQueryOperator creates a new synthetic query operator
-func NewSyntheticQueryOperator(chainID string, maxHeight uint64) *SyntheticQueryOperator {
+func NewSyntheticQueryOperator(chainID string, fromHeight uint64, maxHeight uint64) *SyntheticQueryOperator {
 	gen := generator.NewDataGenerator(500)
 
 	// Generate a consistent set of validator addresses for all blocks
 	numValidators := 50 //capped to 50
 	genVal := generator.NewDataGenerator(50)
 	valAddr := genVal.GetAllBech32Addresses()
-	validators := make([]string, numValidators)
-	for i := 0; i < numValidators; i++ {
-		validators[i] = valAddr[i]
+	validators := make([]string, 0, numValidators)
+	for i := range numValidators {
+		validators = append(validators, valAddr[i])
 	}
 
 	sq := &SyntheticQueryOperator{
@@ -55,7 +55,7 @@ func NewSyntheticQueryOperator(chainID string, maxHeight uint64) *SyntheticQuery
 	}
 
 	// Pre-generate some blocks and transactions for consistency
-	sq.preGenerateData(maxHeight)
+	sq.preGenerateData(fromHeight, maxHeight)
 	return sq
 }
 
@@ -98,18 +98,18 @@ func (sq *SyntheticQueryOperator) GetLatestBlockHeight() (uint64, error) {
 }
 
 // preGenerateData creates a consistent dataset of blocks and transactions
-func (sq *SyntheticQueryOperator) preGenerateData(maxHeight uint64) {
+func (sq *SyntheticQueryOperator) preGenerateData(fromHeight uint64, maxHeight uint64) {
 	startTime := time.Now()
-	// Generate blocks from 1 to maxHeight
-	for height := uint64(1); height <= maxHeight; height++ {
+	// Generate blocks from height start to maxHeight
+	for height := fromHeight; height <= maxHeight; height++ {
 		sq.createSynthBlock(height)
 
 		// Log progress every 100 blocks
 		if height%100 == 0 {
-			log.Printf("Generated %d/%d blocks (%.1f%%)", height, maxHeight, float64(height)/float64(maxHeight)*100)
+			log.Printf("Generated %d/%d blocks (%.1f%%)", height, maxHeight, float64(height-fromHeight+1)/float64(maxHeight-fromHeight+1)*100)
 		}
 	}
-	log.Printf("Pre-generated data for blocks from 1 to %d in %v", maxHeight, time.Since(startTime))
+	log.Printf("Pre-generated data for blocks from %d to %d in %v", fromHeight, maxHeight, time.Since(startTime))
 	log.Printf("Total transactions generated: %d", len(sq.transactions))
 }
 

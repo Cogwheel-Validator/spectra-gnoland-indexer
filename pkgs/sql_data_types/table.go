@@ -7,6 +7,38 @@ import (
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 )
 
+// TxAddresses groups all addresses involved in a single transaction
+// It stores in a set like data structure to avoid duplicates
+// all addresses for the same transaction hash together
+type TxAddresses struct {
+	TxHash    []byte
+	Addresses map[int32]struct{}
+}
+
+// NewTxAddresses creates a new TxAddresses with the given transaction hash
+func NewTxAddresses(txHash []byte) *TxAddresses {
+	return &TxAddresses{
+		TxHash:    txHash,
+		Addresses: make(map[int32]struct{}),
+	}
+}
+
+// AddAddress adds an address to the set
+// this will probably overwrite the address if it already exists but there should be no duplicates
+func (ta *TxAddresses) AddAddress(addressID int32) {
+	ta.Addresses[addressID] = struct{}{}
+}
+
+// GetAddressList returns a slice of all address IDs.
+// Returns a slice of all address IDs.
+func (ta *TxAddresses) GetAddressList() []int32 {
+	addresses := make([]int32, 0, len(ta.Addresses))
+	for addr := range ta.Addresses {
+		addresses = append(addresses, addr)
+	}
+	return addresses
+}
+
 // GnoAddress represents a regular Gno address with database mapping information
 // Stores:
 // - Address (string)
@@ -230,6 +262,18 @@ func (tg TransactionGeneral) TableColumns() []string {
 	return columns
 }
 
+// GetTxHash returns the tx hash of the transaction general
+//
+// Returns:
+//   - []byte: the tx hash of the transaction general
+func (tg *TransactionGeneral) GetTxHash() []byte {
+	return tg.TxHash
+}
+
+func (tg *TransactionGeneral) GetMessageTypes() []string {
+	return tg.MsgTypes
+}
+
 // MsgSend represents a bank send message
 //
 // Stores:
@@ -274,6 +318,24 @@ func (ms MsgSend) TableColumns() []string {
 		columns = append(columns, field.Tag.Get("db"))
 	}
 	return columns
+}
+
+// GetAllAddresses returns all the addresses that are involved in the message
+// it will return the from address, to address, and signers in a single TxAddresses struct
+// This prevents duplicates by grouping all addresses for the same transaction
+//
+// Returns:
+//   - *TxAddresses: grouped addresses for this transaction
+func (ms *MsgSend) GetAllAddresses() *TxAddresses {
+	txAddresses := NewTxAddresses(ms.TxHash)
+	txAddresses.AddAddress(ms.FromAddress)
+	if ms.ToAddress != 0 {
+		txAddresses.AddAddress(ms.ToAddress)
+	}
+	for _, address := range ms.Signers {
+		txAddresses.AddAddress(address)
+	}
+	return txAddresses
 }
 
 // MsgCall represents a VM function call message
@@ -325,6 +387,20 @@ func (mc MsgCall) TableColumns() []string {
 		columns = append(columns, field.Tag.Get("db"))
 	}
 	return columns
+}
+
+// GetAllAddresses returns all the addresses that are involved in the message
+// Groups the caller and signers for this transaction
+//
+// Returns:
+//   - *TxAddresses: grouped addresses for this transaction
+func (mc *MsgCall) GetAllAddresses() *TxAddresses {
+	txAddresses := NewTxAddresses(mc.TxHash)
+	txAddresses.AddAddress(mc.Caller)
+	for _, addr := range mc.Signers {
+		txAddresses.AddAddress(addr)
+	}
+	return txAddresses
 }
 
 // MsgAddPackage represents a VM package addition message
@@ -379,6 +455,20 @@ func (ma MsgAddPackage) TableColumns() []string {
 	return columns
 }
 
+// GetAllAddresses returns all the addresses that are involved in the message
+// Groups the creator and signers for this transaction
+//
+// Returns:
+//   - *TxAddresses: grouped addresses for this transaction
+func (ma *MsgAddPackage) GetAllAddresses() *TxAddresses {
+	txAddresses := NewTxAddresses(ma.TxHash)
+	txAddresses.AddAddress(ma.Creator)
+	for _, addr := range ma.Signers {
+		txAddresses.AddAddress(addr)
+	}
+	return txAddresses
+}
+
 // MsgRun represents a VM package run message
 //
 // Stores:
@@ -430,6 +520,20 @@ func (mr MsgRun) TableName() string {
 // GetTableInfo returns the table info for the MsgRun struct
 func (mr MsgRun) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(mr, mr.TableName())
+}
+
+// GetAllAddresses returns all the addresses that are involved in the message
+// Groups the caller and signers for this transaction
+//
+// Returns:
+//   - *TxAddresses: grouped addresses for this transaction
+func (mr *MsgRun) GetAllAddresses() *TxAddresses {
+	txAddresses := NewTxAddresses(mr.TxHash)
+	txAddresses.AddAddress(mr.Caller)
+	for _, addr := range mr.Signers {
+		txAddresses.AddAddress(addr)
+	}
+	return txAddresses
 }
 
 // DBTable is an interface for structs that represent database tables

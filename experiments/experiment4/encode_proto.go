@@ -76,7 +76,7 @@ func main() {
 	hexEncoded := hex.EncodeToString(encoded)
 
 	// Different ways to display the encoded data:
-	fmt.Println("Raw bytes (decimal):", encoded)
+	fmt.Println("Raw bytes (decimal):", string(encoded))
 	fmt.Println("Raw bytes (hex):", hexEncoded)
 	fmt.Printf("Raw bytes (hex with spaces): %x\n", hexEncoded)
 	fmt.Printf("Length: %d bytes\n", len(encoded))
@@ -91,7 +91,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Compressed bytes:", compressed)
+	fmt.Println("Compressed bytes:", string(compressed))
 	fmt.Printf("Length: %d bytes\n", len(compressed))
 
 	decoded, err := DecodeProto(encoded)

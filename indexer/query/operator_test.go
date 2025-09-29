@@ -39,7 +39,7 @@ func (m *MockRpcClient) GetTx(txHash string) (*rpcClient.TxResponse, *rpcClient.
 // TestQueryOperator - tests the query operator
 func TestQueryOperator(t *testing.T) {
 	mockRpcClient := &MockRpcClient{}
-	queryOperator := query.NewQueryOperator(mockRpcClient)
+	queryOperator := query.NewQueryOperator(mockRpcClient, nil, nil, nil, nil) // should be overwritten by the constructor
 
 	// Test GetFromToBlocks - should call GetBlock multiple times (1 to 10 = 10 calls)
 	queryOperator.GetFromToBlocks(1, 10)
@@ -54,7 +54,10 @@ func TestQueryOperator(t *testing.T) {
 	mockRpcClient.GetLatestBlockHeightCalled = false
 
 	// Test GetLatestBlockHeight
-	queryOperator.GetLatestBlockHeight()
+	_, err := queryOperator.GetLatestBlockHeight()
+	if err != nil {
+		t.Errorf("GetLatestBlockHeight should not return an error")
+	}
 	if !mockRpcClient.GetLatestBlockHeightCalled {
 		t.Errorf("GetLatestBlockHeight should be called")
 	}

@@ -26,4 +26,9 @@ type Config struct {
 	MaxBlockChunkSize         uint64        `yaml:"max_block_chunk_size"`
 	MaxTransactionChunkSize   uint64        `yaml:"max_transaction_chunk_size"`
 	ChainName                 string        `yaml:"chain_name"`
+	// retry options are optional, so we need to set them to a pointer
+	RetryAmount        *int           `yaml:"retry_amount"`
+	Pause              *int           `yaml:"pause"`
+	PauseTime          *time.Duration `yaml:"pause_time"`
+	ExponentialBackoff *time.Duration `yaml:"exponential_backoff"`
 }
