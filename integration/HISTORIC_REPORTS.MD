@@ -70,7 +70,7 @@ It took way longer that it should have due to the bug in the synthetic query ope
 ### Bugs
 
 - The synthetic query operator was trying to generate on every section from block height 1. This was fixed later, leading back to the normal time. (Solved)
-- The address tx table recevies duplicate data. Meaning that the map that pulls the addresses from the transaction was not working as expected. (Not solved yet, MEDIUM)
+- The address tx table recevies duplicate data. Meaning that the map that pulls the addresses from the transaction was not working as expected. (Solved)
 - The generator created only one validator address. (Solved)
 
 ### Known limitations

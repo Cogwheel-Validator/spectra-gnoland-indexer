@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-beta.2] - 2025-09-29
+
+The indexer had some bug fixes and some small improvments. The integration test was technically successful but there seems there is some kind of bug with the indexer. The indexer is not fully tested yet only the historic process has been tested. But not any runs were made on the real data. You can try to run this version on the real data but be advised it is not fully tested and might not work as expected.
+
+### Added
+
+- Makefile has been added. If you feel advanterous you can try to build the indexer with greentea garbage collection. [9fdad03](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/9fdad03ca3b9fe213dced5e1ef68912cc792355a)
+- Apperently the previous versions didn't had the method to insert the data for the table address_tx. Now every transaction that was executed can be tied to each address that was involved in the transaction. [9fdad03](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/9fdad03ca3b9fe213dced5e1ef68912cc792355a), [6dd764](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/6dd76464b68809ac8df63f2c66f11678e1083b14)
+- The CLI for the database setup now has a new command to create a new user for the database and appoint privileges to the user. It can be a reader(for APIs and some other programs that need SELECT privileges) or a writer(example indexer for historical data). [c39c1f7](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c39c1f7b5f992da468710a54401f73efa6611881)
+- Added a retry mechanism for the query operator. [900ee4f](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/tree/900ee4ff933e1015acc7f9a80de28201075370cf)
+
+### Changed
+
+- Updated the go version to 1.25.1 [b3e02b0](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/b3e02b0dc4f7f1896480c6e2c80ccecf79bbb1be)
+
 ## [0.1.0-beta.1] - 2025-09-25
 
 The indexer had some bug fixes and some small improvments. The integration test was technically successful but there seems there is some kind of bug with the indexer. The indexer is not ready for production use.
