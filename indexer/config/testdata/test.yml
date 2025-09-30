@@ -5,7 +5,7 @@ pool_max_conn_lifetime: 60s
 pool_max_conn_idle_time: 60s
 pool_health_check_period: 60s
 pool_max_conn_lifetime_jitter: 60s
-live_pooling: 100
+live_pooling: 10s
 max_block_chunk_size: 100
 max_transaction_chunk_size: 100
 chain_name: gnoland

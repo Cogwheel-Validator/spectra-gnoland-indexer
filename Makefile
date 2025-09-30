@@ -1,10 +1,10 @@
-.PHONY: build-indexer install-indexer clean experimental-indexer experimental-install-indexer
+.PHONY: build install clean build-experimental install-experimental
 
-build-indexer:
+build:
 	mkdir -p build
 	go build -o build/indexer indexer/main.go
 
-install-indexer:
+install:
 	go install indexer/main.go
 
 clean:
@@ -12,10 +12,10 @@ clean:
 
 # experimental build with greentea garbage collection
 # use at your own risk
-experimental-indexer:
+build-experimental:
 	GOEXPERIMENT=greenteagc go build -o build/indexer indexer/main.go
 
 # experimental install with greentea garbage collection
 # use at your own risk
-experimental-install-indexer:
+install-experimental:
 	GOEXPERIMENT=greenteagc go install indexer/main.go

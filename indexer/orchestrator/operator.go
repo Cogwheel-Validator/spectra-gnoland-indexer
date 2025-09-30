@@ -75,29 +75,27 @@ func (or *Orchestrator) HistoricProcess(
 
 		if len(blocks) == 0 {
 			log.Printf("No valid blocks in chunk %d-%d", startHeight, chunkEndHeight)
-			continue
+		} else {
+			// Step 2: Collect all transactions from all blocks in this chunk
+			allTransactions := or.collectTransactionsFromBlocks(blocks)
+
+			log.Printf("Collected %d transactions from %d blocks in chunk", len(allTransactions), len(blocks))
+
+			// Step 3: Process all data concurrently
+			if err := or.processAllConcurrently(blocks, allTransactions, false, startHeight, chunkEndHeight); err != nil {
+				log.Printf("Error processing chunk %d-%d: %v", startHeight, chunkEndHeight, err)
+			} else {
+				// Progress logging
+				chunkDuration := time.Since(chunkStartTime)
+				totalDuration := time.Since(startTime)
+				log.Printf("Chunk %d-%d completed in %v, total time: %v",
+					startHeight, chunkEndHeight, chunkDuration, totalDuration)
+			}
 		}
 
-		// Step 2: Collect all transactions from all blocks in this chunk
-		allTransactions := or.collectTransactionsFromBlocks(blocks)
-
-		log.Printf("Collected %d transactions from %d blocks in chunk", len(allTransactions), len(blocks))
-
-		// Step 3: Process all data concurrently
-		if err := or.processAllConcurrently(blocks, allTransactions, false, startHeight, chunkEndHeight); err != nil {
-			log.Printf("Error processing chunk %d-%d: %v", startHeight, chunkEndHeight, err)
-			continue
-		}
-
+		// Always advance to next chunk, regardless of whether blocks were found
 		// Update processing height to end of chunk
 		or.currentProcessingHeight = chunkEndHeight
-
-		// Progress logging
-		chunkDuration := time.Since(chunkStartTime)
-		totalDuration := time.Since(startTime)
-		log.Printf("Chunk %d-%d completed in %v, total time: %v",
-			startHeight, chunkEndHeight, chunkDuration, totalDuration)
-
 		startHeight = chunkEndHeight + 1
 	}
 

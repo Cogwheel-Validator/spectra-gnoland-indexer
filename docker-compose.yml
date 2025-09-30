@@ -1,0 +1,53 @@
+services:
+
+  timescaledb:
+    image: timescale/timescaledb-ha:pg17
+    command: -c 'max_connections=500'
+    container_name: timescale-gnoland
+    restart: always
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_PASSWORD: 12345678
+      POSTGRES_DB: gnoland
+    volumes:
+      - timescale_data:/home/postgres/pgdata
+    networks:
+      - gnoland
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gnoland"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+  # first build the docker image
+  # all of the envs you will need to change to values
+  # as for the indexer mode the default here is live however look at deployment.md 
+  # for more information
+  #indexer:
+  #  image: cogwheel/spectra-gnoland-indexer:latest
+  #  container_name: indexer-gnoland
+  #  restart: always
+  #  environment:
+  #    DB_HOST: timescale-gnoland
+  #    DB_PORT: 5432
+  #    DB_USER: postgres
+  #    DB_PASSWORD: 12345678
+  #    DB_NAME: gnoland
+  #  networks:
+  #    - gnoland
+  #  depends_on:
+  #    timescaledb:
+  #      condition: service_healthy
+  #
+  #  volumes:
+  #    - ./config.yml:/app/config.yml
+  #  command: ["app/indexer", "live", "--config", "app/config.yml"]
+  
+
+networks:
+  gnoland:
+    driver: bridge
+
+volumes:
+  timescale_data:
