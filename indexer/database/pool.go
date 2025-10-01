@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 	"github.com/jackc/pgx/v5"
@@ -142,7 +143,9 @@ func setupConnection(config DatabasePoolConfig) (*pgxpool.Pool, error) {
 //   - error: an error if the creation fails
 func CreateDatabase(db *TimescaleDb, dbname string) error {
 	_, err := db.pool.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", dbname))
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), fmt.Sprintf("database %s already exists", dbname)) {
+		return nil
+	} else if err != nil {
 		return err
 	}
 	return nil

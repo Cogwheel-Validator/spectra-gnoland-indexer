@@ -81,7 +81,7 @@ var liveCmd = &cobra.Command{
 		}
 
 		log.Println("Indexer started")
-		mainOperator.InitMainOperator(configPath, ".env", rateLimitFlags, runningFlags)
+		mainOperator.InitMainOperator(configPath, ".", rateLimitFlags, runningFlags)
 	},
 }
 
@@ -147,7 +147,7 @@ var historicCmd = &cobra.Command{
 		}
 
 		log.Println("Indexer started")
-		mainOperator.InitMainOperator(configPath, ".env", rateLimitFlags, runningFlags)
+		mainOperator.InitMainOperator(configPath, ".", rateLimitFlags, runningFlags)
 	},
 }
 

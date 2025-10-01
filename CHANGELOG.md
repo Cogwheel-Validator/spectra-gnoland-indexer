@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2025-10-01
+
+This is officially first working version of the indexer. The historic version was successfuly tested on the real 
+data. It took about 2m30s on 2vCPU for 10K blocks and about 1m30s on 4vCPU for 10K blocks. 
+The live version was not tested on the real data yet mostly because there is active pullic Gnoland testnet.
+The live will be tested properly on the testnet 9 when it is released. So the index will probably work but expect
+some bugs. Some features are still missing and this is still a work in progress.
+
+### Added
+
+- Added a GitHub Actions workflow to build the indexer and release it as a binary and docker image [5f20967](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5f20967c429dbc95d959cbb09b3b050afe79477b)
+- Added docker file and docker compose [18129be](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/18129beb6a02da6f4b4def55d94c6df9b0ef0b28), [5f20967](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5f20967c429dbc95d959cbb09b3b050afe79477b)
+- Docs are now available [18129be](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/18129beb6a02da6f4b4def55d94c6df9b0ef0b28), [5f20967](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5f20967c429dbc95d959cbb09b3b050afe79477b)
+
+### Changes
+
+- The cmd setup can now add tables to already existing database [5f20967](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5f20967c429dbc95d959cbb09b3b050afe79477b)
+
+### Fixed 
+
+- There were some bugs related to poinetrs if the value was nil for block responsers related to validator signing [c7f229a](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c7f229aedfbb3fb7a0fb05553898f7f2bb43f23b)
+
+
 ## [0.1.0-beta.2] - 2025-09-29
 
 The indexer had some bug fixes and some small improvments. The integration test was technically successful but there seems there is some kind of bug with the indexer. The indexer is not fully tested yet only the historic process has been tested. But not any runs were made on the real data. You can try to run this version on the real data but be advised it is not fully tested and might not work as expected.

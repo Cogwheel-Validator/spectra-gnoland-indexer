@@ -113,6 +113,18 @@ var createDbCmd = &cobra.Command{
 			log.Fatalf("failed to parse flags: %v", err)
 		}
 
+		// get the new database name from the flags
+		newDbName, _ := cmd.Flags().GetString("new-db-name")
+		if newDbName == "" {
+			newDbName = "gnoland"
+		}
+
+		// get the chain name from the flags
+		chainName, _ := cmd.Flags().GetString("chain-name")
+		if chainName == "" {
+			chainName = "gnoland"
+		}
+
 		// Prompt for password
 		params.password, err = promptPassword()
 		if err != nil {
@@ -135,21 +147,21 @@ var createDbCmd = &cobra.Command{
 
 		// if the current database is not "gnoland", create a new database named "gnoland"
 		// and insert all of the tables and data from the "gnoland" database
-		if currentDb != "gnoland" {
+		if currentDb != newDbName {
 			// create a new database named "gnoland"
-			log.Printf("Creating a new database named %s", "gnoland")
-			err = database.CreateDatabase(db, "gnoland")
+			log.Printf("Creating a new database named %s", newDbName)
+			err = database.CreateDatabase(db, newDbName)
 			if err != nil {
 				log.Fatalf("failed to create database: %v", err)
 			}
 			// switch to the new database
-			log.Printf("Switching to the new database %s", "gnoland")
+			log.Printf("Switching to the new database %s", newDbName)
 			// only for now later add dbName value, it is only for the testing now
-			err = database.SwitchDatabase(db, dbConfig, "gnoland")
+			err = database.SwitchDatabase(db, dbConfig, newDbName)
 			if err != nil {
 				log.Fatalf("failed to switch database: %v", err)
 			}
-			// insert all of the tables and data from the "gnoland" database
+			// insert all of the tables and data from the new database
 			// First create special types (custom postgres types that tables depend on)
 			// and type enums
 			specialTypes := []sql_data_types.DBSpecialType{
@@ -158,14 +170,14 @@ var createDbCmd = &cobra.Command{
 				sql_data_types.Event{},
 			}
 			typeEnums := []string{
-				"gnoland",
+				chainName,
 			}
 
 			// Initialize database initializer
 			dbInit := dbinit.NewDBInitializer(db.GetPool())
 
 			// Create special types first (they need to exist before tables that use them)
-			log.Printf("Inserting all of the special types into the %s database", "gnoland")
+			log.Printf("Inserting all of the special types into the %s database", chainName)
 			for _, specialType := range specialTypes {
 				err = dbInit.CreateSpecialTypeFromStruct(specialType, specialType.TypeName())
 				if err != nil {
@@ -174,14 +186,14 @@ var createDbCmd = &cobra.Command{
 			}
 
 			// Create type enums
-			log.Printf("Inserting all of the type enums into the %s database", "gnoland")
+			log.Printf("Inserting all of the type enums into the %s database", chainName)
 			err = dbInit.CreateChainTypeEnum(typeEnums)
 			if err != nil {
 				log.Fatalf("failed to create type enum %s: %v", typeEnums, err)
 			}
 
 			// Create regular tables (non-time-series tables)
-			log.Printf("Inserting all of the regular tables into the %s database", "gnoland")
+			log.Printf("Inserting all of the regular tables into the %s database", chainName)
 			regularTables := []sql_data_types.DBTable{
 				sql_data_types.GnoAddress{},
 				sql_data_types.GnoValidatorAddress{},
@@ -195,7 +207,7 @@ var createDbCmd = &cobra.Command{
 			}
 
 			// Create hypertables (time-series tables with timestamp columns)
-			log.Printf("Inserting all of the hypertables into the %s database", "gnoland")
+			log.Printf("Inserting all of the hypertables into the %s database", chainName)
 			hypertables := []struct {
 				table           sql_data_types.DBTable
 				partitionColumn string
@@ -217,7 +229,7 @@ var createDbCmd = &cobra.Command{
 					log.Fatalf("failed to create hypertable %s: %v", ht.table.TableName(), err)
 				}
 			}
-			log.Printf("Successfully created all of the hypertables into the %s database", "gnoland")
+			log.Printf("Successfully created all of the hypertables into the %s database", chainName)
 		} else {
 			log.Printf("The current database is %s, and it already exists", currentDb)
 			// TODO else if the current database is "gnoland" then we need to check if the tables exist
@@ -294,6 +306,10 @@ func init() {
 	// Add create-user command specific flags
 	createUserCmd.Flags().String("privilege", "", "The privilege level for the user (reader or writer)")
 	createUserCmd.Flags().String("user", "", "The user name for the user to create")
+
+	// Add create-db command specific flags
+	createDbCmd.Flags().String("new-db-name", "", "The database name to create, default is gnoland")
+	createDbCmd.Flags().String("chain-name", "", "The chain name for the database type enum, default is gnoland")
 
 	rootCmd.AddCommand(createDbCmd)
 	rootCmd.AddCommand(createUserCmd)

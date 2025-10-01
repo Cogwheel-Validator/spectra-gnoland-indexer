@@ -22,7 +22,7 @@ type Config struct {
 	PoolMaxConnIdleTime       time.Duration `yaml:"pool_max_conn_idle_time"`
 	PoolHealthCheckPeriod     time.Duration `yaml:"pool_health_check_period"`
 	PoolMaxConnLifetimeJitter time.Duration `yaml:"pool_max_conn_lifetime_jitter"`
-	LivePooling               uint64        `yaml:"live_pooling"`
+	LivePooling               time.Duration `yaml:"live_pooling"`
 	MaxBlockChunkSize         uint64        `yaml:"max_block_chunk_size"`
 	MaxTransactionChunkSize   uint64        `yaml:"max_transaction_chunk_size"`
 	ChainName                 string        `yaml:"chain_name"`

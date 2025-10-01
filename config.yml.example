@@ -1,0 +1,50 @@
+# Example config file for the indexer
+
+# RPC URL
+# the indexer can listen to http or https
+rpc: http://localhost:26657
+
+# Pool configuration
+# these are settings related to the database connection pool
+#
+# This are some default values, you can change them to your needs
+# maybe you can increase the min and max connections but this settings should be fine for most cases
+# just be careful that postgres(timescale db) can accept those limits
+pool_max_conns: 50
+pool_min_conns: 10
+pool_max_conn_lifetime: 5m
+pool_max_conn_idle_time: 5m
+pool_health_check_period: 1m
+pool_max_conn_lifetime_jitter: 1m
+
+# Indexer settings
+# 
+# Make sure the chain name is the same one you used when you created the database
+# Chunk sizes are the maximum number of blocks or transactions that the indexer will process in a single chunk
+# for now you can leave them as they are, you can increase or decrease them if you want
+# 
+# Reccomended chunk sizes are 50 blocks and 100 transactions but you should be safe to move block chunk size from 10 to 100
+# and transaction chunk size from 10 to 200
+chain_name: gnoland
+max_block_chunk_size: 50
+max_transaction_chunk_size: 100
+
+# Live settings
+# this is the time that the indexer will wait before it checks the chain if there are new blocks
+live_pooling: 5s
+
+# Retry settings
+#
+# These are settings related to the retry logic
+#
+# The retry amount is the number of times that the indexer will retry to get the blocks or transactions
+# The pause is the number at which the indexer will make a bigger pause. 
+# The indexer will use modulo operator on the retry attampts, if the retry attempt modulo pause is 0, the indexer will pause for the pause time
+# The pause time is the time that the indexer will pause after failing to get the blocks or transactions
+# The exponential backoff is the time that the indexer will wait before it retries to get the blocks or transactions
+#
+# The default values are 6 retries, 3 pauses, 15 seconds pause time, and 2 seconds exponential backoff
+retry_amount: 6
+pause: 3
+pause_time: 15s
+exponential_backoff: 2s

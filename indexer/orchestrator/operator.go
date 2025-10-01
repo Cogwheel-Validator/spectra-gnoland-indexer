@@ -2,6 +2,8 @@ package orchestrator
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -73,29 +75,27 @@ func (or *Orchestrator) HistoricProcess(
 
 		if len(blocks) == 0 {
 			log.Printf("No valid blocks in chunk %d-%d", startHeight, chunkEndHeight)
-			continue
+		} else {
+			// Step 2: Collect all transactions from all blocks in this chunk
+			allTransactions := or.collectTransactionsFromBlocks(blocks)
+
+			log.Printf("Collected %d transactions from %d blocks in chunk", len(allTransactions), len(blocks))
+
+			// Step 3: Process all data concurrently
+			if err := or.processAllConcurrently(blocks, allTransactions, false, startHeight, chunkEndHeight); err != nil {
+				log.Printf("Error processing chunk %d-%d: %v", startHeight, chunkEndHeight, err)
+			} else {
+				// Progress logging
+				chunkDuration := time.Since(chunkStartTime)
+				totalDuration := time.Since(startTime)
+				log.Printf("Chunk %d-%d completed in %v, total time: %v",
+					startHeight, chunkEndHeight, chunkDuration, totalDuration)
+			}
 		}
 
-		// Step 2: Collect all transactions from all blocks in this chunk
-		allTransactions := or.collectTransactionsFromBlocks(blocks)
-
-		log.Printf("Collected %d transactions from %d blocks in chunk", len(allTransactions), len(blocks))
-
-		// Step 3: Process all data concurrently
-		if err := or.processAllConcurrently(blocks, allTransactions, false, startHeight, chunkEndHeight); err != nil {
-			log.Printf("Error processing chunk %d-%d: %v", startHeight, chunkEndHeight, err)
-			continue
-		}
-
+		// Always advance to next chunk, regardless of whether blocks were found
 		// Update processing height to end of chunk
 		or.currentProcessingHeight = chunkEndHeight
-
-		// Progress logging
-		chunkDuration := time.Since(chunkStartTime)
-		totalDuration := time.Since(startTime)
-		log.Printf("Chunk %d-%d completed in %v, total time: %v",
-			startHeight, chunkEndHeight, chunkDuration, totalDuration)
-
 		startHeight = chunkEndHeight + 1
 	}
 
@@ -155,7 +155,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		latestHeight, rpcErr := or.gnoRpcClient.GetLatestBlockHeight()
 		if rpcErr != nil {
 			log.Printf("Error fetching latest block height: %v", rpcErr)
-			time.Sleep(time.Duration(or.config.LivePooling) * time.Second)
+			time.Sleep(or.config.LivePooling)
 			continue
 		}
 
@@ -164,7 +164,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		// If caught up, wait and continue
 		if blocksBehind <= 0 {
 			log.Printf("Caught up to height %d. Waiting %d seconds...", latestHeight, or.config.LivePooling)
-			time.Sleep(time.Duration(or.config.LivePooling) * time.Second)
+			time.Sleep(or.config.LivePooling)
 			continue
 		}
 
@@ -183,7 +183,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		err = or.processLiveChunk(chunkStart, chunkEnd)
 		if err != nil {
 			log.Printf("Error processing live chunk %d-%d: %v", chunkStart, chunkEnd, err)
-			time.Sleep(time.Duration(or.config.LivePooling) * time.Second)
+			time.Sleep(or.config.LivePooling)
 			continue
 		}
 
@@ -251,14 +251,22 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 			continue
 		}
 
+		// this should not be nil but just in case
+		// also we need to collect all of the tx hashes, decode the base64 to raw bytes then to sha256
+		// and then sha256 to base64
 		txHashes := block.GetTxHashes()
 		if txHashes == nil {
 			continue
 		}
-
 		for _, txHash := range txHashes {
-			allTxHashes = append(allTxHashes, txHash)
-			blockTimestamps[txHash] = block.GetTimestamp()
+			txHashBytes, err := base64.StdEncoding.DecodeString(txHash)
+			if err != nil {
+				continue
+			}
+			txHashSha256 := sha256.Sum256(txHashBytes)
+			txHashFinal := base64.StdEncoding.EncodeToString(txHashSha256[:])
+			allTxHashes = append(allTxHashes, txHashFinal)
+			blockTimestamps[txHashFinal] = block.GetTimestamp()
 		}
 	}
 
