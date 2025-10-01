@@ -27,9 +27,6 @@ some bugs. Some features are still missing and this is still a work in progress.
 
 - There were some bugs related to poinetrs if the value was nil for block responsers related to validator signing [c7f229a](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c7f229aedfbb3fb7a0fb05553898f7f2bb43f23b)
 
-### Changed
-
-- Updated the go version to 1.25.1 [b3e02b0](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/b3e02b0dc4f7f1896480c6e2c80ccecf79bbb1be)
 
 ## [0.1.0-beta.2] - 2025-09-29
 
