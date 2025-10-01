@@ -25,7 +25,7 @@ services:
   # as for the indexer mode the default here is live however look at deployment.md 
   # for more information
   #indexer:
-  #  image: cogwheel/spectra-gnoland-indexer:latest
+  #  image: gnoland-indexer:latest
   #  container_name: indexer-gnoland
   #  restart: always
   #  environment:

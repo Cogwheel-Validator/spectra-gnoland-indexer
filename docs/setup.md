@@ -24,7 +24,7 @@ To build the image you can use the following command:
 ```bash
 git clone https://github.com/Cogwheel-Validator/spectra-gnoland-indexer.git
 cd spectra-gnoland-indexer
-docker build -t cogwheel/spectra-gnoland-indexer:latest .
+docker build -t gnoland-indexer:latest .
 ```
 
 ## Setup the database
@@ -253,3 +253,52 @@ index the data the same as the historic mode, you just gain more control over th
 
 ### Deployment
 
+Like mentioned above you can use the docker-compose.yml file to setup the database and the indexer.
+
+If you plan to run the indexer over docker you can use this commands:
+```bash
+# Live mode with custom config
+docker run gnoland-indexer live --config /path/to/config.yml --skip-db-check
+
+# Historic mode
+docker run gnoland-indexer historic --from-height 1000 --to-height 2000
+
+# Show all available commands
+docker run gnoland-indexer --help
+
+# Show help for specific command
+docker run gnoland-indexer live --help
+```
+
+You can also run the indexer with something like systemd:
+```bash
+[Unit]
+Description=Gnoland Indexer
+After=network.target
+
+[Service]
+ExecStart=/path/to/indexer live --config /path/to/config.yml
+Restart=always
+RestartSec=5
+User=$USER
+WorkingDirectory=/path/to/indexer
+LimitNOFILE=4096
+LimitNPROC=4096
+LimitCORE=infinity
+
+NoNewPrivileges=true
+ProtectSystem=strict
+RestrictSUIDSGID=true
+LockPersonality=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictNamespaces=yes
+
+[Install]
+WantedBy=multi-user.target
+```
+
+You can ovbiusly use some kind of orchestrator like nomad or kuberneties to run the indexer but going in depth is out of scope of this documentation.

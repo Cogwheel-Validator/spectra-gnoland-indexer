@@ -5,7 +5,7 @@ build:
 	go build -o build/indexer indexer/main.go
 
 install:
-	go install indexer/main.go
+	cd indexer && go install ./...
 
 clean:
 	rm -rf build
@@ -13,9 +13,9 @@ clean:
 # experimental build with greentea garbage collection
 # use at your own risk
 build-experimental:
-	GOEXPERIMENT=greenteagc go build -o build/indexer indexer/main.go
+	GOEXPERIMENT=greenteagc go build -o build/indexer-tea indexer/main.go
 
 # experimental install with greentea garbage collection
 # use at your own risk
 install-experimental:
-	GOEXPERIMENT=greenteagc go install indexer/main.go
+	cd indexer && GOEXPERIMENT=greenteagc go install ./...

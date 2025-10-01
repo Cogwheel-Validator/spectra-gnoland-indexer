@@ -1,4 +1,7 @@
-# The Spectra 💫 Gnoland Indexer
+<h1 align="center"> The Spectra 💫 Gnoland Indexer</h1>
+<div align="center">
+<img src="./images/spectra-gnoland-indexer.svg" alt="Spectra Gnoland Indexer" width="250" style="padding: 25px;">
+</div>
 
 The Spectra Gnoland Indexer(SGI) is a tool that records the data from the Gnoland blockchain and stores the data 
 in the timeseries database, Timescale DB. This indexer will be a part of the Spectra explorer and will be used to 
@@ -14,14 +17,19 @@ they are not most efficient when it comes to making some queries easy and fast. 
 and efficient when it comes to preformance of the nodes, so they are not most efficient when it comes to storing 
 the data.
 
-## Content
-  - [The solution](#the-solution)
-  - [Why TimescaleDB? And can it work on other SQL databases?](#why-timescaledb-and-can-it-work-on-other-sql-databases)
-  - [The indexer and how it works](#the-indexer-and-how-it-works)
-  - [What is indexed and what is not](#what-is-indexed-and-what-is-not)
-  - [Pros and cons of the SGI](#pros-and-cons-of-the-sgi)
-    - [🦾 Pros:](#pros)
-    - [🐞 Cons:](#cons)
+## Table of content
+- [Table of content](#table-of-content)
+- [The solution](#the-solution)
+- [Why TimescaleDB? And can it work on other SQL databases?](#why-timescaledb-and-can-it-work-on-other-sql-databases)
+- [The indexer and how it works](#the-indexer-and-how-it-works)
+- [What is indexed and what is not](#what-is-indexed-and-what-is-not)
+  - [Blocks:](#blocks)
+  - [Validator signings:](#validator-signings)
+  - [Transactions:](#transactions)
+- [Pros and cons of the SGI](#pros-and-cons-of-the-sgi)
+  - [🦾 Pros:](#-pros)
+  - [🐞 Cons:](#-cons)
+- [In depth documentation](#in-depth-documentation)
 
 ## The solution
 
@@ -141,7 +149,7 @@ VM message Add Package and Call where in theory one could extract even the body 
 
 ### 🦾 Pros:
 
-- The indexer process the data using goroutines and channels, which can provide a faster processing of the data.
+- The indexer process the data using goroutines and channels, which can provide a faster processing of the data. Some early test on the real data showed about 2vCPU can index 10K blocks in about 2m30s while the 4vCPU can index 10K blocks in about 1m30s.
 - The program has 2 modes that can be used for the indexing of the data. This can be useful for the testing, partial indexing of the chain or gradual indexing of the chain.
 - The data is stored ready to be used for any kind of analytics and visualization with any programming language.
 - No need to deal with Amino encoding and decoding for the messagess as the indexer decodes the messages and stores them in the database.
@@ -151,5 +159,10 @@ VM message Add Package and Call where in theory one could extract even the body 
 
 ### 🐞 Cons:
 
-- The address cache is very preformant but it intorduces a complexity for the user. The developer that plans to use the indexer needs to understand how the addresses are stored and how to use them. The REST API provies a easy way to interact with the data and to get the data in a readable format. But if you are planning on making something custom you will need to fully understand the data structure and how to use it.
+- The address cache provides fast reads but it intorduces a complexity. The developer that plans to use the indexer and plans to make some custom solution on working with the data will need to fully understand the data structure and how to use it. The REST API provies a easy way to interact with the data and to get the data in a readable format.
 - The indexer relies on the RPC node for the data. If the RPC node is not available the indexer will not be able to index the data. ( although in the future the indexer might be able to use multiple RPC nodes )
+- Technically the indexer has a limit of 2 billion addresses. If at any point the Gnoland grows to that size the indexer would need to be updated to support it. It is not a problem for now but it is something to keep in mind.
+
+## In depth documentation
+
+For more detailed documentation, please refer to the [docs](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/blob/main/docs/README.md) directory.

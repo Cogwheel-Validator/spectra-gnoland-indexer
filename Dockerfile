@@ -1,4 +1,4 @@
-FROM golang:1.25.1-bullseye AS builder
+FROM golang:1.25.1-trixie AS builder
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN go build -o indexer indexer/main.go
 
 RUN chmod +x indexer
 
-FROM debian:bullseye-slim
+FROM debian:trixie-slim
 
 WORKDIR /app
 

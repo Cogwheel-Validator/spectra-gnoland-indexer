@@ -4,7 +4,9 @@ go 1.25.1
 
 require (
 	github.com/caarlos0/env/v6 v6.10.1
+	github.com/danielgtaylor/huma/v2 v2.34.1
 	github.com/gnolang/gno v0.0.0-20250926165528-791c114918cd
+	github.com/go-chi/chi/v5 v5.2.3
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/compress v1.18.0
