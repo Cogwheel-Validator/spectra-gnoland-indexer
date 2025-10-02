@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-10-02
+
+Mostly some fixes. The live should work now there was a bug with the RPC client when making a request to the last block height recorded. The retry worker could sometimes send the data to the closed channel. Now the query operator calls the wg.Done functions directly. It should work now but there might be some other bugs.
+
+### Fixed
+
+- There was a bug with the RPC client when making a request to the last block height recorded. [f44b3f3](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f44b3f34a23a4244cb6b273332af4139b3c1ed05)
+- The live process was not working because the RPC client was not sending the height parameter when making a request to the last block height recorded. [f44b3f3](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f44b3f34a23a4244cb6b273332af4139b3c1ed05)
+
+### Changed
+
+- Moved the database to the pkgs directory [f44b3f3](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f44b3f34a23a4244cb6b273332af4139b3c1ed05)
+
 ## [0.1.0] - 2025-10-01
 
 This is officially first working version of the indexer. The historic version was successfuly tested on the real 
