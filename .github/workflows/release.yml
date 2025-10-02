@@ -42,9 +42,6 @@ jobs:
           
           # Linux AMD64
           GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Version=${{ steps.version.outputs.version }}" -o build/indexer indexer/main.go
-          
-          # Linux ARM64
-          GOOS=linux GOARCH=arm64 go build -ldflags="-X main.Version=${{ steps.version.outputs.version }}" -o build/indexer indexer/main.go
     
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -81,7 +78,7 @@ jobs:
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: |
             ghcr.io/cogwheel-validator:${{ steps.version.outputs.version }}
             ghcr.io/cogwheel-validator:${{ steps.version.outputs.docker_tag }}
