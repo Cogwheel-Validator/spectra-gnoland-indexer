@@ -3,9 +3,9 @@ package mainoperator
 import (
 	addressCache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
 	dataProcessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/query"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 )
 
 // MajorConstructors is a struct that contains the major constructors

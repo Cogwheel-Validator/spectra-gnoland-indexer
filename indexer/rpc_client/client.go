@@ -68,9 +68,8 @@ const (
 	Block      = "block"
 	AbciQuery  = "abci_query"
 	// might be useful for health check
-	Health            = "health"
-	Tx                = "tx"
-	LatestBlockHeight = "block_height"
+	Health = "health"
+	Tx     = "tx"
 )
 
 func (r *RpcGnoland) performRequest(method string, params map[string]any, result interface{}) error {
@@ -184,7 +183,7 @@ func (r *RpcGnoland) GetBlock(height uint64) (*BlockResponse, *RpcHeightError) {
 // without having to query the block itself
 func (r *RpcGnoland) GetLatestBlockHeight() (uint64, *RpcHeightError) {
 	response := &BlockResponse{}
-	if err := r.performRequest(LatestBlockHeight, nil, response); err != nil {
+	if err := r.performRequest(Block, nil, response); err != nil {
 		return 0, &RpcHeightError{
 			Height:    0,
 			HasHeight: true,
