@@ -1,6 +1,10 @@
 package database
 
-import "context"
+import (
+	"context"
+
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+)
 
 // FindExistingAccounts finds the existing accounts in the database
 //
@@ -154,4 +158,19 @@ func (t *TimescaleDb) GetLastBlockHeight(chainName string) (uint64, error) {
 		return 0, err
 	}
 	return lastBlockHeight, nil
+}
+
+func (t *TimescaleDb) GetBlock(height uint64) (*sql_data_types.Blocks, error) {
+	query := `
+	SELECT encode(hash, 'base64'), height, timestamp, chain_id, txs, chain_name
+	FROM blocks
+	WHERE height = $1
+	`
+	row := t.pool.QueryRow(context.Background(), query, height)
+	var block sql_data_types.Blocks
+	err := row.Scan(&block)
+	if err != nil {
+		return nil, err
+	}
+	return &block, nil
 }

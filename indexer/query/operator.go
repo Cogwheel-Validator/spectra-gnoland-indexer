@@ -93,7 +93,6 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 	// Launch goroutines to get the blocks
 	for height := fromHeight; height <= toHeight; height++ {
 		go func(height uint64) {
-			defer wg.Done()
 			block, err := q.rpcClient.GetBlock(height)
 			if err != nil {
 				// Use retry mechanism with callback pattern
@@ -112,16 +111,19 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 					},
 					func(result *rc.BlockResponse) {
 						blockChan <- result
+						wg.Done()
 					},
 					func(retryErr error) {
 						log.Printf("failed to get block %d after retries: %v", height, retryErr)
 						blockChan <- nil
+						wg.Done()
 					},
 					height,
 				)
 				return
 			}
 			blockChan <- block
+			wg.Done()
 		}(height)
 	}
 
@@ -177,7 +179,6 @@ func (q *QueryOperator) GetTransactions(txs []string) []*rc.TxResponse {
 	// Launch goroutines to get the transactions
 	for _, tx := range txs {
 		go func(tx string) {
-			defer wg.Done()
 			txResponse, err := q.rpcClient.GetTx(tx)
 			if err != nil {
 				// Use retry mechanism with callback pattern
@@ -196,16 +197,19 @@ func (q *QueryOperator) GetTransactions(txs []string) []*rc.TxResponse {
 					},
 					func(result *rc.TxResponse) {
 						txChan <- result
+						wg.Done()
 					},
 					func(retryErr error) {
 						log.Printf("failed to get tx %s after retries: %v", tx, retryErr)
 						txChan <- nil
+						wg.Done()
 					},
 					tx,
 				)
 				return
 			}
 			txChan <- txResponse
+			wg.Done()
 		}(tx)
 	}
 

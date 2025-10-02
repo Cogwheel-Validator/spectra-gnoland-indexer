@@ -89,22 +89,20 @@ func main() {
 	}
 	blocks := []dataTypes.Blocks{
 		{
-			Hash:            hash1,
-			Height:          970866,
-			Timestamp:       timestamp1,
-			ChainID:         "gnoalnd-testnet-7",
-			ProposerAddress: 1,
-			Txs:             [][]byte{txHash1, txHash2},
-			ChainName:       "gnoland",
+			Hash:      hash1,
+			Height:    970866,
+			Timestamp: timestamp1,
+			ChainID:   "gnoalnd-testnet-7",
+			Txs:       [][]byte{txHash1, txHash2},
+			ChainName: "gnoland",
 		},
 		{
-			Hash:            hash2,
-			Height:          970865,
-			Timestamp:       timestamp2,
-			ChainID:         "gnoalnd-testnet-7",
-			ProposerAddress: 2,
-			Txs:             nil, // empty
-			ChainName:       "gnoland",
+			Hash:      hash2,
+			Height:    970865,
+			Timestamp: timestamp2,
+			ChainID:   "gnoalnd-testnet-7",
+			Txs:       nil, // empty
+			ChainName: "gnoland",
 		},
 	}
 	transactionGeneral := []dataTypes.TransactionGeneral{
@@ -208,7 +206,6 @@ func main() {
 			blocks[i].Height,
 			blocks[i].Timestamp,
 			blocks[i].ChainID,
-			blocks[i].ProposerAddress,
 			makePgxArray(blocks[i].Txs),
 			blocks[i].ChainName,
 		}, nil

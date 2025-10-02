@@ -67,7 +67,6 @@ func (t *TimescaleDb) InsertBlocks(blocks []sql_data_types.Blocks) error {
 			blocks[i].Height,
 			blocks[i].Timestamp,
 			blocks[i].ChainID,
-			blocks[i].ProposerAddress,
 			makePgxArray(blocks[i].Txs),
 			blocks[i].ChainName}, nil
 	})
@@ -103,6 +102,7 @@ func (t *TimescaleDb) InsertValidatorBlockSignings(validatorBlockSigning []sql_d
 		return []any{
 			validatorBlockSigning[i].BlockHeight,
 			validatorBlockSigning[i].Timestamp,
+			validatorBlockSigning[i].Proposer,
 			makePgxArray(validatorBlockSigning[i].SignedVals),
 			validatorBlockSigning[i].ChainName}, nil
 	})

@@ -12,11 +12,11 @@ import (
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
 	contextHook "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/context_hook"
 	dp "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
 	mainTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/main_types"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/orchestrator"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/query"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 )
 
 // This function is not ready to be used

@@ -103,10 +103,8 @@ type Blocks struct {
 	Height    uint64    `db:"height" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainID   string    `db:"chain_id" dbtype:"TEXT" nullable:"false" primary:"false"`
-	// proposer address is the validator address hence why this should be an integer
-	ProposerAddress int32    `db:"proposer_address" dbtype:"integer" nullable:"false" primary:"false"`
-	Txs             [][]byte `db:"txs" dbtype:"bytea[]" primary:"false" nullable:"true"` // can be a null value
-	ChainName       string   `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	Txs       [][]byte  `db:"txs" dbtype:"bytea[]" primary:"false" nullable:"true"` // can be a null value
+	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 }
 
 func (b Blocks) TableName() string {
@@ -132,6 +130,7 @@ func (b Blocks) TableColumns() []string {
 // Stores:
 //   - Block height (uint64)
 //   - Timestamp (time.Time)
+//   - Proposer (int32)
 //   - Signed validators (int32 all of the validators that signed the block)
 //   - Chain ID (string)
 //   - Missed validators (int32 all of the validators that missed the block)
@@ -140,6 +139,7 @@ func (b Blocks) TableColumns() []string {
 type ValidatorBlockSigning struct {
 	BlockHeight uint64    `db:"block_height" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp   time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	Proposer    int32     `db:"proposer" dbtype:"integer" nullable:"false" primary:"false"`
 	SignedVals  []int32   `db:"address" dbtype:"integer[]" nullable:"false" primary:"false"`
 	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"` // use type enum chain_name from postgres
 	// MissedVals  []int32   `db:"missed_vals" dbtype:"integer" nullable:"false" primary:"false"`

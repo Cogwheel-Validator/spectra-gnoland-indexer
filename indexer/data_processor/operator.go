@@ -147,13 +147,12 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 			}
 
 			blockChan <- &sqlDataTypes.Blocks{
-				Hash:            hash,
-				Height:          height,
-				Timestamp:       block.Result.Block.Header.Time,
-				ChainID:         block.Result.Block.Header.ChainID,
-				ProposerAddress: d.validatorCache.GetAddress(block.Result.Block.Header.ProposerAddress),
-				Txs:             txs,
-				ChainName:       d.chainName,
+				Hash:      hash,
+				Height:    height,
+				Timestamp: block.Result.Block.Header.Time,
+				ChainID:   block.Result.Block.Header.ChainID,
+				Txs:       txs,
+				ChainName: d.chainName,
 			}
 		}(block)
 	}
@@ -493,11 +492,19 @@ func (d *DataProcessor) ProcessValidatorSignings(
 		go func(block *rpcClient.BlockResponse) {
 			defer wg.Done()
 
-			signedVals := make([]int32, 0)
+			signedVals := struct {
+				Proposer   int32
+				SignedVals []int32
+			}{
+				Proposer:   d.validatorCache.GetAddress(block.Result.Block.Header.ProposerAddress),
+				SignedVals: make([]int32, 0),
+			}
 			precommits := block.Result.Block.LastCommit.Precommits
 			for _, precommit := range precommits {
 				if precommit != nil {
-					signedVals = append(signedVals, d.validatorCache.GetAddress(precommit.ValidatorAddress))
+					signedVals.SignedVals = append(
+						signedVals.SignedVals, d.validatorCache.GetAddress(precommit.ValidatorAddress),
+					)
 				}
 			}
 
@@ -510,7 +517,8 @@ func (d *DataProcessor) ProcessValidatorSignings(
 			validatorChan <- &sqlDataTypes.ValidatorBlockSigning{
 				BlockHeight: height,
 				Timestamp:   block.Result.Block.Header.Time,
-				SignedVals:  signedVals,
+				Proposer:    signedVals.Proposer,
+				SignedVals:  signedVals.SignedVals,
 				ChainName:   d.chainName,
 			}
 		}(block)

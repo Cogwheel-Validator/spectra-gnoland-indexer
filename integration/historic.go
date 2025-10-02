@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/database"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/integration/synthetic"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"go.yaml.in/yaml/v4"
 )
 
