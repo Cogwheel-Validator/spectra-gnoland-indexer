@@ -41,10 +41,10 @@ jobs:
           mkdir -p build
           
           # Linux AMD64
-          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Version=${{ steps.version.outputs.version }}" -o dist/myapp-linux-amd64 .
+          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Version=${{ steps.version.outputs.version }}" -o build/indexer indexer/main.go
           
           # Linux ARM64
-          GOOS=linux GOARCH=arm64 go build -ldflags="-X main.Version=${{ steps.version.outputs.version }}" -o dist/myapp-linux-arm64 .
+          GOOS=linux GOARCH=arm64 go build -ldflags="-X main.Version=${{ steps.version.outputs.version }}" -o build/indexer indexer/main.go
     
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
