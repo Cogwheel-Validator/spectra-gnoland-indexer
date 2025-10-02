@@ -80,8 +80,8 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/cogwheel-validator:${{ steps.version.outputs.version }}
-            ghcr.io/cogwheel-validator:${{ steps.version.outputs.docker_tag }}
+            ghcr.io/cogwheel-validator/spectra-gnoland-indexer:${{ steps.version.outputs.version }}
+            ghcr.io/cogwheel-validator/spectra-gnoland-indexer:${{ steps.version.outputs.docker_tag }}
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
