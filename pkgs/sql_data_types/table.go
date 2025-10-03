@@ -227,10 +227,11 @@ func (at AddressTx) TableColumns() []string {
 // But what kind of data will be stored should be managed by the config.
 // It is not recommended to use both modes at the same time.
 type TransactionGeneral struct {
-	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
-	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
-	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
-	MsgTypes  []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
+	TxHash      []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	Timestamp   time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	BlockHeight uint64    `db:"block_height" dbtype:"bigint" nullable:"false" primary:"false"`
+	MsgTypes    []string  `db:"msg_types" dbtype:"TEXT[]" nullable:"false" primary:"false"`
 	// tx events in the future there should be an option to have this compressed
 	// for now only store the native format but keep the option to have it compressed
 	TxEvents           []Event `db:"tx_events" dbtype:"event[]" nullable:"true" primary:"false"`

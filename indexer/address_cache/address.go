@@ -22,25 +22,25 @@ import (
 func NewAddressCache(chainName string, db DatabaseForAddresses, loadVal bool) *AddressCache {
 	if loadVal {
 		// if true load the validator addresses
-		addresses, err := loadAddresses(chainName, loadVal, db)
+		addresses, maxIndex, err := loadAddresses(chainName, loadVal, db)
 		if err != nil {
 			log.Fatalf("failed to load addresses: %v", err)
 		}
 		return &AddressCache{
 			address:      addresses,
 			db:           db,
-			highestIndex: 0,
+			highestIndex: maxIndex,
 		}
 	} else {
 		// if false load the regular addresses
-		addresses, err := loadAddresses(chainName, loadVal, db)
+		addresses, maxIndex, err := loadAddresses(chainName, loadVal, db)
 		if err != nil {
 			log.Fatalf("failed to load addresses: %v", err)
 		}
 		return &AddressCache{
 			address:      addresses,
 			db:           db,
-			highestIndex: 0,
+			highestIndex: maxIndex,
 		}
 	}
 }
@@ -194,10 +194,10 @@ func (a *AddressCache) GetAddress(address string) int32 {
 // Returns:
 //   - map[string]int32: the map of addresses and their ids
 //   - error: if the query fails
-func loadAddresses(chainName string, loadVal bool, db DatabaseForAddresses) (map[string]int32, error) {
-	addresses, err := db.GetAllAddresses(chainName, loadVal)
+func loadAddresses(chainName string, loadVal bool, db DatabaseForAddresses) (map[string]int32, int32, error) {
+	addresses, maxIndex, err := db.GetAllAddresses(chainName, loadVal, nil)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return addresses, nil
+	return addresses, maxIndex, nil
 }

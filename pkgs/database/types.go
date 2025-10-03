@@ -29,3 +29,13 @@ type DatabasePoolConfig struct {
 	PoolHealthCheckPeriod     time.Duration
 	PoolMaxConnLifetimeJitter time.Duration
 }
+
+// BlockData represents the actual block data returned in the response body
+type BlockData struct {
+	Hash      string    `json:"hash" doc:"Block hash (hex-encoded)"`
+	Height    uint64    `json:"height" doc:"Block height"`
+	Timestamp time.Time `json:"timestamp" doc:"Block timestamp"`
+	ChainID   string    `json:"chain_id" doc:"Chain identifier"`
+	Txs       []string  `json:"txs" doc:"Transactions (base64 encoded)"`
+	TxCount   int       `json:"tx_count" doc:"Number of transactions in the block"`
+}

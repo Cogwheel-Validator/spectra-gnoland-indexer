@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
+	dataprocessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 )
 
@@ -241,10 +242,14 @@ func (or *Orchestrator) updateProgressMetrics(chunkStart, chunkEnd uint64, block
 
 // collectTransactionsFromBlocks extracts all transactions from blocks and queries them concurrently
 // This mimics the Python _process_historical_block_chunk behavior
-func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockResponse) map[*rpcClient.TxResponse]time.Time {
+func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockResponse) []dataprocessor.TrasnactionsData {
 	// Collect all transaction hashes from all blocks
 	var allTxHashes []string
-	blockTimestamps := make(map[string]time.Time) // txHash -> block timestamp
+	blockTxData := make([]struct {
+		txHash      string
+		blockHeight uint64
+		timestamp   time.Time
+	}, 0)
 
 	for _, block := range blocks {
 		if block == nil {
@@ -265,13 +270,26 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 			}
 			txHashSha256 := sha256.Sum256(txHashBytes)
 			txHashFinal := base64.StdEncoding.EncodeToString(txHashSha256[:])
+			blockHeight, err := block.GetHeight()
+			if err != nil {
+				log.Printf("Failed to get block height: %v", err)
+				continue
+			}
 			allTxHashes = append(allTxHashes, txHashFinal)
-			blockTimestamps[txHashFinal] = block.GetTimestamp()
+			blockTxData = append(blockTxData, struct {
+				txHash      string
+				blockHeight uint64
+				timestamp   time.Time
+			}{
+				txHash:      txHashFinal,
+				blockHeight: blockHeight,
+				timestamp:   block.GetTimestamp(),
+			})
 		}
 	}
 
 	if len(allTxHashes) == 0 {
-		return make(map[*rpcClient.TxResponse]time.Time)
+		return make([]dataprocessor.TrasnactionsData, 0)
 	}
 
 	log.Printf("Fetching %d transactions concurrently", len(allTxHashes))
@@ -280,17 +298,23 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 	transactions := or.queryOperator.GetTransactions(allTxHashes)
 
 	// Build map of transactions with their timestamps
-	txMap := make(map[*rpcClient.TxResponse]time.Time)
+	txData := make([]dataprocessor.TrasnactionsData, 0)
 	for _, tx := range transactions {
 		if tx != nil {
-			if timestamp, exists := blockTimestamps[tx.GetHash()]; exists {
-				txMap[tx] = timestamp
+			for _, blockTx := range blockTxData {
+				if blockTx.txHash == tx.GetHash() {
+					txData = append(txData, dataprocessor.TrasnactionsData{
+						Response:    tx,
+						Timestamp:   blockTx.timestamp,
+						BlockHeight: blockTx.blockHeight,
+					})
+				}
 			}
 		}
 	}
 
-	log.Printf("Successfully collected %d valid transactions", len(txMap))
-	return txMap
+	log.Printf("Successfully collected %d valid transactions", len(txData))
+	return txData
 }
 
 // This function processes all data using optimized concurrent execution
@@ -308,7 +332,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 // The method will not throw an error if the data is not found, it will just return nil
 func (or *Orchestrator) processAllConcurrently(
 	blocks []*rpcClient.BlockResponse,
-	transactions map[*rpcClient.TxResponse]time.Time,
+	transactions []dataprocessor.TrasnactionsData,
 	compressEvents bool,
 	fromHeight uint64,
 	toHeight uint64) error {

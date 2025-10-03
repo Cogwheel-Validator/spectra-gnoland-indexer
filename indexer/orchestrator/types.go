@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
+	dataprocessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 )
 
@@ -11,8 +12,8 @@ import (
 type DataProcessor interface {
 	ProcessValidatorAddresses(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64)
 	ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64)
-	ProcessTransactions(transactions map[*rpcClient.TxResponse]time.Time, compressEvents bool, fromHeight uint64, toHeight uint64)
-	ProcessMessages(transactions map[*rpcClient.TxResponse]time.Time, fromHeight uint64, toHeight uint64) error
+	ProcessTransactions(transactions []dataprocessor.TrasnactionsData, compressEvents bool, fromHeight uint64, toHeight uint64)
+	ProcessMessages(transactions []dataprocessor.TrasnactionsData, fromHeight uint64, toHeight uint64) error
 	ProcessValidatorSignings(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64)
 }
 

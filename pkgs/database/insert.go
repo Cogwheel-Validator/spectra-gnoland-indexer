@@ -139,6 +139,7 @@ func (t *TimescaleDb) InsertTransactionsGeneral(transactionsGeneral []sql_data_t
 			transactionsGeneral[i].TxHash,
 			transactionsGeneral[i].ChainName,
 			transactionsGeneral[i].Timestamp,
+			transactionsGeneral[i].BlockHeight,
 			makePgxArray(transactionsGeneral[i].MsgTypes),
 			makePgxArray(transactionsGeneral[i].TxEvents),
 			transactionsGeneral[i].TxEventsCompressed,
