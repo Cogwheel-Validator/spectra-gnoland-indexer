@@ -58,7 +58,7 @@ func (dm *DecodedMsg) GetMessages() []map[string]any {
 //
 // The method will not throw an error if the message types are not found, it will just return nil
 func (dm *DecodedMsg) GetMsgTypes() []string {
-	msgTypes := make([]string, len(dm.Messages))
+	msgTypes := make([]string, 0, len(dm.Messages))
 	for _, message := range dm.Messages {
 		msgTypes = append(msgTypes, message["msg_type"].(string))
 	}
