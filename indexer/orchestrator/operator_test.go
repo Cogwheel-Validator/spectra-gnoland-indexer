@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
+	dataprocessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/orchestrator"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 )
@@ -35,12 +36,12 @@ func (m *MockDataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fro
 }
 
 // Mock method for ProcessTransactions
-func (m *MockDataProcessor) ProcessTransactions(transactions map[*rpcClient.TxResponse]time.Time, compressEvents bool, fromHeight uint64, toHeight uint64) {
+func (m *MockDataProcessor) ProcessTransactions(transactions []dataprocessor.TrasnactionsData, compressEvents bool, fromHeight uint64, toHeight uint64) {
 	m.ProcessTransactionsCalled = true
 }
 
 // Mock method for ProcessMessages
-func (m *MockDataProcessor) ProcessMessages(transactions map[*rpcClient.TxResponse]time.Time, fromHeight uint64, toHeight uint64) error {
+func (m *MockDataProcessor) ProcessMessages(transactions []dataprocessor.TrasnactionsData, fromHeight uint64, toHeight uint64) error {
 	m.ProcessMessagesCalled = true
 	return m.ProcessMessagesError
 }

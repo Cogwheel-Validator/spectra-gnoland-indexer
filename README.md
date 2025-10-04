@@ -2,6 +2,7 @@
 <div align="center">
 <img src="./images/spectra-gnoland-indexer.svg" alt="Spectra Gnoland Indexer" width="250" style="padding: 25px;">
 </div>
+<p align="center" style="font-style: italic;">This project is still in development. Future releases might have some breaking changes.</p>
 
 The Spectra Gnoland Indexer(SGI) is a tool that records the data from the Gnoland blockchain and stores the data 
 in the timeseries database, Timescale DB. This indexer will be a part of the Spectra explorer and will be used to 
@@ -9,19 +10,19 @@ store the data for the explorer. This program can be used for any kind of data/a
 
 The biggest problem when dealing with the blockchain data is how to store the data in a way that is easy to query 
 and analyze. Some projects rely on the direct access to the data from the blockchain nodes and the problem in this 
-case is that the nodes are meant for multiple purposes. They usually provide at least one, sometimes even more,
-endpoints for querying the data, then this node need to be able to work with other nodes and to acquire the block 
-data from other nodes via P2P network. Most nodes can be used as a miners/validators that need to sign the blocks, 
-and maintain the blockchain state. While they are the first point of contact for data and contact with the chain
-they are not most efficient when it comes to making some queries easy and fast. Plus the nodes are made to be fast 
-and efficient when it comes to preformance of the nodes, so they are not most efficient when it comes to storing 
-the data.
+case is that the nodes are meant for multiple purposes. 
+
+They usually provide at least one, sometimes even more, endpoints for querying the data, then this node need to be 
+able to work with other nodes and to acquire the block data from other nodes via P2P network. Most nodes can be 
+used as a miners/validators that need to sign the blocks. Even if these nodes are only to be used as a RPC nodes
+they can still provide the data but depending on the underlying SDK, tech stack and other factors it might be 
+not the best choice. And finally the nodes are not the best when it comes to storing the data and scalability.
 
 ## Table of content
 - [Table of content](#table-of-content)
 - [The solution](#the-solution)
 - [Why TimescaleDB? And can it work on other SQL databases?](#why-timescaledb-and-can-it-work-on-other-sql-databases)
-- [The indexer and how it works](#the-indexer-and-how-it-works)
+- [How does the indexer work?](#how-does-the-indexer-work)
 - [What is indexed and what is not](#what-is-indexed-and-what-is-not)
   - [Blocks:](#blocks)
   - [Validator signings:](#validator-signings)
@@ -53,6 +54,12 @@ TimescaleDB (Tiger Data is their commercial version) is a extension of the Postg
 store the time series data in a way that is easy to query and analyze. It also has a lot of features that can 
 extend the capabilities of the PostgreSQL and make it more powerful.
 
+The TimescaleDB has also feature of it's own that is not present in the Postgres. The user could extend the indexer
+by adding the data aggregation features, automatic jobs scheduling, hyperfunctions and more.
+
+This database extension also has a data compression feature that can be used to reduce the storage space and 
+segment the data into smaller chunks by using time based intervals making the queries faster.
+
 Technically speaking the indexer can work on Postgres database, however you would need to create the tables and 
 types manually. This might be added later in the future if there is a demand for it but for now the focus is on the 
 TimescaleDB.
@@ -65,21 +72,7 @@ There are some other SQL databases that could work in theory. For them to work t
 If all of the above are met then the indexer can work on them. It might work on CockroachDB for example but this is 
 out of the scope of this project. Maybe in the future it might be an interesting idea to support it.
 
-There were some other contenders for the database choice. They were: InfluxDB and QuestDB. 
-
-At the time when the cosmos indexer was made the InfluxDB had a opensource version 2 but at the time it was lacking
-some of the features that are now present in the version 3. Maybe it could have been used for the indexer but at 
-the time it seemed to be not the best choice.
-
-QuestDB was a interesting choice and it is probably even better choice than TimescaleDB. But it does have some 
-limitations but nothing that would make it impossible to use it. However with the TimescaleDB it is pretty much an 
-extention of Postgres and it is more mature and has more features and it can be extended with any other extensions 
-that are available for the Postgres.
-
-The TimescaleDB has also feature of it's own that is not present in the Postgres. The user could extend the indexer
-by adding the data aggregation features, automatic jobs scheduling, hyperfunctions and more.
-
-## The indexer and how it works
+## How does the indexer work?
 
 The indexer has 2 main modes of operation:
 - Live mode
@@ -136,6 +129,7 @@ Stored data:
 - Validator block signing height
 - Validator block signing timestamp
 - Validator block signing signed validators
+- Proposer address
 
 Not stored data:
 - Missed validators
@@ -149,11 +143,12 @@ VM message Add Package and Call where in theory one could extract even the body 
 
 ### 🦾 Pros:
 
-- The indexer process the data using goroutines and channels, which can provide a faster processing of the data. Some early test on the real data showed about 2vCPU can index 10K blocks in about 2m30s while the 4vCPU can index 10K blocks in about 1m30s.
+- The indexer process the data using goroutines and channels, which can provide a faster processing of the data.
+- Fast data processing. [see benchmarks](./docs/benchmarks.md)
 - The program has 2 modes that can be used for the indexing of the data. This can be useful for the testing, partial indexing of the chain or gradual indexing of the chain.
 - The data is stored ready to be used for any kind of analytics and visualization with any programming language.
 - No need to deal with Amino encoding and decoding for the messagess as the indexer decodes the messages and stores them in the database.
-- It comes with a REST API to get you started quickly.(To be added in the future)
+- It comes with a REST API to get you started quickly.
 - It relies on a SQL database, which can provide a easier experience for any user that is familiar with the SQL.
 - It uses TimescaleDB, a PostgresSQL extenstion that can be extended with any other extensions, plus the TimescaleDB has a lot of features that are not present in the Postgres.
 
@@ -165,4 +160,4 @@ VM message Add Package and Call where in theory one could extract even the body 
 
 ## In depth documentation
 
-For more detailed documentation, please refer to the [docs](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/blob/main/docs/README.md) directory.
+For more detailed documentation, please refer to the [docs](./docs/README.md) directory.

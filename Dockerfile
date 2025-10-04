@@ -4,9 +4,10 @@ WORKDIR /app
 
 COPY . .
 
-RUN go build -o indexer indexer/main.go
-
-RUN chmod +x indexer
+ARG VERSION=unknown
+RUN GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown") && \
+    go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION}" -o indexer indexer/main.go && \
+    chmod +x indexer
 
 FROM debian:trixie-slim
 

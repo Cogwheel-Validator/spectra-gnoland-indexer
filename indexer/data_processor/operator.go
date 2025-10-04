@@ -1,13 +1,13 @@
 package dataprocessor
 
 import (
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/decoder"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
@@ -138,11 +138,14 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 			if block.Result.Block.Data.Txs != nil {
 				for _, tx := range *block.Result.Block.Data.Txs {
 					txHash, err := base64.StdEncoding.DecodeString(tx)
+					// turn to sha256 and then turn it to raw bytes to
+					// match the transaction hash
+					txHashSha256 := sha256.Sum256(txHash)
 					if err != nil {
 						log.Printf("Failed to decode tx hash %s: %v", tx, err)
 						continue
 					}
-					txs = append(txs, txHash)
+					txs = append(txs, txHashSha256[:])
 				}
 			}
 
@@ -187,7 +190,7 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 //
 // The method will not throw an error if the transactions are not found, it will just return nil
 func (d *DataProcessor) ProcessTransactions(
-	transactions map[*rpcClient.TxResponse]time.Time,
+	transactions []TrasnactionsData,
 	compressEvents bool,
 	fromHeight uint64,
 	toHeight uint64) {
@@ -196,21 +199,20 @@ func (d *DataProcessor) ProcessTransactions(
 	wg := sync.WaitGroup{}
 	wg.Add(len(transactions))
 
-	for transaction, timestamp := range transactions {
+	for _, transaction := range transactions {
 		go func(
-			transaction *rpcClient.TxResponse,
-			timestamp time.Time,
+			transaction TrasnactionsData,
 			compressEvents bool) {
 			defer wg.Done()
-			txResult := transaction.Result.TxResult
+			txResult := transaction.Response.Result.TxResult
 
-			decodedMsg := decoder.NewDecodedMsg(transaction.Result.Tx)
+			decodedMsg := decoder.NewDecodedMsg(transaction.Response.Result.Tx)
 
 			fee := decodedMsg.GetFee()
 			msgTypes := decodedMsg.GetMsgTypes()
 
 			// convert the tx hash from base64 to sha256
-			txHash, err := base64.StdEncoding.DecodeString(transaction.GetHash())
+			txHash, err := base64.StdEncoding.DecodeString(transaction.Response.GetHash())
 			if err != nil {
 				return
 			}
@@ -226,7 +228,7 @@ func (d *DataProcessor) ProcessTransactions(
 			}
 
 			// solve the events
-			events, err := EventSolver(transaction, compressEvents)
+			events, err := EventSolver(transaction.Response, compressEvents)
 			if err != nil {
 				return
 			}
@@ -235,7 +237,8 @@ func (d *DataProcessor) ProcessTransactions(
 			transactionChan <- &sqlDataTypes.TransactionGeneral{
 				TxHash:             txHash,
 				ChainName:          d.chainName,
-				Timestamp:          timestamp,
+				Timestamp:          transaction.Timestamp,
+				BlockHeight:        transaction.BlockHeight,
 				MsgTypes:           msgTypes,
 				TxEvents:           events.GetNativeEvents(),
 				TxEventsCompressed: events.GetCompressedData(),
@@ -245,7 +248,7 @@ func (d *DataProcessor) ProcessTransactions(
 				Fee:                fee,
 			}
 
-		}(transaction, timestamp, compressEvents)
+		}(transaction, compressEvents)
 	}
 
 	go func() {
@@ -278,7 +281,7 @@ func (d *DataProcessor) ProcessTransactions(
 // Returns:
 //   - error: if processing fails
 func (d *DataProcessor) ProcessMessages(
-	transactions map[*rpcClient.TxResponse]time.Time,
+	transactions []TrasnactionsData,
 	fromHeight uint64,
 	toHeight uint64) error {
 
@@ -289,10 +292,10 @@ func (d *DataProcessor) ProcessMessages(
 	wg1.Add(len(transactions))
 
 	// Launch goroutines to collect addresses concurrently
-	for transaction := range transactions {
-		go func(transaction *rpcClient.TxResponse) {
+	for _, transaction := range transactions {
+		go func(transaction TrasnactionsData) {
 			defer wg1.Done()
-			decodedMsg := decoder.NewDecodedMsg(transaction.Result.Tx)
+			decodedMsg := decoder.NewDecodedMsg(transaction.Response.Result.Tx)
 			if decodedMsg == nil {
 				addressCollectionChan <- []*decoder.DecodedMsg{nil}
 				return
@@ -344,41 +347,41 @@ func (d *DataProcessor) ProcessMessages(
 
 	// Launch goroutines to process messages concurrently
 	txIndex := 0
-	for transaction, timestamp := range transactions {
+	for _, transaction := range transactions {
 		if txIndex >= len(allDecodedMsgs) {
 			wg2.Done()
 			continue
 		}
 
-		go func(transaction *rpcClient.TxResponse, timestamp time.Time, decodedMsg *decoder.DecodedMsg) {
+		go func(transaction TrasnactionsData, decodedMsg *decoder.DecodedMsg) {
 			defer wg2.Done()
 
 			if decodedMsg == nil {
 				// There might be an error here
 				// but any kind of retry mechanism will probably not help
 				// log it for.
-				log.Printf("The transaction couldn't be decoded, tx hash: %s", transaction.GetHash())
+				log.Printf("The transaction couldn't be decoded, tx hash: %s", transaction.Response.GetHash())
 				resultChan <- processedResult{nil, nil}
 				return
 			}
 
 			// Convert directly to database-ready messages with address IDs
-			txHash, err := base64.StdEncoding.DecodeString(transaction.GetHash())
+			txHash, err := base64.StdEncoding.DecodeString(transaction.Response.GetHash())
 			if err != nil {
-				log.Printf("Failed to decode tx hash %s: %v", transaction.GetHash(), err)
+				log.Printf("Failed to decode tx hash %s: %v", transaction.Response.GetHash(), err)
 				resultChan <- processedResult{nil, err}
 				return
 			}
 
-			dbMessageGroups, err := decodedMsg.ConvertToDbMessages(d.addressCache, txHash, d.chainName, timestamp, decodedMsg.GetSigners())
+			dbMessageGroups, err := decodedMsg.ConvertToDbMessages(d.addressCache, txHash, d.chainName, transaction.Timestamp, decodedMsg.GetSigners())
 			if err != nil {
-				log.Printf("Failed to convert messages for tx %s: %v", transaction.GetHash(), err)
+				log.Printf("Failed to convert messages for tx %s: %v", transaction.Response.GetHash(), err)
 				resultChan <- processedResult{nil, err}
 				return
 			}
 			resultChan <- processedResult{dbMessageGroups, nil}
 
-		}(transaction, timestamp, allDecodedMsgs[txIndex])
+		}(transaction, allDecodedMsgs[txIndex])
 		txIndex++
 	}
 

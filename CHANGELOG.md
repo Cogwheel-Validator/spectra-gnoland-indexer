@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-10-04
+
+Added the REST API with some basic routes that will come in handy. Small bug fixes and changes.
+
+### Added
+
+- Rest API with 5 basic routes that will come in handy. [90bef0e](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/90bef0ec5a0bff468d4a1d6771b82706029f4ea9),[f2a39d6](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f2a39d65c5622e0a5953d1f6113ab5eea1996cad),[d875be2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d875be2c42eb5fd71a02b4b29d1496c4b7c3de1e)
+- Some basic documentation for the API and modified the existing docs. [b2c20d2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/b2c20d222e4f52b74b333974a7930df3cddad29e)
+- Database queries for the API ( althoguh they can be used for any other app or service if needed ) [d875be2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d875be2c42eb5fd71a02b4b29d1496c4b7c3de1e), [f2a39d6](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f2a39d65c5622e0a5953d1f6113ab5eea1996cad)
+
+### Fixed
+
+- Some table fixes, the msg_types would insert the empty string because when the make slice function was called by the accident it added the empty string instead of just allocating the size of the slice. [d875be2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d875be2c42eb5fd71a02b4b29d1496c4b7c3de1e)
+- The validator signing has the column name addresses for the signed validators. While this is not a bug it wasn't intended. [90bef0e](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/90bef0ec5a0bff468d4a1d6771b82706029f4ea9)
+
 ## [0.1.1] - 2025-10-02
 
 Mostly some fixes. The live should work now there was a bug with the RPC client when making a request to the last block height recorded. The retry worker could sometimes send the data to the closed channel. Now the query operator calls the wg.Done functions directly. It should work now but there might be some other bugs.

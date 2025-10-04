@@ -1,0 +1,12 @@
+host: 127.0.0.1
+port: 8080
+cors_allowed_origins:
+  - "*"
+cors_allowed_methods:
+  - "GET"
+cors_allowed_headers:
+  - "Origin"
+  - "Content-Type"
+  - "Accept"
+cors_max_age: 600
+chain_name: gnoland

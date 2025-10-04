@@ -37,7 +37,12 @@ go.work.sum
 config.yml
 test_config.yml
 .env
+config-api.yml
 
 # State dumps and diagnostics directories
 state_dumps/
 diagnostics/
+
+# Cert files
+server.crt
+server.key

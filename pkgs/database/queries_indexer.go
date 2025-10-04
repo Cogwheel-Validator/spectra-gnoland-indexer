@@ -2,8 +2,6 @@ package database
 
 import (
 	"context"
-
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 )
 
 // FindExistingAccounts finds the existing accounts in the database
@@ -70,13 +68,19 @@ func (t *TimescaleDb) FindExistingAccounts(addresses []string, chainName string,
 // Args:
 //
 //   - chainName: the name of the chain
+//   - searchValidators: whether to search for validators or accounts
+//   - highestIndex: the highest index of the addresses already recorded or it could be a 0
 //
 // Returns:
 //
 //   - map[string]int32: the map of all accounts and their ids
 //   - error: if the query fails
-func (t *TimescaleDb) GetAllAddresses(chainName string, searchValidators bool) (map[string]int32, error) {
+func (t *TimescaleDb) GetAllAddresses(chainName string, searchValidators bool, highestIndex *int32) (map[string]int32, int32, error) {
 	addressesMap := make(map[string]int32)
+	var maxIndex int32 = 0
+	if highestIndex != nil {
+		maxIndex = *highestIndex
+	}
 	// we need to check if we are searching for validators or accounts
 	query := ""
 	if searchValidators {
@@ -84,17 +88,19 @@ func (t *TimescaleDb) GetAllAddresses(chainName string, searchValidators bool) (
 		SELECT address, id
 		FROM gno_validators
 		WHERE chain_name = $1
+		AND id > $2
 		`
 	} else {
 		query += `
 		SELECT address, id
 		FROM gno_addresses
 		WHERE chain_name = $1
+		AND id > $2
 		`
 	}
-	rows, err := t.pool.Query(context.Background(), query, chainName)
+	rows, err := t.pool.Query(context.Background(), query, chainName, highestIndex)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -103,11 +109,14 @@ func (t *TimescaleDb) GetAllAddresses(chainName string, searchValidators bool) (
 		var id int32
 		err := rows.Scan(&address, &id)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		addressesMap[address] = id
+		if id > maxIndex {
+			maxIndex = id
+		}
 	}
-	return addressesMap, nil
+	return addressesMap, maxIndex, nil
 }
 
 // CheckCurrentDatabaseName checks the current database name
@@ -158,19 +167,4 @@ func (t *TimescaleDb) GetLastBlockHeight(chainName string) (uint64, error) {
 		return 0, err
 	}
 	return lastBlockHeight, nil
-}
-
-func (t *TimescaleDb) GetBlock(height uint64) (*sql_data_types.Blocks, error) {
-	query := `
-	SELECT encode(hash, 'base64'), height, timestamp, chain_id, txs, chain_name
-	FROM blocks
-	WHERE height = $1
-	`
-	row := t.pool.QueryRow(context.Background(), query, height)
-	var block sql_data_types.Blocks
-	err := row.Scan(&block)
-	if err != nil {
-		return nil, err
-	}
-	return &block, nil
 }

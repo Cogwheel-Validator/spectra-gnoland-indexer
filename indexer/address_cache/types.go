@@ -4,7 +4,7 @@ package addresscache
 type DatabaseForAddresses interface {
 	FindExistingAccounts(addresses []string, chainName string, searchValidators bool) (map[string]int32, error)
 	InsertAddresses(addresses []string, chainName string, insertValidators bool) error
-	GetAllAddresses(chainName string, searchValidators bool) (map[string]int32, error)
+	GetAllAddresses(chainName string, searchValidators bool, highestIndex *int32) (map[string]int32, int32, error)
 }
 
 // AddressCache is a map of addresses tied to their int32 index in the database

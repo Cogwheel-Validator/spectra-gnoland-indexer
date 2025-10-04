@@ -1,6 +1,9 @@
 package dataprocessor
 
 import (
+	"time"
+
+	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 	sqlDataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 )
 
@@ -27,4 +30,10 @@ type DataProcessor struct {
 	addressCache   AddressCache
 	validatorCache AddressCache
 	chainName      string
+}
+
+type TrasnactionsData struct {
+	Response    *rpcClient.TxResponse
+	Timestamp   time.Time
+	BlockHeight uint64
 }
