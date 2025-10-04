@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"strings"
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
@@ -27,9 +26,7 @@ func (h *TransactionsHandler) GetTransactionBasic(
 ) (*humatypes.TransactionBasicGetOutput, error) {
 	input.TxHash = strings.Trim(input.TxHash, " ")
 	txHash, err := base64.URLEncoding.DecodeString(input.TxHash)
-	log.Println("txHash base64url", input.TxHash)
 	txHashBase64 := base64.StdEncoding.EncodeToString(txHash)
-	log.Println("txHash base64", txHashBase64)
 	if err != nil {
 		return nil, huma.Error400BadRequest("Transaction hash is not valid base64url encoded", err)
 	}
@@ -56,7 +53,6 @@ func (h *TransactionsHandler) GetTransactionMessage(
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
 	}
-	log.Println("msgType", msgType)
 	switch msgType {
 	case "bank_msg_send":
 		data, err := h.db.GetBankSend(txHashBase64, h.chainName)

@@ -10,15 +10,15 @@ import (
 )
 
 var (
-	Commit  = "unknown"                    // try to get from git else leave unknown
-	Version = "unknown; commit: " + Commit // try to get from git else leave unknown
+	Commit  = "unknown" // Set via ldflags at build time
+	Version = "unknown" // Set via ldflags at build time
 )
 
 var rootCmd = &cobra.Command{
 	Use:     "indexer",
 	Short:   "Spectra Gnoland Indexer",
 	Long:    "A blockchain indexer for Gnoland that processes blocks and transactions.",
-	Version: Version,
+	Version: Version + " (commit: " + Commit + ")",
 }
 
 var liveCmd = &cobra.Command{

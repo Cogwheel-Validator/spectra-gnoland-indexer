@@ -40,8 +40,11 @@ jobs:
         run: |
           mkdir -p build
           
+          # Get git commit hash
+          GIT_COMMIT=$(git rev-parse --short HEAD)
+          
           # Linux AMD64
-          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Version=${{ steps.version.outputs.version }}" -o build/indexer indexer/main.go
+          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${{ steps.version.outputs.version }}" -o build/indexer-linux-amd64 indexer/main.go
     
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
