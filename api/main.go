@@ -84,7 +84,7 @@ var rootCmd = &cobra.Command{
 			corsOptions.AllowedMethods = []string{"GET"}
 		}
 		if len(corsOptions.AllowedHeaders) == 0 {
-			corsOptions.AllowedHeaders = []string{"Origin", "Content-Type", "Accept", "Origin"}
+			corsOptions.AllowedHeaders = []string{"Origin", "Content-Type", "Accept"}
 		}
 		if corsOptions.MaxAge == 0 {
 			corsOptions.MaxAge = 600
@@ -124,16 +124,21 @@ var rootCmd = &cobra.Command{
 		})
 
 		// Initialize handlers with dependencies
-		blocksHandler := handlers.NewBlocksHandler(db, env.ApiDbName)
-		transactionsHandler := handlers.NewTransactionsHandler(db, env.ApiDbName)
+		blocksHandler := handlers.NewBlocksHandler(db, conf.ChainName)
+		transactionsHandler := handlers.NewTransactionsHandler(db, conf.ChainName)
+		addressHandler := handlers.NewAddressHandler(db, conf.ChainName)
 
 		// Register Block API routes
 		huma.Get(api, "/block/{height}", blocksHandler.GetBlock)
 		huma.Get(api, "/blocks/{from_height}/{to_height}", blocksHandler.GetFromToBlocks)
+		huma.Get(api, "/blocks/{block_height}/signers", blocksHandler.GetAllBlockSigners)
 
 		// Register Transaction API routes
 		huma.Get(api, "/transaction/{tx_hash}", transactionsHandler.GetTransactionBasic)
 		huma.Get(api, "/transaction/{tx_hash}/message", transactionsHandler.GetTransactionMessage)
+
+		// Register Address API routes
+		huma.Get(api, "/address/{address}/txs", addressHandler.GetAddressTxs)
 
 		// Start server using config values
 		addr := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
@@ -142,11 +147,13 @@ var rootCmd = &cobra.Command{
 		// if cert file and key file are provided, use https
 		if certFilePath != "" && keyFilePath != "" {
 			err = http.ListenAndServeTLS(addr, certFilePath, keyFilePath, router)
+			log.Printf("Starting server on %s with HTTPS", addr)
 			if err != nil {
 				log.Fatalf("failed to start server: %v", err)
 			}
 		} else {
 			err = http.ListenAndServe(addr, router)
+			log.Printf("Starting server on %s with HTTP", addr)
 			if err != nil {
 				log.Fatalf("failed to start server: %v", err)
 			}

@@ -140,7 +140,7 @@ type ValidatorBlockSigning struct {
 	BlockHeight uint64    `db:"block_height" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp   time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	Proposer    int32     `db:"proposer" dbtype:"integer" nullable:"false" primary:"false"`
-	SignedVals  []int32   `db:"address" dbtype:"integer[]" nullable:"false" primary:"false"`
+	SignedVals  []int32   `db:"signed_vals" dbtype:"integer[]" nullable:"false" primary:"false"`
 	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"` // use type enum chain_name from postgres
 	// MissedVals  []int32   `db:"missed_vals" dbtype:"integer" nullable:"false" primary:"false"`
 	// can't confirm who is in the active set without making a smart contract query to the DAO smart contract

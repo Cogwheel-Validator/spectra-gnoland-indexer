@@ -41,11 +41,16 @@ func (h *BlocksHandler) GetBlock(ctx context.Context, input *humatypes.BlockGetI
 	return response, nil
 }
 
+// Get from block height a to block height b
 func (h *BlocksHandler) GetFromToBlocks(
 	ctx context.Context,
 	input *humatypes.FromToBlocksGetInput,
 ) (*humatypes.FromToBlocksGetOutput, error) {
 	// Fetch from database
+	// validate input
+	if input.FromHeight > input.ToHeight {
+		return nil, huma.Error400BadRequest("From height must be less than to height", nil)
+	}
 	blocks, err := h.db.GetFromToBlocks(input.FromHeight, input.ToHeight, h.chainName)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf("Blocks from height %d to height %d not found", input.FromHeight, input.ToHeight), err)
@@ -62,6 +67,25 @@ func (h *BlocksHandler) GetFromToBlocks(
 			Txs:       block.Txs,
 			TxCount:   len(block.Txs),
 		})
+	}
+	return response, nil
+}
+
+func (h *BlocksHandler) GetAllBlockSigners(
+	ctx context.Context,
+	input *humatypes.AllBlockSignersGetInput,
+) (*humatypes.AllBlockSignersGetOutput, error) {
+	// Fetch from database
+	blockSigners, err := h.db.GetAllBlockSigners(h.chainName, input.BlockHeight)
+	if err != nil {
+		return nil, huma.Error404NotFound("Block signers not found", err)
+	}
+	response := &humatypes.AllBlockSignersGetOutput{
+		Body: database.BlockSigners{
+			BlockHeight: blockSigners.BlockHeight,
+			Proposer:    blockSigners.Proposer,
+			SignedVals:  blockSigners.SignedVals,
+		},
 	}
 	return response, nil
 }

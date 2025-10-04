@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"log"
+	"time"
 )
 
 // GetBlock gets a block from the database for a given height and chain name
@@ -84,6 +85,56 @@ func (t *TimescaleDb) GetFromToBlocks(fromHeight uint64, toHeight uint64, chainN
 	return blocks, nil
 }
 
+// GetAllBlockSigners gets all of the validators that signed that block + the proposer
+//
+// Usage:
+//
+// # Used to get all of the validators that signed that block + the proposer
+//
+// Args:
+//   - chainName: the name of the chain
+//   - blockHeight: the height of the block
+//
+// Returns:
+//   - *BlockSigners: the block signers
+//   - error: if the query fails
+func (t *TimescaleDb) GetAllBlockSigners(chainName string, blockHeight uint64) (*BlockSigners, error) {
+	query := `
+	SELECT
+	vb.block_height,
+	gv.address AS proposer,
+	array(
+		SELECT gv.address 
+		FROM unnest(vb.signed_vals) AS signed_val_id
+		JOIN gno_validators gv ON gv.id = signed_val_id
+	) AS signed_vals
+	FROM validator_block_signing vb
+	LEFT JOIN gno_validators gv ON vb.proposer = gv.id
+	WHERE vb.chain_name = $1
+	AND vb.block_height = $2
+	`
+	row := t.pool.QueryRow(context.Background(), query, chainName, blockHeight)
+	var blockSigners BlockSigners
+	err := row.Scan(&blockSigners.BlockHeight, &blockSigners.Proposer, &blockSigners.SignedVals)
+	if err != nil {
+		return nil, err
+	}
+	return &blockSigners, nil
+}
+
+// GetBankSend gets the bank send message for a given transaction hash
+//
+// Usage:
+//
+// # Used to get the bank send message for a given transaction hash
+//
+// Args:
+//   - txHash: the hash of the transaction
+//   - chainName: the name of the chain
+//
+// Returns:
+//   - *BankSend: the bank send message
+//   - error: if the query fails
 func (t *TimescaleDb) GetBankSend(txHash string, chainName string) (*BankSend, error) {
 	query := `
 	SELECT 
@@ -112,6 +163,19 @@ func (t *TimescaleDb) GetBankSend(txHash string, chainName string) (*BankSend, e
 	return &bankSend, nil
 }
 
+// GetMsgCall gets the msg call message for a given transaction hash
+//
+// Usage:
+//
+// # Used to get the msg call message for a given transaction hash
+//
+// Args:
+//   - txHash: the hash of the transaction
+//   - chainName: the name of the chain
+//
+// Returns:
+//   - *MsgCall: the msg call message
+//   - error: if the query fails
 func (t *TimescaleDb) GetMsgCall(txHash string, chainName string) (*MsgCall, error) {
 	query := `
 	SELECT 
@@ -142,6 +206,19 @@ func (t *TimescaleDb) GetMsgCall(txHash string, chainName string) (*MsgCall, err
 	return &msgCall, nil
 }
 
+// GetMsgAddPackage gets the msg add package message for a given transaction hash
+//
+// Usage:
+//
+// # Used to get the msg add package message for a given transaction hash
+//
+// Args:
+//   - txHash: the hash of the transaction
+//   - chainName: the name of the chain
+//
+// Returns:
+//   - *MsgAddPackage: the msg add package message
+//   - error: if the query fails
 func (t *TimescaleDb) GetMsgAddPackage(txHash string, chainName string) (*MsgAddPackage, error) {
 	query := `
 	SELECT 
@@ -172,6 +249,19 @@ func (t *TimescaleDb) GetMsgAddPackage(txHash string, chainName string) (*MsgAdd
 	return &msgAddPackage, nil
 }
 
+// GetMsgRun gets the msg run message for a given transaction hash
+//
+// Usage:
+//
+// # Used to get the msg run message for a given transaction hash
+//
+// Args:
+//   - txHash: the hash of the transaction
+//   - chainName: the name of the chain
+//
+// Returns:
+//   - *MsgRun: the msg run message
+//   - error: if the query fails
 func (t *TimescaleDb) GetMsgRun(txHash string, chainName string) (*MsgRun, error) {
 	query := `
 	SELECT 
@@ -203,6 +293,19 @@ func (t *TimescaleDb) GetMsgRun(txHash string, chainName string) (*MsgRun, error
 	return &msgRun, nil
 }
 
+// GetTransaction gets the transaction for a given transaction hash
+//
+// Usage:
+//
+// # Used to get the transaction for a given transaction hash
+//
+// Args:
+//   - txHash: the hash of the transaction
+//   - chainName: the name of the chain
+//
+// Returns:
+//   - *Transaction: the transaction
+//   - error: if the query fails
 func (t *TimescaleDb) GetTransaction(txHash string, chainName string) (*Transaction, error) {
 	var messageType []string
 	query := `
@@ -238,6 +341,19 @@ func (t *TimescaleDb) GetTransaction(txHash string, chainName string) (*Transact
 	return &transaction, nil
 }
 
+// GetMsgType gets the message type for a given transaction hash
+//
+// Usage:
+//
+// # Used to get the message type for a given transaction hash
+//
+// Args:
+//   - txHash: the hash of the transaction
+//   - chainName: the name of the chain
+//
+// Returns:
+//   - string: the message type
+//   - error: if the query fails
 func (t *TimescaleDb) GetMsgType(txHash string, chainName string) (string, error) {
 	query := `
 	SELECT msg_types
@@ -260,4 +376,55 @@ func (t *TimescaleDb) GetMsgType(txHash string, chainName string) (string, error
 		return "", err
 	}
 	return msgType[0], nil
+}
+
+// GetAddressTxs gets the transactions for a given address for a certain time period
+//
+// Usage:
+//
+// # Used to get the transactions for a given address for a certain time period
+//
+// Args:
+//   - address: the address
+//   - chainName: the name of the chain
+//   - fromTimestamp: the starting timestamp
+//   - toTimestamp: the ending timestamp
+//
+// Returns:
+//   - []*AddressTx: the transactions
+//   - error: if the query fails
+func (t *TimescaleDb) GetAddressTxs(
+	address string,
+	chainName string,
+	fromTimestamp time.Time,
+	toTimestamp time.Time,
+) (*[]AddressTx, error) {
+	query := `
+	SELECT
+	encode(tx.tx_hash, 'base64') AS tx_hash,
+	tx.timestamp,
+	tx.msg_types
+	FROM address_tx tx
+	WHERE tx.address = (SELECT id FROM gno_addresses WHERE address = $1 AND chain_name = $2)
+	AND tx.chain_name = $2
+	AND tx.timestamp >= $3
+	AND tx.timestamp <= $4
+	`
+
+	addressTxs := make([]AddressTx, 0)
+
+	rows, err := t.pool.Query(context.Background(), query, address, chainName, fromTimestamp, toTimestamp)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var addressTx AddressTx
+		err := rows.Scan(&addressTx.Hash, &addressTx.Timestamp, &addressTx.MsgTypes)
+		if err != nil {
+			return nil, err
+		}
+		addressTxs = append(addressTxs, addressTx)
+	}
+	return &addressTxs, nil
 }

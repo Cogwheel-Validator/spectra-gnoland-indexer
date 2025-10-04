@@ -83,3 +83,15 @@ type Transaction struct {
 	GasWanted   uint64    `json:"gas_wanted" doc:"Gas wanted"`
 	Fee         Amount    `json:"fee" doc:"Fee"`
 }
+
+type BlockSigners struct {
+	BlockHeight uint64   `json:"block_height" doc:"Block height"`
+	Proposer    string   `json:"proposer" doc:"Proposer (addresses)"`
+	SignedVals  []string `json:"signed_vals" doc:"Signed validators (addresses)"`
+}
+
+type AddressTx struct {
+	Hash      string    `json:"hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	MsgTypes  []string  `json:"msg_types" doc:"Message types"`
+}

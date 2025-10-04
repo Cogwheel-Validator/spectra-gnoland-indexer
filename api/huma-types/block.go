@@ -22,3 +22,11 @@ type BlockGetOutput struct {
 type FromToBlocksGetOutput struct {
 	Body []database.BlockData
 }
+
+type AllBlockSignersGetInput struct {
+	BlockHeight uint64 `path:"block_height" minimum:"1" example:"12345" doc:"Block height" required:"true"`
+}
+
+type AllBlockSignersGetOutput struct {
+	Body database.BlockSigners
+}

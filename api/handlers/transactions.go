@@ -53,39 +53,80 @@ func (h *TransactionsHandler) GetTransactionMessage(
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
 	}
+
+	var message humatypes.TransactionMessage
+
 	switch msgType {
 	case "bank_msg_send":
 		data, err := h.db.GetBankSend(txHashBase64, h.chainName)
 		if err != nil {
 			return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
 		}
-		return &humatypes.TransactionMessageGetOutput{
-			Body: *data,
-		}, nil
+		message = humatypes.TransactionMessage{
+			MessageType: msgType,
+			TxHash:      data.TxHash,
+			Timestamp:   data.Timestamp,
+			Signers:     data.Signers,
+			FromAddress: data.FromAddress,
+			ToAddress:   data.ToAddress,
+			Amount:      data.Amount,
+		}
 	case "vm_msg_call":
 		data, err := h.db.GetMsgCall(txHashBase64, h.chainName)
 		if err != nil {
 			return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
 		}
-		return &humatypes.TransactionMessageGetOutput{
-			Body: *data,
-		}, nil
+		message = humatypes.TransactionMessage{
+			MessageType: msgType,
+			TxHash:      data.TxHash,
+			Timestamp:   data.Timestamp,
+			Signers:     data.Signers,
+			Caller:      data.Caller,
+			Send:        data.Send,
+			PkgPath:     data.PkgPath,
+			FuncName:    data.FuncName,
+			Args:        data.Args,
+			MaxDeposit:  data.MaxDeposit,
+		}
 	case "vm_msg_add_package":
 		data, err := h.db.GetMsgAddPackage(txHashBase64, h.chainName)
 		if err != nil {
 			return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
 		}
-		return &humatypes.TransactionMessageGetOutput{
-			Body: *data,
-		}, nil
+		message = humatypes.TransactionMessage{
+			MessageType:  msgType,
+			TxHash:       data.TxHash,
+			Timestamp:    data.Timestamp,
+			Signers:      data.Signers,
+			Creator:      data.Creator,
+			PkgPath:      data.PkgPath,
+			PkgName:      data.PkgName,
+			PkgFileNames: data.PkgFileNames,
+			Send:         data.Send,
+			MaxDeposit:   data.MaxDeposit,
+		}
 	case "vm_msg_run":
 		data, err := h.db.GetMsgRun(txHashBase64, h.chainName)
 		if err != nil {
 			return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
 		}
-		return &humatypes.TransactionMessageGetOutput{
-			Body: *data,
-		}, nil
+		message = humatypes.TransactionMessage{
+			MessageType:  msgType,
+			TxHash:       data.TxHash,
+			Timestamp:    data.Timestamp,
+			Signers:      data.Signers,
+			Caller:       data.Caller,
+			PkgPath:      data.PkgPath,
+			PkgName:      data.PkgName,
+			PkgFileNames: data.PkgFileNames,
+			Send:         data.Send,
+			MaxDeposit:   data.MaxDeposit,
+		}
+	default:
+		return nil, huma.Error400BadRequest("Transaction message type not found", nil)
 	}
-	return nil, huma.Error400BadRequest("Transaction message type not found", nil)
+
+	return &humatypes.TransactionMessageGetOutput{
+		Body: message,
+	}, nil
 }

@@ -9,3 +9,4 @@ cors_allowed_headers:
   - "Content-Type"
   - "Accept"
 cors_max_age: 600
+chain_name: gnoland

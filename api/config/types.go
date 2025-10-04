@@ -11,6 +11,7 @@ type ApiConfig struct {
 	CorsAllowedMethods []string `yaml:"cors_allowed_methods"`
 	CorsAllowedHeaders []string `yaml:"cors_allowed_headers"`
 	CorsMaxAge         int      `yaml:"cors_max_age"`
+	ChainName          string   `yaml:"chain_name"`
 }
 
 type ApiEnv struct {
