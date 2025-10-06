@@ -43,8 +43,10 @@ jobs:
           # Get git commit hash
           GIT_COMMIT=$(git rev-parse --short HEAD)
           
-          # Linux AMD64
+          # Linux AMD64 for the indexer and the API
           GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${{ steps.version.outputs.version }}" -o build/indexer-linux-amd64 indexer/main.go
+          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${{ steps.version.outputs.version }}" -o build/indexer-api-linux-amd64 api/main.go
+
     
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -55,14 +57,26 @@ jobs:
           body: |
             ## Release ${{ steps.version.outputs.version }}
             
-            ### Installation
+            ### Installation for the indexer
             Download the binary for your platform and make it executable:
             ```bash
             chmod +x indexer-*
+            ```
+
+            You will need to set up the database for the indexer, check the docs for more information.
+            When you have the database running run the cmd to create the database and the user.
+            ```bash
+            go run cmd/setup.go create-db --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --new-db-name gnoland --chain-name gnoland
+            go run cmd/setup.go create-user --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --user writer --privilege writer
+            ```
+
             From here you can run the indexer using live or historic mode
+            ```bash
             ./indexer live --config config.yml
             ./indexer historic --config config.yml --from-height 1000 --to-height 2000
             ```
+
+            For more information check the docs.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
