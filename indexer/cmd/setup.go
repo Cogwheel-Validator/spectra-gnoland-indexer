@@ -1,8 +1,9 @@
-package main
+package cmd
 
 import (
 	"fmt"
 	"log"
+	"os"
 	"slices"
 	"syscall"
 	"time"
@@ -13,8 +14,6 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
-
-var allowedSslModes = []string{"disable", "require", "verify-ca", "verify-full", "allow", "prefer"}
 
 // dbParams holds common database connection parameters
 type dbParams struct {
@@ -36,7 +35,29 @@ func parseCommonFlags(cmd *cobra.Command, defaultDbName string) (*dbParams, erro
 	params.sslMode, _ = cmd.Flags().GetString("ssl-mode")
 	params.name, _ = cmd.Flags().GetString("db-name")
 
-	// Apply defaults
+	// Apply environment variable fallbacks (for CI/CD)
+	if params.host == "" {
+		if envHost := os.Getenv("DB_HOST"); envHost != "" {
+			params.host = envHost
+		}
+	}
+	if params.port == 0 {
+		if envPort := os.Getenv("DB_PORT"); envPort != "" {
+			fmt.Sscanf(envPort, "%d", &params.port)
+		}
+	}
+	if params.user == "" {
+		if envUser := os.Getenv("DB_USER"); envUser != "" {
+			params.user = envUser
+		}
+	}
+	if params.name == "" {
+		if envDbName := os.Getenv("DB_NAME"); envDbName != "" {
+			params.name = envDbName
+		}
+	}
+
+	// Apply defaults if still empty
 	if params.sslMode == "" {
 		params.sslMode = "disable"
 	}
@@ -64,8 +85,14 @@ func parseCommonFlags(cmd *cobra.Command, defaultDbName string) (*dbParams, erro
 	return params, nil
 }
 
-// promptPassword prompts user for password input
+// promptPassword prompts user for password input or reads from environment
 func promptPassword() (string, error) {
+	// First check if password is provided via environment variable (for CI/CD)
+	if envPassword := os.Getenv("DB_PASSWORD"); envPassword != "" {
+		return envPassword, nil
+	}
+
+	// Interactive mode: prompt user for password
 	fmt.Print("Enter the database password: ")
 	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
@@ -91,12 +118,6 @@ func (p *dbParams) createDatabaseConfig() database.DatabasePoolConfig {
 		PoolHealthCheckPeriod:     1 * time.Minute,
 		PoolMaxConnLifetimeJitter: 1 * time.Minute,
 	}
-}
-
-var rootCmd = &cobra.Command{
-	Use:   "setup",
-	Short: "Database setup tools for the gnoland indexer",
-	Long:  `A collection of tools to set up and manage the database for the gnoland indexer.`,
 }
 
 var createDbCmd = &cobra.Command{
@@ -291,32 +312,4 @@ var createUserCmd = &cobra.Command{
 		log.Printf("Successfully created user %s with privilege %s", params.user, privilege)
 		return nil
 	},
-}
-
-func init() {
-	// Common database flags to both commands
-	for _, cmd := range []*cobra.Command{createDbCmd, createUserCmd} {
-		cmd.Flags().String("db-host", "", "The database host, default is localhost")
-		cmd.Flags().Int("db-port", 0, "The database port, default is 5432")
-		cmd.Flags().String("db-user", "", "The database user, default is postgres")
-		cmd.Flags().String("db-name", "", "The database name, default is postgres")
-		cmd.Flags().String("ssl-mode", "", "The SSL mode for the database connection, default is disable")
-	}
-
-	// Add create-user command specific flags
-	createUserCmd.Flags().String("privilege", "", "The privilege level for the user (reader or writer)")
-	createUserCmd.Flags().String("user", "", "The user name for the user to create")
-
-	// Add create-db command specific flags
-	createDbCmd.Flags().String("new-db-name", "", "The database name to create, default is gnoland")
-	createDbCmd.Flags().String("chain-name", "", "The chain name for the database type enum, default is gnoland")
-
-	rootCmd.AddCommand(createDbCmd)
-	rootCmd.AddCommand(createUserCmd)
-}
-
-func main() {
-	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("failed to execute root command: %v", err)
-	}
 }
