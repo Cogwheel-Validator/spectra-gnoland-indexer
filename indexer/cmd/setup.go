@@ -1,19 +1,15 @@
 package cmd
 
 import (
-	"fmt"
 	"log"
-	"os"
-	"slices"
-	"syscall"
-	"time"
 
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
+
+var allowedSslModes = []string{"disable", "require", "verify-ca", "verify-full", "allow", "prefer"}
 
 // dbParams holds common database connection parameters
 type dbParams struct {
@@ -25,106 +21,45 @@ type dbParams struct {
 	sslMode  string
 }
 
-// parseCommonFlags extracts and validates common database flags
-func parseCommonFlags(cmd *cobra.Command, defaultDbName string) (*dbParams, error) {
-	params := &dbParams{}
-
-	params.host, _ = cmd.Flags().GetString("db-host")
-	params.port, _ = cmd.Flags().GetInt("db-port")
-	params.user, _ = cmd.Flags().GetString("db-user")
-	params.sslMode, _ = cmd.Flags().GetString("ssl-mode")
-	params.name, _ = cmd.Flags().GetString("db-name")
-
-	// Apply environment variable fallbacks (for CI/CD)
-	if params.host == "" {
-		if envHost := os.Getenv("DB_HOST"); envHost != "" {
-			params.host = envHost
-		}
-	}
-	if params.port == 0 {
-		if envPort := os.Getenv("DB_PORT"); envPort != "" {
-			fmt.Sscanf(envPort, "%d", &params.port)
-		}
-	}
-	if params.user == "" {
-		if envUser := os.Getenv("DB_USER"); envUser != "" {
-			params.user = envUser
-		}
-	}
-	if params.name == "" {
-		if envDbName := os.Getenv("DB_NAME"); envDbName != "" {
-			params.name = envDbName
-		}
-	}
-
-	// Apply defaults if still empty
-	if params.sslMode == "" {
-		params.sslMode = "disable"
-	}
-	if params.host == "" {
-		params.host = "localhost"
-	}
-	if params.port == 0 {
-		params.port = 5432
-	}
-	if params.user == "" {
-		params.user = "postgres"
-	}
-	if params.name == "" {
-		params.name = defaultDbName
-	}
-
-	// Validate
-	if !slices.Contains(allowedSslModes, params.sslMode) {
-		return nil, fmt.Errorf("invalid ssl mode: %s", params.sslMode)
-	}
-	if params.port > 65535 {
-		return nil, fmt.Errorf("invalid port: %d", params.port)
-	}
-
-	return params, nil
+var setupCmd = &cobra.Command{
+	Use:   "setup",
+	Short: "Database setup tools",
+	Long:  `A collection of tools to set up and manage the database for the gnoland indexer.`,
 }
 
-// promptPassword prompts user for password input or reads from environment
-func promptPassword() (string, error) {
-	// First check if password is provided via environment variable (for CI/CD)
-	if envPassword := os.Getenv("DB_PASSWORD"); envPassword != "" {
-		return envPassword, nil
+func init() {
+	// Add subcommands
+	setupCmd.AddCommand(createDbCmd)
+	setupCmd.AddCommand(createUserCmd)
+	setupCmd.AddCommand(createConfigCmd)
+
+	// Common flags for both database setup commands
+	for _, cmd := range []*cobra.Command{createDbCmd, createUserCmd} {
+		cmd.Flags().StringP("db-host", "h", "", "The database host, default is localhost")
+		cmd.Flags().IntP("db-port", "p", 0, "The database port, default is 5432")
+		cmd.Flags().StringP("db-user", "u", "", "The database user, default is postgres")
+		cmd.Flags().StringP("db-name", "d", "", "The database name, default is postgres")
+		cmd.Flags().StringP("ssl-mode", "s", "", "The SSL mode for the database connection, default is disable")
 	}
 
-	// Interactive mode: prompt user for password
-	fmt.Print("Enter the database password: ")
-	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
-	if err != nil {
-		return "", fmt.Errorf("failed to read password: %v", err)
-	}
-	fmt.Println()
-	return string(bytePassword), nil
-}
+	// create-user specific flags
+	createUserCmd.Flags().StringP("privilege", "pr", "", "The privilege level for the user (reader or writer)")
+	createUserCmd.Flags().StringP("user", "us", "", "The user name for the user to create")
 
-// createDatabaseConfig creates a DatabasePoolConfig from dbParams
-func (p *dbParams) createDatabaseConfig() database.DatabasePoolConfig {
-	return database.DatabasePoolConfig{
-		Host:                      p.host,
-		Port:                      p.port,
-		User:                      p.user,
-		Dbname:                    p.name,
-		Password:                  p.password,
-		Sslmode:                   p.sslMode,
-		PoolMaxConns:              10,
-		PoolMinConns:              1,
-		PoolMaxConnLifetime:       10 * time.Minute,
-		PoolMaxConnIdleTime:       5 * time.Minute,
-		PoolHealthCheckPeriod:     1 * time.Minute,
-		PoolMaxConnLifetimeJitter: 1 * time.Minute,
-	}
+	// create-db specific flags
+	createDbCmd.Flags().StringP("new-db-name", "nd", "", "The database name to create, default is gnoland")
+	createDbCmd.Flags().StringP("chain-name", "cn", "", "The chain name for the database type enum, default is gnoland")
+
+	// create-config specific flags
+	createConfigCmd.Flags().StringP("config", "c", "config.yaml", "The config file name, default is config.yaml")
+	createConfigCmd.Flags().BoolP("overwrite", "o", false, "Overwrite the existing config file, default is false")
 }
 
 var createDbCmd = &cobra.Command{
 	Use:   "create-db",
 	Short: "Create a new database named gnoland",
-	Long: `Create a new database named gnoland for the indexer. It goes
-		throught a lot of steps to create the database and insert the tables and data.`,
+	Long: `Create a new database named gnoland for the indexer. It goes\n
+	throught a lot of steps to create the database and insert the tables and data.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log.Printf("Initiating the cmd to set up the database for the indexer...")
 
@@ -310,6 +245,24 @@ var createUserCmd = &cobra.Command{
 		}
 
 		log.Printf("Successfully created user %s with privilege %s", params.user, privilege)
+		return nil
+	},
+}
+
+var createConfigCmd = &cobra.Command{
+	Use:   "create-config",
+	Short: "Generate a config with default values.",
+	Long: `Generate a config with default values. It will make a config file with default values. 
+	You can add --overwrite to overwrite the existing config file. And you can use --config to specifly the path`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// get the config file name from the flags
+		configFileName, _ := cmd.Flags().GetString("config")
+		if configFileName == "" {
+			configFileName = "config.yaml"
+		}
+		overwrite, _ := cmd.Flags().GetBool("overwrite")
+		createConfig(overwrite, configFileName)
+		log.Printf("Successfully created config file %s", configFileName)
 		return nil
 	},
 }

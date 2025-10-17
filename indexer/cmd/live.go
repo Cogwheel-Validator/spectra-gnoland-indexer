@@ -28,20 +28,20 @@ var liveCmd = &cobra.Command{
 			log.Fatalf("failed to get config path: %v", err)
 		}
 
-		// Parse RPC flags from root command
-		maxRequestsPerWindow, err := RootCmd.Flags().GetInt("max-req-per-window")
+		// Parse RPC flags from command
+		maxRequestsPerWindow, err := cmd.Flags().GetInt("max-req-per-window")
 		if err != nil {
 			log.Fatalf("failed to get max requests per window: %v", err)
 		}
-		rateLimitWindow, err := RootCmd.Flags().GetDuration("rate-limit-window")
+		rateLimitWindow, err := cmd.Flags().GetDuration("rate-limit-window")
 		if err != nil {
 			log.Fatalf("failed to get rate limit window: %v", err)
 		}
-		timeout, err := RootCmd.Flags().GetDuration("timeout")
+		timeout, err := cmd.Flags().GetDuration("timeout")
 		if err != nil {
 			log.Fatalf("failed to get timeout: %v", err)
 		}
-		compressEvents, err := RootCmd.Flags().GetBool("compress-events")
+		compressEvents, err := cmd.Flags().GetBool("compress-events")
 		if err != nil {
 			log.Fatalf("failed to get compress events: %v", err)
 		}
@@ -70,4 +70,9 @@ var liveCmd = &cobra.Command{
 		log.Println("Indexer started")
 		mainOperator.InitMainOperator(configPath, ".", rateLimitFlags, runningFlags)
 	},
+}
+
+func init() {
+	// Live-specific flags
+	liveCmd.Flags().BoolP("skip-db-check", "s", false, "skip initial database check")
 }
