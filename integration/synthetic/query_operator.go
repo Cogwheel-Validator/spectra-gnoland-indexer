@@ -141,7 +141,8 @@ func (sq *SyntheticQueryOperator) createSynthBlock(height uint64) (*rpcClient.Bl
 
 	// Generate transactions for this block
 	var txResponses []*rpcClient.TxResponse
-	txHashes := make([]string, numTxs)
+	txRaws := make([]string, numTxs)   // Store raw tx data (for block)
+	txHashes := make([]string, numTxs) // Store hashes (for lookup)
 	for i := 0; i < numTxs; i++ {
 		// we will need to generate a full transaction here, later it should be processed
 		// by the indexer, hopefully...
@@ -161,7 +162,8 @@ func (sq *SyntheticQueryOperator) createSynthBlock(height uint64) (*rpcClient.Bl
 		txHash := sha256.Sum256(txRawBytes)
 		txHashString := base64.StdEncoding.EncodeToString(txHash[:])
 
-		txHashes[i] = txHashString
+		txRaws[i] = base64Encoded  // Store raw tx data in block
+		txHashes[i] = txHashString // Store hash for transaction lookup
 
 		txResponse := sq.createTransaction(txHashString, height, base64Encoded, &txEvents)
 		txResponses = append(txResponses, txResponse)
@@ -176,7 +178,7 @@ func (sq *SyntheticQueryOperator) createSynthBlock(height uint64) (*rpcClient.Bl
 		Timestamp:        blockTimestamp,
 		ProposerAddress:  sq.signedValidators[height%uint64(len(sq.signedValidators))], // random validator
 		SignedValidators: sq.signedValidators,
-		TxsRaw:           txHashes,
+		TxsRaw:           txRaws,
 	}
 
 	block := GenerateBlockResponse(blockInput)

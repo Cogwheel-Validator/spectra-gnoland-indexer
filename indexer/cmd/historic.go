@@ -80,6 +80,10 @@ func init() {
 	historicCmd.Flags().Uint64P("to-height", "o", 1000, "ending block height")
 
 	// Mark required flags for historic mode
-	historicCmd.MarkFlagRequired("from-height")
-	historicCmd.MarkFlagRequired("to-height")
+	if err := historicCmd.MarkFlagRequired("from-height"); err != nil {
+		log.Fatalf("failed to mark from height as required: %v", err)
+	}
+	if err := historicCmd.MarkFlagRequired("to-height"); err != nil {
+		log.Fatalf("failed to mark to height as required: %v", err)
+	}
 }

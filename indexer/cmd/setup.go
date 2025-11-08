@@ -35,7 +35,7 @@ func init() {
 
 	// Common flags for both database setup commands
 	for _, cmd := range []*cobra.Command{createDbCmd, createUserCmd} {
-		cmd.Flags().StringP("db-host", "h", "", "The database host, default is localhost")
+		cmd.Flags().StringP("db-host", "b", "", "The database host, default is localhost")
 		cmd.Flags().IntP("db-port", "p", 0, "The database port, default is 5432")
 		cmd.Flags().StringP("db-user", "u", "", "The database user, default is postgres")
 		cmd.Flags().StringP("db-name", "d", "", "The database name, default is postgres")
@@ -43,12 +43,12 @@ func init() {
 	}
 
 	// create-user specific flags
-	createUserCmd.Flags().StringP("privilege", "pr", "", "The privilege level for the user (reader or writer)")
-	createUserCmd.Flags().StringP("user", "us", "", "The user name for the user to create")
+	createUserCmd.Flags().StringP("privilege", "r", "", "The privilege level for the user (reader or writer)")
+	createUserCmd.Flags().String("user", "", "The user name for the user to create")
 
 	// create-db specific flags
-	createDbCmd.Flags().StringP("new-db-name", "nd", "", "The database name to create, default is gnoland")
-	createDbCmd.Flags().StringP("chain-name", "cn", "", "The chain name for the database type enum, default is gnoland")
+	createDbCmd.Flags().String("new-db-name", "", "The database name to create, default is gnoland")
+	createDbCmd.Flags().String("chain-name", "", "The chain name for the database type enum, default is gnoland")
 
 	// create-config specific flags
 	createConfigCmd.Flags().StringP("config", "c", "config.yaml", "The config file name, default is config.yaml")

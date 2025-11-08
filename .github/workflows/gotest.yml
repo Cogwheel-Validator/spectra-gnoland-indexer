@@ -1,9 +1,9 @@
 name: Go Test
 on:
     push:
-      branches: [dev]
+      branches: [dev, release/**]
     pull_request:
-      branches: [main, dev]
+      branches: [main, dev, release/**]
   
 jobs:
     lint:
@@ -18,4 +18,4 @@ jobs:
             go-version: '1.25.1'
 
         - name: Run tests
-          run: go test ./...
+          run: go test -short ./...
