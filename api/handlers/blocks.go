@@ -11,12 +11,12 @@ import (
 
 // BlocksHandler handles block-related API requests
 type BlocksHandler struct {
-	db        *database.TimescaleDb
+	db        DatabaseHandler
 	chainName string
 }
 
 // NewBlocksHandler creates a new blocks handler
-func NewBlocksHandler(db *database.TimescaleDb, chainName string) *BlocksHandler {
+func NewBlocksHandler(db DatabaseHandler, chainName string) *BlocksHandler {
 	return &BlocksHandler{db: db, chainName: chainName}
 }
 
@@ -86,6 +86,48 @@ func (h *BlocksHandler) GetAllBlockSigners(
 			Proposer:    blockSigners.Proposer,
 			SignedVals:  blockSigners.SignedVals,
 		},
+	}
+	return response, nil
+}
+
+// Get latest block height
+func (h *BlocksHandler) GetLatestBlockHeight(ctx context.Context, _ *humatypes.LatestBlockHeightGetInput) (*humatypes.LatestBlockHeightGetOutput, error) {
+	block, err := h.db.GetLatestBlockHeight(h.chainName)
+	if err != nil {
+		return nil, huma.Error404NotFound("Latest block height not found", err)
+	}
+	response := &humatypes.LatestBlockHeightGetOutput{
+		Body: database.BlockData{
+			Hash:      block.Hash,
+			Height:    block.Height,
+			Timestamp: block.Timestamp,
+			ChainID:   block.ChainID,
+			Txs:       block.Txs,
+			TxCount:   len(block.Txs),
+		},
+	}
+	return response, nil
+}
+
+// Get last x blocks
+func (h *BlocksHandler) GetLastXBlocks(ctx context.Context, input *humatypes.LastXBlocksGetInput) (*humatypes.LastXBlocksGetOutput, error) {
+	// Fetch from database
+	blocks, err := h.db.GetLastXBlocks(h.chainName, input.Amount)
+	if err != nil {
+		return nil, huma.Error404NotFound("Last x blocks not found", err)
+	}
+	response := &humatypes.LastXBlocksGetOutput{
+		Body: make([]database.BlockData, 0, len(blocks)),
+	}
+	for _, block := range blocks {
+		response.Body = append(response.Body, database.BlockData{
+			Hash:      block.Hash,
+			Height:    block.Height,
+			Timestamp: block.Timestamp,
+			ChainID:   block.ChainID,
+			Txs:       block.Txs,
+			TxCount:   len(block.Txs),
+		})
 	}
 	return response, nil
 }

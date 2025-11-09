@@ -41,6 +41,73 @@ func (t *TimescaleDb) GetBlock(height uint64, chainName string) (*BlockData, err
 	return &block, nil
 }
 
+func (t *TimescaleDb) GetLatestBlockHeight(chainName string) (*BlockData, error) {
+	query := `
+	SELECT encode(hash, 'base64'), 
+	height, 
+	timestamp, 
+	chain_id, 
+	(SELECT array_agg(upper(encode(tx, 'base64')))
+	FROM unnest(blocks.txs) AS tx 
+	) AS txs
+	FROM blocks
+	WHERE chain_name = $1
+	ORDER BY height DESC
+	LIMIT 1
+	`
+	row := t.pool.QueryRow(context.Background(), query, chainName)
+	var block BlockData
+	err := row.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID, &block.Txs)
+	if err != nil {
+		return nil, err
+	}
+	return &block, nil
+}
+
+// GetLastXBlocks gets the last x blocks from the database for a given chain name
+//
+// Usage:
+//
+// # Used to get the last x blocks from the database for a given chain name
+//
+// Args:
+//   - chainName: the name of the chain
+//   - x: the number of blocks to get
+//
+// Returns:
+//   - []*BlockData: the last x blocks
+//   - error: if the query fails
+func (t *TimescaleDb) GetLastXBlocks(chainName string, x uint64) ([]*BlockData, error) {
+	query := `
+	SELECT encode(hash, 'base64'), 
+	height, 
+	timestamp, 
+	chain_id, 
+	(SELECT array_agg(upper(encode(tx, 'base64')))
+	FROM unnest(blocks.txs) AS tx 
+	) AS txs
+	FROM blocks
+	WHERE chain_name = $1
+	ORDER BY height DESC
+	LIMIT $2
+	`
+	rows, err := t.pool.Query(context.Background(), query, chainName, x)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	blocks := make([]*BlockData, 0)
+	for rows.Next() {
+		var block BlockData
+		err := rows.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID, &block.Txs)
+		if err != nil {
+			return nil, err
+		}
+		blocks = append(blocks, &block)
+	}
+	return blocks, nil
+}
+
 // GetFromToBlocks gets a range of blocks from the database for a given height range and chain name
 //
 // Usage:
@@ -307,7 +374,6 @@ func (t *TimescaleDb) GetMsgRun(txHash string, chainName string) (*MsgRun, error
 //   - *Transaction: the transaction
 //   - error: if the query fails
 func (t *TimescaleDb) GetTransaction(txHash string, chainName string) (*Transaction, error) {
-	var messageType []string
 	query := `
 	SELECT 
 	encode(tx.tx_hash, 'base64') AS tx_hash,
@@ -332,13 +398,59 @@ func (t *TimescaleDb) GetTransaction(txHash string, chainName string) (*Transact
 		&transaction.GasUsed,
 		&transaction.GasWanted,
 		&transaction.Fee,
-		&messageType,
+		&transaction.MsgTypes,
 	)
 	if err != nil {
 		log.Println("error getting transaction", err)
 		return nil, err
 	}
 	return &transaction, nil
+}
+
+// GetLastXTransactions gets the last x transactions from the database for a given chain name
+//
+// Usage:
+//
+// # Used to get the last x transactions from the database for a given chain name
+//
+// Args:
+//   - chainName: the name of the chain
+//   - x: the number of transactions to get
+//
+// Returns:
+//   - []*Transaction: the last x transactions
+//   - error: if the query fails
+func (t *TimescaleDb) GetLastXTransactions(chainName string, x uint64) ([]*Transaction, error) {
+	query := `
+	SELECT
+	encode(tx.tx_hash, 'base64') AS tx_hash,
+	tx.timestamp,
+	tx.block_height,
+	tx.tx_events,
+	tx.gas_used,
+	tx.gas_wanted,
+	tx.fee,
+	tx.msg_types
+	FROM transaction_general tx
+	WHERE tx.chain_name = $1
+	ORDER BY tx.timestamp DESC
+	LIMIT $2
+	`
+	rows, err := t.pool.Query(context.Background(), query, chainName, x)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	transactions := make([]*Transaction, 0)
+	for rows.Next() {
+		var transaction Transaction
+		err := rows.Scan(&transaction.TxHash, &transaction.Timestamp, &transaction.BlockHeight, &transaction.TxEvents, &transaction.GasUsed, &transaction.GasWanted, &transaction.Fee, &transaction.MsgTypes)
+		if err != nil {
+			return nil, err
+		}
+		transactions = append(transactions, &transaction)
+	}
+	return transactions, nil
 }
 
 // GetMsgType gets the message type for a given transaction hash

@@ -51,3 +51,11 @@ type TransactionMessage struct {
 type TransactionMessageGetOutput struct {
 	Body TransactionMessage
 }
+
+type TransactionGeneralListGetInput struct {
+	Amount uint64 `query:"amount" doc:"Amount of transactions to get" required:"true" min:"1" max:"100" default:"10"`
+}
+
+type TransactionGeneralListGetOutput struct {
+	Body []database.Transaction
+}

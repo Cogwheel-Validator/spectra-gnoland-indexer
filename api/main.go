@@ -40,12 +40,12 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to get config path: %v", err)
 		}
-		conf, err := config.LoadConfig(configPath)
+		conf, err := config.LoadConfig(&config.YamlFileReader{}, configPath)
 		if err != nil {
 			log.Fatalf("failed to load config: %v", err)
 		}
 
-		env, err := config.LoadEnvironment(".")
+		env, err := config.LoadEnvironment(&config.DefaultEnvFileReader{}, ".")
 		if err != nil {
 			log.Fatalf("failed to load environment: %v", err)
 		}
@@ -65,7 +65,7 @@ var rootCmd = &cobra.Command{
 		router.Use(middleware.Logger)
 		router.Use(middleware.Recoverer)
 		router.Use(middleware.CleanPath)
-		router.Use(middleware.Compress(5, "application/json"))
+		router.Use(middleware.Compress(5, "application/json", "application/problem+json"))
 		// heartbeat route
 		router.Use(middleware.Heartbeat("/"))
 
@@ -132,10 +132,13 @@ var rootCmd = &cobra.Command{
 		huma.Get(api, "/block/{height}", blocksHandler.GetBlock)
 		huma.Get(api, "/blocks/{from_height}/{to_height}", blocksHandler.GetFromToBlocks)
 		huma.Get(api, "/blocks/{block_height}/signers", blocksHandler.GetAllBlockSigners)
+		huma.Get(api, "/blocks/latest", blocksHandler.GetLatestBlockHeight)
+		huma.Get(api, "/blocks", blocksHandler.GetLastXBlocks)
 
 		// Register Transaction API routes
 		huma.Get(api, "/transaction/{tx_hash}", transactionsHandler.GetTransactionBasic)
 		huma.Get(api, "/transaction/{tx_hash}/message", transactionsHandler.GetTransactionMessage)
+		huma.Get(api, "/transactions", transactionsHandler.GetLastXTransactions)
 
 		// Register Address API routes
 		huma.Get(api, "/address/{address}/txs", addressHandler.GetAddressTxs)
