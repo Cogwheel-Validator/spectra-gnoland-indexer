@@ -34,7 +34,9 @@ func parseCommonFlags(cmd *cobra.Command, defaultDbName string) (*dbParams, erro
 	}
 	if params.port == 0 {
 		if envPort := os.Getenv("DB_PORT"); envPort != "" {
-			fmt.Sscanf(envPort, "%d", &params.port)
+			if _, err := fmt.Sscanf(envPort, "%d", &params.port); err != nil {
+				return nil, fmt.Errorf("failed to scan port: %v", err)
+			}
 		}
 	}
 	if params.user == "" {
