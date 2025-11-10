@@ -98,12 +98,12 @@ func (t *TimescaleDb) GetLastXBlocks(chainName string, x uint64) ([]*BlockData, 
 	defer rows.Close()
 	blocks := make([]*BlockData, 0)
 	for rows.Next() {
-		var block BlockData
+		block := &BlockData{}
 		err := rows.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID, &block.Txs)
 		if err != nil {
 			return nil, err
 		}
-		blocks = append(blocks, &block)
+		blocks = append(blocks, block)
 	}
 	return blocks, nil
 }
@@ -142,12 +142,12 @@ func (t *TimescaleDb) GetFromToBlocks(fromHeight uint64, toHeight uint64, chainN
 	defer rows.Close()
 	blocks := make([]*BlockData, 0)
 	for rows.Next() {
-		var block BlockData
+		block := &BlockData{}
 		err := rows.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID, &block.Txs)
 		if err != nil {
 			return nil, err
 		}
-		blocks = append(blocks, &block)
+		blocks = append(blocks, block)
 	}
 	return blocks, nil
 }
@@ -443,12 +443,12 @@ func (t *TimescaleDb) GetLastXTransactions(chainName string, x uint64) ([]*Trans
 	defer rows.Close()
 	transactions := make([]*Transaction, 0)
 	for rows.Next() {
-		var transaction Transaction
+		transaction := &Transaction{}
 		err := rows.Scan(&transaction.TxHash, &transaction.Timestamp, &transaction.BlockHeight, &transaction.TxEvents, &transaction.GasUsed, &transaction.GasWanted, &transaction.Fee, &transaction.MsgTypes)
 		if err != nil {
 			return nil, err
 		}
-		transactions = append(transactions, &transaction)
+		transactions = append(transactions, transaction)
 	}
 	return transactions, nil
 }
