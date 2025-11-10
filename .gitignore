@@ -46,3 +46,6 @@ diagnostics/
 # Cert files
 server.crt
 server.key
+
+# Jet Brains
+.idea/

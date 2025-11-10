@@ -10,8 +10,49 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-func LoadConfig(path string) (*ApiConfig, error) {
-	yamlFile, err := os.ReadFile(path)
+type FileReader interface {
+	ReadFile(name string) ([]byte, error)
+}
+
+type YamlFileReader struct{}
+
+func (r *YamlFileReader) ReadFile(name string) ([]byte, error) {
+	return os.ReadFile(name)
+}
+
+type EnvFileReader interface {
+	ReadFile(name string) error
+}
+
+type DefaultEnvFileReader struct{}
+
+func (r *DefaultEnvFileReader) ReadFile(name string) error {
+	envPath := name
+	fileInfo, err := os.Stat(name)
+	if err == nil && fileInfo.IsDir() {
+		envPath = filepath.Join(name, ".env")
+	}
+
+	absPath, err := filepath.Abs(envPath)
+	if err != nil {
+		return err
+	}
+
+	// Check for file existence first
+	if _, err := os.Stat(absPath); err == nil {
+		// File exists, load it
+		err = godotenv.Load(absPath)
+		if err != nil {
+			return fmt.Errorf("error loading .env file: %w", err)
+		}
+	}
+	// If file doesn't exist, that's OK - we'll use defaults or OS env vars
+
+	return nil
+}
+
+func LoadConfig(reader FileReader, path string) (*ApiConfig, error) {
+	yamlFile, err := reader.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -32,33 +73,10 @@ func LoadConfig(path string) (*ApiConfig, error) {
 	return &config, nil
 }
 
-func LoadEnvironment(path string) (*ApiEnv, error) {
-	possibleEnvFiles := []string{
-		".env", // accept only .env for now
-	}
-	// check if any of the files exist within the current path
-	existingFiles := []string{}
-	for _, envFile := range possibleEnvFiles {
-		formPath := filepath.Join(path, envFile)
-		if _, err := os.Stat(formPath); err == nil {
-			existingFiles = append(existingFiles, formPath)
-		}
-	}
-	// if there are multiple files, decide which has highest priority
-	// 1. production , 2. development, 3. local, 4. default
-	// only use the regular .env for now return to this laster
-	if len(existingFiles) == 0 {
-		fmt.Println("No environment file found. Searching for os environment variables.")
-	} else if len(existingFiles) == 1 {
-		absPath, err := filepath.Abs(existingFiles[0])
-		if err != nil {
-			return nil, err
-		}
-		err = godotenv.Load(absPath)
-		if err != nil {
-			return nil, fmt.Errorf("error loading .env file: %w", err)
-		}
-		fmt.Printf("Loaded environment variables from %s\n", absPath)
+func LoadEnvironment(reader EnvFileReader, path string) (*ApiEnv, error) {
+	err := reader.ReadFile(path)
+	if err != nil {
+		return nil, err
 	}
 
 	environment := ApiEnv{}

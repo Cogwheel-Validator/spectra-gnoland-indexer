@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-11-10
+
+In this release there are some fixes and improvements. The live process should work properly now and the REST API has some new routes. CLI commands are now combined with the ones from the setup cli. Some processes have been improved to use less memory. 
+
+### Added
+
+- The REST API has some new routes. The API can now return last block height, last number(x) of blocks, last x transactions. [789c24b](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/789c24b18881cd33758677f8b878aff7bb42f9dc)
+
+### Changed
+
+- The CLI commands are now combined all together so the cmd/setup.go is removed and the users can now only download the main cli and initiate everything they needs for the indexer to work. [805513b](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/805513b20fdd4f452e8d6f5ad6d56d318e78d5d9)
+- Changed the data and query operators to use mutex and store any data they process/collect directly into the type they need to return. There shouldn't be any major perfromance difference but it should allocate less memory. [89e5b6d](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/89e5b6d103710970cbe69c02865bb4b0727649b3)
+
+### Fixed
+
+- When Indexer started to run in live mode without any previous data it should start to process the data from first block height. But instead it tried to query block height 0. [3517e5a](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/3517e5aec32a21d70f43b0595d842841098a4c47)
+
 ## [0.2.1] - 2025-10-06
 
 Not really much of a change just added dockerignore file, small changes to the release.yml so it pushes the api also.

@@ -42,23 +42,24 @@ The important thing to setup is the database connections. The indexer can do goo
 However if you are planning to add a lot of services a top of the database maybe increase it. The docker compose is 
 set to 500 connections.
 
-For creating all of the necessary tables and types you can use the setup.go file in the cmd directory.
-The cmd has two commands to create the database and the user:
+For creating all of the necessary tables and types you can use the indexer executable and the setup command.
+The cmd has 3 commands to create the database and the user:
 
 ```bash
- collection of tools to set up and manage the database for the gnoland indexer.
+A collection of tools to set up and manage the database for the gnoland indexer.
 
 Usage:
-  setup [command]
+  indexer setup [command]
 
 Available Commands:
-  completion  Generate the autocompletion script for the specified shell
-  create-db   Create a new database named gnoland
-  create-user Create a new user for the database
-  help        Help about any command
+  create-config Generate a config with default values.
+  create-db     Create a new database named gnoland
+  create-user   Create a new user for the database
 
 Flags:
   -h, --help   help for setup
+
+
 ```
 
 To use all of these commands you will need a user with admin privileges.
@@ -66,7 +67,7 @@ In the example below the user is postgres you will be asked for the password.
 To create the database you can use the following command:
 
 ```bash
-go run cmd/setup.go create-db --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --new-db-name gnoland --chain-name gnoland
+indexer setup create-db --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --new-db-name gnoland --chain-name gnoland
 ```
 
 To create the users for the database you can use the following command. 
@@ -76,7 +77,7 @@ The privilege level can be "reader" or "writer". The reader should have only the
 The writer should have the select, insert, update and privileges.
 
 ```bash
-go run cmd/setup.go create-user --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --user writer --privilege writer
+indexer setup create-user --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --user writer --privilege writer
 ```
 
 ## Running the indexer
@@ -86,25 +87,23 @@ The indexer can be ran in 2 modes: live and historic.
 Now when you have the database running you can actually run the indexer. The indexer has a lot of flags that can be used to configure it:
 
 ```bash
-A blockchain indexer for Gnoland that processes blocks and transactions.
+Run the indexer in either live or historic mode.
 
 Usage:
-  indexer [command]
+  indexer run [command]
 
 Available Commands:
-  completion  Generate the autocompletion script for the specified shell
-  help        Help about any command
   historic    Run the indexer in historic mode
   live        Run the indexer in live mode
 
 Flags:
   -e, --compress-events              compress events
   -c, --config string                config file path (default "config.yml")
-  -h, --help                         help for indexer
+  -h, --help                         help for run
   -m, --max-req-per-window int       max requests per window (default 10000000)
   -r, --rate-limit-window duration   rate limit window (default 1m0s)
   -t, --timeout duration             timeout (default 20s)
-  -v, --version                      version for indexer
+
 ```
 
 Compress events doesn't work at the moment so do not use it! 
@@ -114,6 +113,14 @@ The max request per window is rated to the max request that can be made to the R
 The timeout is the timeout for the RPC requests. The default is 20 seconds. You can set it to lower if you want.
 
 The config file is needed to configure the indexer. You can use the config.yml.example file as a template.
+Or use the create-config command to create a config file with default values.
+
+```bash
+indexer setup create-config --config config.yml
+```
+
+The config file is a YAML file that contains the configuration for the indexer.
+
 ```yaml
 # Example config file for the indexer
 
@@ -169,7 +176,7 @@ exponential_backoff: 2s
 
 To run the indexer in historic mode you can use the following command:
 ```bash
-indexer historic --config config.yml --from-height 1000 --to-height 2000
+indexer run historic --config config.yml --from-height 1000 --to-height 2000
 ```
 The from height is the starting height of the block to index. The to height is the ending height of the block to index.
 The indexer will index the blocks from the from height to the to height inclusive. You can also add the other flags
@@ -185,7 +192,7 @@ It can also be useful if you want to index blockchain partially and work with da
 or partial scan of the chain where you want to index from a certain height to a certain height.
 
 Usage:
-  indexer historic [flags]
+  indexer run historic [flags]
 
 Flags:
   -f, --from-height uint   starting block height (default 1)
@@ -202,7 +209,7 @@ Global Flags:
 
 To run the indexer in live mode you can use the following command:
 ```bash
-indexer live --config config.yml
+indexer run live --config config.yml
 ```
 Live mode flags:
 ```bash
@@ -214,7 +221,7 @@ However if you do not need previous data, you can run the live mode with the ski
 Afterwards you can run live mode normal without the skip-db-check flag.
 
 Usage:
-  indexer live [flags]
+  indexer run live [flags]
 
 Flags:
   -h, --help            help for live
@@ -258,16 +265,16 @@ Like mentioned above you can use the docker-compose.yml file to setup the databa
 If you plan to run the indexer over docker you can use this commands:
 ```bash
 # Live mode with custom config
-docker run gnoland-indexer live --config /path/to/config.yml --skip-db-check
+docker run gnoland-indexer run live --config /path/to/config.yml --skip-db-check
 
 # Historic mode
-docker run gnoland-indexer historic --from-height 1000 --to-height 2000
+docker run gnoland-indexer run historic --from-height 1000 --to-height 2000
 
 # Show all available commands
 docker run gnoland-indexer --help
 
 # Show help for specific command
-docker run gnoland-indexer live --help
+docker run gnoland-indexer run live --help
 ```
 
 You can also run the indexer with something like systemd:
@@ -277,7 +284,7 @@ Description=Gnoland Indexer
 After=network.target
 
 [Service]
-ExecStart=/path/to/indexer live --config /path/to/config.yml
+ExecStart=/path/to/indexer run live --config /path/to/config.yml
 Restart=always
 RestartSec=5
 User=$USER

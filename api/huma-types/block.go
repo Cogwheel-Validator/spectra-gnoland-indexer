@@ -30,3 +30,18 @@ type AllBlockSignersGetInput struct {
 type AllBlockSignersGetOutput struct {
 	Body database.BlockSigners
 }
+
+// LatestBlockHeightGetInput represents the empty input for getting the latest block height
+type LatestBlockHeightGetInput struct{}
+
+type LatestBlockHeightGetOutput struct {
+	Body database.BlockData
+}
+
+type LastXBlocksGetInput struct {
+	Amount uint64 `query:"amount" doc:"Amount of blocks to get" required:"true" min:"1" max:"100" default:"10"`
+}
+
+type LastXBlocksGetOutput struct {
+	Body []database.BlockData
+}
