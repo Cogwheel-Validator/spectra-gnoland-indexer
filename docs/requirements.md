@@ -66,7 +66,7 @@ and how much data is indexed you might need to increase the RAM size.
 
 The following software and OS requirements are required to run the indexer:
 
-- Go 1.25.1
+- go 1.25.4
 - TimescaleDB 2.18 or higher but with PostgresSQL 16 or higher
 - OS: Linux, anything based on Debian(Ubuntu, Mint, etc.) or RHEL(CentOS stream, Rocky Linux, etc.) should work, openSUSE also ok
 - Docker (optional)

@@ -2,9 +2,9 @@ name: Integration Tests
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, dev ]
   push:
-    branches: [ main, develop ]
+    branches: [ main, dev ]
   workflow_dispatch:
     inputs:
       test_size:
@@ -28,11 +28,11 @@ jobs:
         image: timescale/timescaledb-ha:pg17
         env:
           POSTGRES_PASSWORD: test_password_12345678
-          POSTGRES_DB: gnoland
+          POSTGRES_DB: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d gnoland"
+          --health-cmd "pg_isready -U postgres -d postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -55,7 +55,7 @@ jobs:
 
       - name: Initialize database schema
         run: |
-          go run indexer/main.go setup create-db
+          go run indexer/main.go setup create-db 
         env:
           DB_HOST: localhost
           DB_PORT: 5432

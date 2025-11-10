@@ -16,11 +16,11 @@ In this release there are some fixes and improvements. The live process should w
 ### Changed
 
 - The CLI commands are now combined all together so the cmd/setup.go is removed and the users can now only download the main cli and initiate everything they needs for the indexer to work. [805513b](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/805513b20fdd4f452e8d6f5ad6d56d318e78d5d9)
-- Changed the data and query operators to use mutex and store any data they process/collect directly into the type they need to return. There shouldn't be any major preformance difference but it should alocate less memory. [89e5b6d](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/89e5b6d103710970cbe69c02865bb4b0727649b3)
+- Changed the data and query operators to use mutex and store any data they process/collect directly into the type they need to return. There shouldn't be any major perfromance difference but it should allocate less memory. [89e5b6d](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/89e5b6d103710970cbe69c02865bb4b0727649b3)
 
 ### Fixed
 
-- When Indexer started to run in live mode without any previous data it should start tho prcess the data from frist block height. But instead it tried to query block height 0. [3517e5a](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/3517e5aec32a21d70f43b0595d842841098a4c47)
+- When Indexer started to run in live mode without any previous data it should start to process the data from first block height. But instead it tried to query block height 0. [3517e5a](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/3517e5aec32a21d70f43b0595d842841098a4c47)
 
 ## [0.2.1] - 2025-10-06
 

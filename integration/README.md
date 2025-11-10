@@ -19,7 +19,7 @@ Additional info, anything above 100K block height is not recommended
 to run. To clarify it can run but the
 generator that creates the synthetic data stores the data in the RAM 
 memory. Unless you have abnormally high RAM
-you are risking to run out of memory. On avarage I saw the RAM going 
+you are risking to run out of memory. On average I saw the RAM going 
 up to 4-5GB for the 100K blocks with 500 regular addresses and 50 
 validators.
 
