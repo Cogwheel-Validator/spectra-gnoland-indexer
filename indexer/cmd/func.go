@@ -71,7 +71,7 @@ func parseCommonFlags(cmd *cobra.Command, defaultDbName string) (*dbParams, erro
 	if !slices.Contains(allowedSslModes, params.sslMode) {
 		return nil, fmt.Errorf("invalid ssl mode: %s", params.sslMode)
 	}
-	if params.port > 65535 {
+	if params.port < 1 || params.port > 65535 {
 		return nil, fmt.Errorf("invalid port: %d", params.port)
 	}
 
@@ -115,7 +115,7 @@ func (p *dbParams) createDatabaseConfig() database.DatabasePoolConfig {
 
 func createConfig(overwrite bool, fileName string) {
 	if fileName == "" {
-		fileName = "config.yaml"
+		fileName = "config.yml"
 	}
 	absolutePath, err := filepath.Abs(fileName)
 	if err != nil {
@@ -146,22 +146,19 @@ func createConfig(overwrite bool, fileName string) {
 		log.Fatalf("failed to marshal config: %v", err)
 	}
 	// check if the config file exists
-	_, err = os.Stat(fileName)
-	if err != nil && !os.IsNotExist(err) {
-		// make the file if it doesn't exist
-		err = os.WriteFile(fileName, yamlFile, 0644)
-		if err != nil {
-			log.Fatalf("failed to create config file: %v", err)
+	if _, err = os.Stat(fileName); err == nil {
+		if overwrite {
+			if writeErr := os.WriteFile(fileName, yamlFile, 0644); writeErr != nil {
+				log.Fatalf("failed to overwrite config file: %v", writeErr)
+			}
+		} else {
+			log.Fatalf("config file already exists, use --overwrite to overwrite it")
 		}
-
-	} else if err == nil && overwrite {
-		err = os.WriteFile(fileName, yamlFile, 0644)
-		if err != nil {
-			log.Fatalf("failed to overwrite config file: %v", err)
+	} else if os.IsNotExist(err) {
+		if writeErr := os.WriteFile(fileName, yamlFile, 0644); writeErr != nil {
+			log.Fatalf("failed to create config file: %v", writeErr)
 		}
-	} else if err == nil && !overwrite {
-		log.Fatalf("config file already exists, use --overwrite to overwrite it")
 	} else {
-		log.Fatalf("failed to create config file: %v", err)
+		log.Fatalf("failed to stat config file: %v", err)
 	}
 }

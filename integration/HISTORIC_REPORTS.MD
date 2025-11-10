@@ -96,7 +96,7 @@ The database holds around 2.3 GB of data, out of which:
 
 The transaction general stores the most, I think this is due to events. Althoug this was synthetic representation of the data it still stores a lot of data. Untill I run the program with real data I will not know the real picture of how much do events pop up into the transactions and what kind of real data they store. This could be decreased with compressing the events but I would need to train the zstandard dirctionary for this to be efficient.
 
-Address tx stores the second most, but I think this was due to the bug. On average every transaction had at least one more doubled entry from the signers. I will need to fix it later. But out of 2.5 million entries there is at least 1 million duplicated entries. So in realaty this should be at least 40% less. I do not think there is much improvment for space here.
+Address tx stores the second most, but I think this was due to the bug. On average every transaction had at least one more doubled entry from the signers. I will need to fix it later. But out of 2.5 million entries there is at least 1 million duplicated entries. So in reality this should be at least 40% less. I do not think there is much improvement for space here.
 
 Bank msg send stores the third most, this is expected as it stores the data from the bank msg send. But this is moslty because the chances for the generator to create this type of transaction is higher than the other types.
 

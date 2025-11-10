@@ -83,7 +83,7 @@ func (m *MockDatabase) GetAddressTxs(address string, chainName string, fromTimes
 	return addressTxs, nil
 }
 
-func (m *MockDatabase) GetLatestBlockHeight(chainName string) (*database.BlockData, error) {
+func (m *MockDatabase) GetLatestBlock(chainName string) (*database.BlockData, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}

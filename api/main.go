@@ -132,7 +132,7 @@ var rootCmd = &cobra.Command{
 		huma.Get(api, "/block/{height}", blocksHandler.GetBlock)
 		huma.Get(api, "/blocks/{from_height}/{to_height}", blocksHandler.GetFromToBlocks)
 		huma.Get(api, "/blocks/{block_height}/signers", blocksHandler.GetAllBlockSigners)
-		huma.Get(api, "/blocks/latest", blocksHandler.GetLatestBlockHeight)
+		huma.Get(api, "/blocks/latest", blocksHandler.GetLatestBlock)
 		huma.Get(api, "/blocks", blocksHandler.GetLastXBlocks)
 
 		// Register Transaction API routes

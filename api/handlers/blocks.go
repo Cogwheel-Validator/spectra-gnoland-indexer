@@ -91,8 +91,8 @@ func (h *BlocksHandler) GetAllBlockSigners(
 }
 
 // Get latest block height
-func (h *BlocksHandler) GetLatestBlockHeight(ctx context.Context, _ *humatypes.LatestBlockHeightGetInput) (*humatypes.LatestBlockHeightGetOutput, error) {
-	block, err := h.db.GetLatestBlockHeight(h.chainName)
+func (h *BlocksHandler) GetLatestBlock(ctx context.Context, _ *humatypes.LatestBlockHeightGetInput) (*humatypes.LatestBlockHeightGetOutput, error) {
+	block, err := h.db.GetLatestBlock(h.chainName)
 	if err != nil {
 		return nil, huma.Error404NotFound("Latest block height not found", err)
 	}

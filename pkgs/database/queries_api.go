@@ -41,7 +41,7 @@ func (t *TimescaleDb) GetBlock(height uint64, chainName string) (*BlockData, err
 	return &block, nil
 }
 
-func (t *TimescaleDb) GetLatestBlockHeight(chainName string) (*BlockData, error) {
+func (t *TimescaleDb) GetLatestBlock(chainName string) (*BlockData, error) {
 	query := `
 	SELECT encode(hash, 'base64'), 
 	height, 
@@ -104,6 +104,9 @@ func (t *TimescaleDb) GetLastXBlocks(chainName string, x uint64) ([]*BlockData, 
 			return nil, err
 		}
 		blocks = append(blocks, block)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return blocks, nil
 }
@@ -416,10 +419,6 @@ func (t *TimescaleDb) GetTransaction(txHash string, chainName string) (*Transact
 // Args:
 //   - chainName: the name of the chain
 //   - x: the number of transactions to get
-//
-// Returns:
-//   - []*Transaction: the last x transactions
-//   - error: if the query fails
 func (t *TimescaleDb) GetLastXTransactions(chainName string, x uint64) ([]*Transaction, error) {
 	query := `
 	SELECT
@@ -449,6 +448,9 @@ func (t *TimescaleDb) GetLastXTransactions(chainName string, x uint64) ([]*Trans
 			return nil, err
 		}
 		transactions = append(transactions, transaction)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return transactions, nil
 }
@@ -537,6 +539,9 @@ func (t *TimescaleDb) GetAddressTxs(
 			return nil, err
 		}
 		addressTxs = append(addressTxs, addressTx)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return &addressTxs, nil
 }

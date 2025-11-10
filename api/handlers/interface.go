@@ -15,7 +15,7 @@ type DatabaseHandler interface {
 	GetBlock(height uint64, chainName string) (*database.BlockData, error)
 	GetFromToBlocks(fromHeight uint64, toHeight uint64, chainName string) ([]*database.BlockData, error)
 	GetAllBlockSigners(chainName string, blockHeight uint64) (*database.BlockSigners, error)
-	GetLatestBlockHeight(chainName string) (*database.BlockData, error)
+	GetLatestBlock(chainName string) (*database.BlockData, error)
 	GetLastXBlocks(chainName string, x uint64) ([]*database.BlockData, error)
 
 	// Transactions

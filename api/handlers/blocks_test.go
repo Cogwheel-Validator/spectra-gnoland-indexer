@@ -98,7 +98,7 @@ func TestBlocksHandler_GetLatestBlockHeight_Success(t *testing.T) {
 		latestBlock: &database.BlockData{Height: 42, Hash: "abc123"},
 	}
 	handler := handlers.NewBlocksHandler(&db, "gnoland")
-	response, err := handler.GetLatestBlockHeight(context.Background(), &humatypes.LatestBlockHeightGetInput{})
+	response, err := handler.GetLatestBlock(context.Background(), &humatypes.LatestBlockHeightGetInput{})
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 	require.Equal(t, database.BlockData{Height: 42, Hash: "abc123"}, response.Body)
@@ -110,7 +110,7 @@ func TestBlocksHandler_GetLatestBlockHeight_Fail(t *testing.T) {
 		errorMsg:    "error getting latest block height",
 	}
 	handler := handlers.NewBlocksHandler(&db, "gnoland")
-	response, err := handler.GetLatestBlockHeight(context.Background(), &humatypes.LatestBlockHeightGetInput{})
+	response, err := handler.GetLatestBlock(context.Background(), &humatypes.LatestBlockHeightGetInput{})
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
