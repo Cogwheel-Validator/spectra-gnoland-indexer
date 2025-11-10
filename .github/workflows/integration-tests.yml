@@ -55,11 +55,11 @@ jobs:
 
       - name: Initialize database schema
         run: |
-          go run indexer/main.go setup create-db 
+          go run indexer/main.go setup create-db --db-user postgres --db-name postgres
         env:
           DB_HOST: localhost
           DB_PORT: 5432
-          DB_USER: postgres
+          DB_USER: gnoland
           DB_PASSWORD: test_password_12345678
           DB_NAME: gnoland
 
