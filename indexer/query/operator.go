@@ -85,14 +85,17 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 		return nil
 	}
 
-	// Use buffered channel for speed
-	blockChan := make(chan *rc.BlockResponse, diff)
+	// Preallocate with exact size
+	blocks := make([]*rc.BlockResponse, diff)
+	var mu sync.Mutex
 	wg := sync.WaitGroup{}
 	wg.Add(int(diff))
 
 	// Launch goroutines to get the blocks
-	for height := fromHeight; height <= toHeight; height++ {
-		go func(height uint64) {
+	for i := range diff {
+		height := fromHeight + i
+		idx := i // Capture index
+		go func(height uint64, idx int) {
 			block, err := q.rpcClient.GetBlock(height)
 			if err != nil {
 				// Use retry mechanism with callback pattern
@@ -110,43 +113,36 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 						return result, nil
 					},
 					func(result *rc.BlockResponse) {
-						blockChan <- result
+						mu.Lock()
+						blocks[idx] = result
+						mu.Unlock()
 						wg.Done()
 					},
 					func(retryErr error) {
 						log.Printf("failed to get block %d after retries: %v", height, retryErr)
-						blockChan <- nil
+						mu.Lock()
+						blocks[idx] = nil
+						mu.Unlock()
 						wg.Done()
 					},
 					height,
 				)
 				return
 			}
-			blockChan <- block
+			mu.Lock()
+			blocks[idx] = block
+			mu.Unlock()
 			wg.Done()
-		}(height)
+		}(height, int(idx))
 	}
 
-	// Close channel when all goroutines finish to avoid deadlock
-	go func() {
-		wg.Wait()
-		close(blockChan)
-	}()
-
-	// Collect results from the channel
-	blocks := make([]*rc.BlockResponse, 0, diff)
-	for block := range blockChan {
-		blocks = append(blocks, block)
-	}
-
+	wg.Wait()
 	return blocks
 }
 
 // A swarm method to get transactions from a slice of tx hashes
 // This is a fan out method that lauches async workers for each tx and wait to get the resaults
-// The order of the transactions is not guaranteed but it shouldn't matter because at the end of the process
-// the indexer should store them all together as one huge slice of transactions, so the order is not important
-// the speed is what matters here.
+// the indexer should store them all together as one huge slice of transactions,
 //
 // Args:
 //   - txs: a slice of tx hashes
@@ -171,14 +167,15 @@ func (q *QueryOperator) GetTransactions(txs []string) []*rc.TxResponse {
 		return nil
 	}
 
-	// Set up the channel and the wait group
-	txChan := make(chan *rc.TxResponse, nTxs)
+	// Preallocate with exact size
+	transactions := make([]*rc.TxResponse, nTxs)
+	var mu sync.Mutex
 	wg := sync.WaitGroup{}
 	wg.Add(nTxs)
 
 	// Launch goroutines to get the transactions
-	for _, tx := range txs {
-		go func(tx string) {
+	for idx, tx := range txs {
+		go func(idx int, tx string) {
 			txResponse, err := q.rpcClient.GetTx(tx)
 			if err != nil {
 				// Use retry mechanism with callback pattern
@@ -196,41 +193,37 @@ func (q *QueryOperator) GetTransactions(txs []string) []*rc.TxResponse {
 						return result, nil
 					},
 					func(result *rc.TxResponse) {
-						txChan <- result
+						mu.Lock()
+						transactions[idx] = result
+						mu.Unlock()
 						wg.Done()
 					},
 					func(retryErr error) {
 						log.Printf("failed to get tx %s after retries: %v", tx, retryErr)
-						txChan <- nil
+						mu.Lock()
+						transactions[idx] = nil
+						mu.Unlock()
 						wg.Done()
 					},
 					tx,
 				)
 				return
 			}
-			txChan <- txResponse
+			mu.Lock()
+			transactions[idx] = txResponse
+			mu.Unlock()
 			wg.Done()
-		}(tx)
+		}(idx, tx)
 	}
 
-	// Close channel when all goroutines finish to avoid deadlock
-	go func() {
-		wg.Wait()
-		close(txChan)
-	}()
-
-	// Collect results from the channel
-	transactions := make([]*rc.TxResponse, 0, nTxs)
-	for tx := range txChan {
-		transactions = append(transactions, tx)
-	}
+	wg.Wait()
 	return transactions
 }
 
 func (q *QueryOperator) GetLatestBlockHeight() (uint64, error) {
-	latestBlockHeight, err := q.rpcClient.GetLatestBlockHeight()
+	result, err := q.rpcClient.GetLatestBlockHeight()
 	if err != nil {
 		return 0, err
 	}
-	return latestBlockHeight, nil
+	return result, nil
 }

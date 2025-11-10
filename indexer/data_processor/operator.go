@@ -97,8 +97,8 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 }
 
 // ProcessBlocks is a "swarm" method to process the blocks from a slice of blocks
-// it will process the blocks using async workers and store them in a channel
-// it will then extract the blocks from the channel and insert them into the database
+// it will process the blocks using async workers and store them directly into a result slice
+// it will then insert the blocks into the database
 //
 // Args:
 //   - blocks: a slice of blocks
@@ -110,12 +110,14 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 //
 // The method will not throw an error if the blocks are not found, it will just return nil
 func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) {
-	blockChan := make(chan *sqlDataTypes.Blocks, len(blocks))
+	// Preallocate slice to avoid growing allocations
+	blocksData := make([]sqlDataTypes.Blocks, len(blocks))
+	var mu sync.Mutex
 	wg := sync.WaitGroup{}
 	wg.Add(len(blocks))
 
-	for _, block := range blocks {
-		go func(block *rpcClient.BlockResponse) {
+	for idx, block := range blocks {
+		go func(idx int, block *rpcClient.BlockResponse) {
 			defer wg.Done()
 			// decode base64 hash
 			hash, err := base64.StdEncoding.DecodeString(block.Result.BlockMeta.BlockID.Hash)
@@ -136,6 +138,7 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 			// since it is shorter and better for the database
 			var txs [][]byte
 			if block.Result.Block.Data.Txs != nil {
+				txs = make([][]byte, 0, len(*block.Result.Block.Data.Txs))
 				for _, tx := range *block.Result.Block.Data.Txs {
 					txHash, err := base64.StdEncoding.DecodeString(tx)
 					// turn to sha256 and then turn it to raw bytes to
@@ -149,7 +152,9 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 				}
 			}
 
-			blockChan <- &sqlDataTypes.Blocks{
+			// Use mutex only when writing to shared slice
+			mu.Lock()
+			blocksData[idx] = sqlDataTypes.Blocks{
 				Hash:      hash,
 				Height:    height,
 				Timestamp: block.Result.Block.Header.Time,
@@ -157,18 +162,11 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 				Txs:       txs,
 				ChainName: d.chainName,
 			}
-		}(block)
+			mu.Unlock()
+		}(idx, block)
 	}
 
-	go func() {
-		wg.Wait()
-		close(blockChan)
-	}()
-
-	blocksData := make([]sqlDataTypes.Blocks, 0, len(blocks))
-	for block := range blockChan {
-		blocksData = append(blocksData, *block)
-	}
+	wg.Wait()
 
 	err := d.dbPool.InsertBlocks(blocksData)
 	if err != nil {
@@ -178,8 +176,8 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 }
 
 // ProcessTransactions is a swarm method to process the transactions from a map of transactions and timestamps
-// it will process the transactions using async workers and store them in a channel
-// it will then extract the transactions from the channel and insert them into the database
+// it will process the transactions using async workers and collect them in a preallocated slice
+// it will then insert the transactions into the database
 //
 // Args:
 //   - transactions: a map of transactions and timestamps
@@ -195,14 +193,15 @@ func (d *DataProcessor) ProcessTransactions(
 	fromHeight uint64,
 	toHeight uint64) {
 
-	transactionChan := make(chan *sqlDataTypes.TransactionGeneral, len(transactions))
+	// Preallocate slice to avoid growing allocations
+	transactionsData := make([]sqlDataTypes.TransactionGeneral, len(transactions))
+	var mu sync.Mutex
+	var validCount int
 	wg := sync.WaitGroup{}
 	wg.Add(len(transactions))
 
-	for _, transaction := range transactions {
-		go func(
-			transaction TrasnactionsData,
-			compressEvents bool) {
+	for idx, transaction := range transactions {
+		go func(idx int, transaction TrasnactionsData) {
 			defer wg.Done()
 			txResult := transaction.Response.Result.TxResult
 
@@ -217,7 +216,7 @@ func (d *DataProcessor) ProcessTransactions(
 				return
 			}
 
-			// convert the gas wanetd and used from string to uint64
+			// convert the gas wanted and used from string to uint64
 			gasWanted, err := strconv.ParseUint(txResult.GasWanted, 10, 64)
 			if err != nil {
 				return
@@ -233,8 +232,9 @@ func (d *DataProcessor) ProcessTransactions(
 				return
 			}
 
-			// here the text event will return nil depending on the compressEvents
-			transactionChan <- &sqlDataTypes.TransactionGeneral{
+			// Use mutex only when writing to shared slice
+			mu.Lock()
+			transactionsData[idx] = sqlDataTypes.TransactionGeneral{
 				TxHash:             txHash,
 				ChainName:          d.chainName,
 				Timestamp:          transaction.Timestamp,
@@ -247,19 +247,16 @@ func (d *DataProcessor) ProcessTransactions(
 				GasWanted:          gasWanted,
 				Fee:                fee,
 			}
+			validCount++
+			mu.Unlock()
 
-		}(transaction, compressEvents)
+		}(idx, transaction)
 	}
 
-	go func() {
-		wg.Wait()
-		close(transactionChan)
-	}()
+	wg.Wait()
 
-	transactionsData := make([]sqlDataTypes.TransactionGeneral, 0, len(transactions))
-	for transaction := range transactionChan {
-		transactionsData = append(transactionsData, *transaction)
-	}
+	// It is more of a safety feature than nececity
+	transactionsData = transactionsData[:validCount]
 
 	err := d.dbPool.InsertTransactionsGeneral(transactionsData)
 	if err != nil {
@@ -335,20 +332,23 @@ func (d *DataProcessor) ProcessMessages(
 		log.Printf("Resolved %d unique addresses for messages from %d to %d", len(allAddresses), fromHeight, toHeight)
 	}
 
-	// Phase 2: Concurrent message processing using channels
-	type processedResult struct {
-		dbGroups *decoder.DbMessageGroups
-		err      error
+	// Phase 2: Concurrent message processing without channels
+	// Use a mutex for aggregation instead of channels
+	aggregatedDbGroups := &decoder.DbMessageGroups{
+		MsgSend:   make([]sqlDataTypes.MsgSend, 0),
+		MsgCall:   make([]sqlDataTypes.MsgCall, 0),
+		MsgAddPkg: make([]sqlDataTypes.MsgAddPackage, 0),
+		MsgRun:    make([]sqlDataTypes.MsgRun, 0),
 	}
+	var aggregationMutex sync.Mutex
 
-	resultChan := make(chan processedResult, len(transactions))
 	wg2 := sync.WaitGroup{}
 	wg2.Add(len(transactions))
 
 	// Launch goroutines to process messages concurrently
-	txIndex := 0
-	for _, transaction := range transactions {
-		if txIndex >= len(allDecodedMsgs) {
+	for idx, transaction := range transactions {
+		// Guard against index out of bounds
+		if idx >= len(allDecodedMsgs) {
 			wg2.Done()
 			continue
 		}
@@ -361,7 +361,6 @@ func (d *DataProcessor) ProcessMessages(
 				// but any kind of retry mechanism will probably not help
 				// log it for.
 				log.Printf("The transaction couldn't be decoded, tx hash: %s", transaction.Response.GetHash())
-				resultChan <- processedResult{nil, nil}
 				return
 			}
 
@@ -369,50 +368,28 @@ func (d *DataProcessor) ProcessMessages(
 			txHash, err := base64.StdEncoding.DecodeString(transaction.Response.GetHash())
 			if err != nil {
 				log.Printf("Failed to decode tx hash %s: %v", transaction.Response.GetHash(), err)
-				resultChan <- processedResult{nil, err}
 				return
 			}
 
 			dbMessageGroups, err := decodedMsg.ConvertToDbMessages(d.addressCache, txHash, d.chainName, transaction.Timestamp, decodedMsg.GetSigners())
 			if err != nil {
 				log.Printf("Failed to convert messages for tx %s: %v", transaction.Response.GetHash(), err)
-				resultChan <- processedResult{nil, err}
 				return
 			}
-			resultChan <- processedResult{dbMessageGroups, nil}
 
-		}(transaction, allDecodedMsgs[txIndex])
-		txIndex++
+			if dbMessageGroups != nil {
+				aggregationMutex.Lock()
+				aggregatedDbGroups.MsgSend = append(aggregatedDbGroups.MsgSend, dbMessageGroups.MsgSend...)
+				aggregatedDbGroups.MsgCall = append(aggregatedDbGroups.MsgCall, dbMessageGroups.MsgCall...)
+				aggregatedDbGroups.MsgAddPkg = append(aggregatedDbGroups.MsgAddPkg, dbMessageGroups.MsgAddPkg...)
+				aggregatedDbGroups.MsgRun = append(aggregatedDbGroups.MsgRun, dbMessageGroups.MsgRun...)
+				aggregationMutex.Unlock()
+			}
+
+		}(transaction, allDecodedMsgs[idx])
 	}
 
-	// Close result channel when all processing goroutines finish
-	go func() {
-		wg2.Wait()
-		close(resultChan)
-	}()
-
-	// Aggregate results from all goroutines
-	aggregatedDbGroups := &decoder.DbMessageGroups{
-		MsgSend:   make([]sqlDataTypes.MsgSend, 0),
-		MsgCall:   make([]sqlDataTypes.MsgCall, 0),
-		MsgAddPkg: make([]sqlDataTypes.MsgAddPackage, 0),
-		MsgRun:    make([]sqlDataTypes.MsgRun, 0),
-	}
-
-	for result := range resultChan {
-		if result.err != nil {
-			continue // Skip failed transactions
-		}
-		if result.dbGroups == nil {
-			continue // Skip nil results
-		}
-
-		// Thread-safe aggregation (single-threaded collection)
-		aggregatedDbGroups.MsgSend = append(aggregatedDbGroups.MsgSend, result.dbGroups.MsgSend...)
-		aggregatedDbGroups.MsgCall = append(aggregatedDbGroups.MsgCall, result.dbGroups.MsgCall...)
-		aggregatedDbGroups.MsgAddPkg = append(aggregatedDbGroups.MsgAddPkg, result.dbGroups.MsgAddPkg...)
-		aggregatedDbGroups.MsgRun = append(aggregatedDbGroups.MsgRun, result.dbGroups.MsgRun...)
-	}
+	wg2.Wait()
 
 	// Create a slice of sqlDataType.AddressTx
 	// we need to get all of the addresses from the aggregatedDbGroups
@@ -546,7 +523,7 @@ func (d *DataProcessor) ProcessValidatorSignings(
 }
 
 // createAddressTx is a private func that creates a slice of sqlDataTypes.AddressTx from a
-// decoder.DbMessageGroups
+// decoder.DbMessageGroups using concurrent workers with mutex-based aggregation
 // it should be used to create the data for the address_tx table
 func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 	txAmount := len(msg.MsgSend) + len(msg.MsgCall) + len(msg.MsgAddPkg) + len(msg.MsgRun)
@@ -554,21 +531,12 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 		return []sqlDataTypes.AddressTx{}
 	}
 
-	chanAddr := make(chan sqlDataTypes.AddressTx)
+	var addresses []sqlDataTypes.AddressTx
+	var mu sync.Mutex
 	wg := sync.WaitGroup{}
-	wg.Add(txAmount)
-
-	// Start a goroutine to collect all addresses
-	addresses := make([]sqlDataTypes.AddressTx, 0)
-	done := make(chan struct{})
-	go func() {
-		for address := range chanAddr {
-			addresses = append(addresses, address)
-		}
-		done <- struct{}{}
-	}()
 
 	// Process MsgSend messages
+	wg.Add(len(msg.MsgSend))
 	for _, msgItem := range msg.MsgSend {
 		go func(msgItem sqlDataTypes.MsgSend) {
 			defer wg.Done()
@@ -576,20 +544,27 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 			timestamp := msgItem.Timestamp
 			msgTypes := []string{msgItem.TableName()}
 
+			// Collect addresses for this message
+			msgAddressList := make([]sqlDataTypes.AddressTx, 0, len(txAddresses.GetAddressList()))
 			for _, addr := range txAddresses.GetAddressList() {
-				address := sqlDataTypes.AddressTx{
+				msgAddressList = append(msgAddressList, sqlDataTypes.AddressTx{
 					Address:   addr,
 					TxHash:    txAddresses.TxHash,
 					ChainName: msgItem.ChainName,
 					Timestamp: timestamp,
 					MsgTypes:  msgTypes,
-				}
-				chanAddr <- address
+				})
 			}
+
+			// Thread-safe aggregation
+			mu.Lock()
+			addresses = append(addresses, msgAddressList...)
+			mu.Unlock()
 		}(msgItem)
 	}
 
 	// Process MsgCall messages
+	wg.Add(len(msg.MsgCall))
 	for _, msgItem := range msg.MsgCall {
 		go func(msgItem sqlDataTypes.MsgCall) {
 			defer wg.Done()
@@ -597,20 +572,25 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 			timestamp := msgItem.Timestamp
 			msgTypes := []string{msgItem.TableName()}
 
+			msgAddressList := make([]sqlDataTypes.AddressTx, 0, len(txAddresses.GetAddressList()))
 			for _, addr := range txAddresses.GetAddressList() {
-				address := sqlDataTypes.AddressTx{
+				msgAddressList = append(msgAddressList, sqlDataTypes.AddressTx{
 					Address:   addr,
 					TxHash:    txAddresses.TxHash,
 					ChainName: msgItem.ChainName,
 					Timestamp: timestamp,
 					MsgTypes:  msgTypes,
-				}
-				chanAddr <- address
+				})
 			}
+
+			mu.Lock()
+			addresses = append(addresses, msgAddressList...)
+			mu.Unlock()
 		}(msgItem)
 	}
 
 	// Process MsgAddPkg messages
+	wg.Add(len(msg.MsgAddPkg))
 	for _, msgItem := range msg.MsgAddPkg {
 		go func(msgItem sqlDataTypes.MsgAddPackage) {
 			defer wg.Done()
@@ -618,20 +598,25 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 			timestamp := msgItem.Timestamp
 			msgTypes := []string{msgItem.TableName()}
 
+			msgAddressList := make([]sqlDataTypes.AddressTx, 0, len(txAddresses.GetAddressList()))
 			for _, addr := range txAddresses.GetAddressList() {
-				address := sqlDataTypes.AddressTx{
+				msgAddressList = append(msgAddressList, sqlDataTypes.AddressTx{
 					Address:   addr,
 					TxHash:    txAddresses.TxHash,
 					ChainName: msgItem.ChainName,
 					Timestamp: timestamp,
 					MsgTypes:  msgTypes,
-				}
-				chanAddr <- address
+				})
 			}
+
+			mu.Lock()
+			addresses = append(addresses, msgAddressList...)
+			mu.Unlock()
 		}(msgItem)
 	}
 
 	// Process MsgRun messages
+	wg.Add(len(msg.MsgRun))
 	for _, msgItem := range msg.MsgRun {
 		go func(msgItem sqlDataTypes.MsgRun) {
 			defer wg.Done()
@@ -639,27 +624,23 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 			timestamp := msgItem.Timestamp
 			msgTypes := []string{msgItem.TableName()}
 
+			msgAddressList := make([]sqlDataTypes.AddressTx, 0, len(txAddresses.GetAddressList()))
 			for _, addr := range txAddresses.GetAddressList() {
-				address := sqlDataTypes.AddressTx{
+				msgAddressList = append(msgAddressList, sqlDataTypes.AddressTx{
 					Address:   addr,
 					TxHash:    txAddresses.TxHash,
 					ChainName: msgItem.ChainName,
 					Timestamp: timestamp,
 					MsgTypes:  msgTypes,
-				}
-				chanAddr <- address
+				})
 			}
+
+			mu.Lock()
+			addresses = append(addresses, msgAddressList...)
+			mu.Unlock()
 		}(msgItem)
 	}
 
-	// Wait for all workers to finish, then close channel
-	go func() {
-		wg.Wait()
-		close(chanAddr)
-	}()
-
-	// Wait for the collector goroutine to finish
-	<-done
-
+	wg.Wait()
 	return addresses
 }
