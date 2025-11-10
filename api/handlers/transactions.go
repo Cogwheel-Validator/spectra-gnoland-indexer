@@ -12,11 +12,11 @@ import (
 )
 
 type TransactionsHandler struct {
-	db        *database.TimescaleDb
+	db        DatabaseHandler
 	chainName string
 }
 
-func NewTransactionsHandler(db *database.TimescaleDb, chainName string) *TransactionsHandler {
+func NewTransactionsHandler(db DatabaseHandler, chainName string) *TransactionsHandler {
 	return &TransactionsHandler{db: db, chainName: chainName}
 }
 
@@ -129,4 +129,18 @@ func (h *TransactionsHandler) GetTransactionMessage(
 	return &humatypes.TransactionMessageGetOutput{
 		Body: message,
 	}, nil
+}
+
+func (h *TransactionsHandler) GetLastXTransactions(ctx context.Context, input *humatypes.TransactionGeneralListGetInput) (*humatypes.TransactionGeneralListGetOutput, error) {
+	transactions, err := h.db.GetLastXTransactions(h.chainName, input.Amount)
+	if err != nil {
+		return nil, huma.Error404NotFound("Last x transactions not found", err)
+	}
+	response := &humatypes.TransactionGeneralListGetOutput{
+		Body: make([]database.Transaction, 0, len(transactions)),
+	}
+	for _, transaction := range transactions {
+		response.Body = append(response.Body, *transaction)
+	}
+	return response, nil
 }

@@ -23,7 +23,7 @@ not the best choice. And finally the nodes are not the best when it comes to sto
 - [The solution](#the-solution)
 - [Why TimescaleDB? And can it work on other SQL databases?](#why-timescaledb-and-can-it-work-on-other-sql-databases)
 - [How does the indexer work?](#how-does-the-indexer-work)
-- [What is indexed and what is not](#what-is-indexed-and-what-is-not)
+- [What data is stored in the database?](#what-data-is-stored-in-the-database)
   - [Blocks:](#blocks)
   - [Validator signings:](#validator-signings)
   - [Transactions:](#transactions)
@@ -91,7 +91,7 @@ and the indexer stores them in it's own cache. Then any address that is found in
 the integer value in the transaction tables. At the end of the processing the data is inserted in batches into the 
 database.
 
-## What is indexed and what is not
+## What data is stored in the database?
 
 The indexer stores the esential data that is related to the blocks, transactions, messages, and accounts.
 It also stores the validator block signings and the validator addresses.
@@ -99,11 +99,11 @@ This way it is able to provide a lot of data for the analytics and the explorer.
 The data is stored in the following tables:
 - blocks
 - transactions general data
-- messages (each message type has its own table)
+- transaction messages (each message type has its own table)
 - regular and validator addresses (each address type has its own table)
 - validator block signings
 - validator addresses
-- address transactions (to tie the addresses to the transactions)
+- ties between the addresses and the transactions (AddressTx table)
 
 Some of the data is not indexed and it is not planned to be indexed in the future. Such as:
 
@@ -116,7 +116,7 @@ Stored data:
 - Block proposer address
 - Block transactions hashes
 
-Not stored data:
+Not stored:
 - Last commit hash
 - App hash
 - Data hash
@@ -131,7 +131,7 @@ Stored data:
 - Validator block signing signed validators
 - Proposer address
 
-Not stored data:
+Not stored:
 - Missed validators
 - Precommits and all of the hashes and other data, so only a confirmation that the validator signed the block
 
@@ -154,7 +154,7 @@ VM message Add Package and Call where in theory one could extract even the body 
 
 ### 🐞 Cons:
 
-- The address cache provides fast reads but it intorduces a complexity. The developer that plans to use the indexer and plans to make some custom solution on working with the data will need to fully understand the data structure and how to use it. The REST API provies a easy way to interact with the data and to get the data in a readable format.
+- The indexer has a address cache of all of the addresses that were ever used in the transactions. This gives the indexer ability to swap the addresses with the their integer index in the database. However this intorduces complexity. Anyone who plans to use the indexer and plans to make some custom solution on working with the data will need to fully understand the data structure and how to use it. The REST API provides a easy way to interact with the data and to get the data in a readable format.
 - The indexer relies on the RPC node for the data. If the RPC node is not available the indexer will not be able to index the data. ( although in the future the indexer might be able to use multiple RPC nodes )
 - Technically the indexer has a limit of 2 billion addresses. If at any point the Gnoland grows to that size the indexer would need to be updated to support it. It is not a problem for now but it is something to keep in mind.
 

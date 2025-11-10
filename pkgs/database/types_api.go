@@ -82,6 +82,7 @@ type Transaction struct {
 	GasUsed     uint64    `json:"gas_used" doc:"Gas used"`
 	GasWanted   uint64    `json:"gas_wanted" doc:"Gas wanted"`
 	Fee         Amount    `json:"fee" doc:"Fee"`
+	MsgTypes    []string  `json:"msg_types" doc:"Message types"`
 }
 
 type BlockSigners struct {

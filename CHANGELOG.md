@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-10-06
+
+Not really much of a change just added dockerignore file, small changes to the release.yml so it pushes the api also.
+
 ## [0.2.0] - 2025-10-04
 
 Added the REST API with some basic routes that will come in handy. Small bug fixes and changes.

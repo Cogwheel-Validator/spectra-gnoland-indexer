@@ -1,0 +1,150 @@
+package handlers_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/handlers"
+	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestBlocksHandler_GetBlock_Success(t *testing.T) {
+	db := MockDatabase{
+		blocks: map[uint64]*database.BlockData{
+			42: {Height: 42, Hash: "abc123"},
+		},
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetBlock(context.Background(), &humatypes.BlockGetInput{Height: 42})
+	assert.NoError(t, err)
+	assert.NotNil(t, response)
+	require.Equal(t, uint64(42), response.Body.Height)
+}
+
+func TestBlocksHandler_GetBlock_Fail(t *testing.T) {
+	db := MockDatabase{
+		shouldError: true,
+		errorMsg:    "error getting block",
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetBlock(context.Background(), &humatypes.BlockGetInput{Height: 42})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestBlocksHandler_GetFromToBlocks_Success(t *testing.T) {
+	db := MockDatabase{
+		blocks: map[uint64]*database.BlockData{
+			42: {Height: 42, Hash: "abc123"},
+			43: {Height: 43, Hash: "def456"},
+		},
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetFromToBlocks(context.Background(), &humatypes.FromToBlocksGetInput{FromHeight: 42, ToHeight: 43})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, response)
+	assert.Equal(t, 2, len(response.Body))
+	assert.Equal(t, uint64(42), response.Body[0].Height)
+	assert.Equal(t, uint64(43), response.Body[1].Height)
+}
+
+func TestBlocksHandler_GetFromToBlocks_Fail(t *testing.T) {
+	db := MockDatabase{
+		shouldError: true,
+		errorMsg:    "error getting from to blocks",
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetFromToBlocks(context.Background(), &humatypes.FromToBlocksGetInput{FromHeight: 42, ToHeight: 43})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "Blocks from height")
+}
+
+func TestBlocksHandler_GetAllBlockSigners_Success(t *testing.T) {
+	db := MockDatabase{
+		blockSigners: map[uint64]*database.BlockSigners{
+			42: {BlockHeight: 42, Proposer: "abc123", SignedVals: []string{"val1", "val2"}},
+		},
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetAllBlockSigners(context.Background(), &humatypes.AllBlockSignersGetInput{BlockHeight: 42})
+	assert.NoError(t, err)
+	assert.NotNil(t, response)
+	require.Equal(t, database.BlockSigners{BlockHeight: 42, Proposer: "abc123", SignedVals: []string{"val1", "val2"}}, response.Body)
+}
+
+func TestBlocksHandler_GetAllBlockSigners_Fail(t *testing.T) {
+	db := MockDatabase{
+		shouldError: true,
+		errorMsg:    "error getting all block signers",
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetAllBlockSigners(context.Background(), &humatypes.AllBlockSignersGetInput{BlockHeight: 42})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "Block signers not found")
+}
+
+func TestBlocksHandler_GetLatestBlockHeight_Success(t *testing.T) {
+	db := MockDatabase{
+		latestBlock: &database.BlockData{Height: 42, Hash: "abc123"},
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetLatestBlockHeight(context.Background(), &humatypes.LatestBlockHeightGetInput{})
+	assert.NoError(t, err)
+	assert.NotNil(t, response)
+	require.Equal(t, database.BlockData{Height: 42, Hash: "abc123"}, response.Body)
+}
+
+func TestBlocksHandler_GetLatestBlockHeight_Fail(t *testing.T) {
+	db := MockDatabase{
+		shouldError: true,
+		errorMsg:    "error getting latest block height",
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetLatestBlockHeight(context.Background(), &humatypes.LatestBlockHeightGetInput{})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "Latest block height not found")
+}
+
+func TestBlocksHandler_GetLastXBlocks_Success(t *testing.T) {
+	db := MockDatabase{
+		blocks: map[uint64]*database.BlockData{
+			42: {Height: 42, Hash: "abc123"},
+			43: {Height: 43, Hash: "def456"},
+		},
+	}
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetLastXBlocks(context.Background(), &humatypes.LastXBlocksGetInput{Amount: 2})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, response)
+	assert.Equal(t, 2, len(response.Body))
+	// Just verify the blocks are present, don't do exact comparison
+	// because map iteration order is random
+	assert.NotEmpty(t, response.Body)
+}
+
+func TestBlocksHandler_GetLastXBlocks_Fail(t *testing.T) {
+	db := MockDatabase{
+		shouldError: true,
+		errorMsg:    "error getting last x blocks",
+	}
+
+	handler := handlers.NewBlocksHandler(&db, "gnoland")
+	response, err := handler.GetLastXBlocks(context.Background(), &humatypes.LastXBlocksGetInput{Amount: 2})
+
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Contains(t, err.Error(), "Last x blocks not found")
+}

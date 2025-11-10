@@ -125,7 +125,8 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 			log.Printf("Failed to get last block height from database: %v", err)
 			log.Printf("Either there are no blocks in the database or the database is not properly configured.")
 			log.Printf("Use skipInitialDbCheck=true if this is expected to run from the latest chain height without previous data.")
-			return
+			log.Printf("Starting from height 1")
+			lastProcessedHeight = 1
 		}
 		log.Printf("Retrieved last processed height from database: %d", lastProcessedHeight)
 	} else {
@@ -164,7 +165,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 
 		// If caught up, wait and continue
 		if blocksBehind <= 0 {
-			log.Printf("Caught up to height %d. Waiting %d seconds...", latestHeight, or.config.LivePooling)
+			log.Printf("Caught up to height %d. Waiting %d seconds...", latestHeight, or.config.LivePooling/time.Second)
 			time.Sleep(or.config.LivePooling)
 			continue
 		}

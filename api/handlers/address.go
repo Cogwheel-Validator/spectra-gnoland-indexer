@@ -4,16 +4,15 @@ import (
 	"context"
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/danielgtaylor/huma/v2"
 )
 
 type AddressHandler struct {
-	db        *database.TimescaleDb
+	db        DatabaseHandler
 	chainName string
 }
 
-func NewAddressHandler(db *database.TimescaleDb, chainName string) *AddressHandler {
+func NewAddressHandler(db DatabaseHandler, chainName string) *AddressHandler {
 	return &AddressHandler{db: db, chainName: chainName}
 }
 
