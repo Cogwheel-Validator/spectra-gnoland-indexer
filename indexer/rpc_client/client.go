@@ -68,8 +68,9 @@ const (
 	Block      = "block"
 	AbciQuery  = "abci_query"
 	// might be useful for health check
-	Health = "health"
-	Tx     = "tx"
+	Health        = "health"
+	Tx            = "tx"
+	RequestCommit = "commit"
 )
 
 func (r *RpcGnoland) performRequest(method string, params map[string]any, result interface{}) error {
@@ -273,4 +274,26 @@ func (r *RpcGnoland) GetAbciQuery(path string, data string, height *uint64, prov
 	}
 
 	return response["result"], nil
+}
+
+func (r *RpcGnoland) GetCommit(height uint64) (*CommitResponse, *RpcCommitError) {
+	response := &CommitResponse{}
+	params := map[string]any{
+		"height": strconv.FormatUint(height, 10),
+	}
+	if err := r.performRequest(RequestCommit, params, response); err != nil {
+		return nil, &RpcCommitError{
+			Height:    height,
+			HasHeight: true,
+			Err:       err,
+		}
+	}
+	if response.Error != nil {
+		return nil, &RpcCommitError{
+			Height:    height,
+			HasHeight: true,
+			Err:       fmt.Errorf("rpc error: %v, %s", response.Error.Code, response.Error.Message),
+		}
+	}
+	return response, nil
 }

@@ -459,27 +459,27 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 }
 
 func (d *DataProcessor) ProcessValidatorSignings(
-	blocks []*rpcClient.BlockResponse,
+	commits []*rpcClient.CommitResponse,
 	fromHeight uint64,
 	toHeight uint64) {
 
-	validatorChan := make(chan *sqlDataTypes.ValidatorBlockSigning, len(blocks))
+	validatorChan := make(chan *sqlDataTypes.ValidatorBlockSigning, len(commits))
 	wg := sync.WaitGroup{}
-	wg.Add(len(blocks))
+	wg.Add(len(commits))
 
 	// Process blocks concurrently
-	for _, block := range blocks {
-		go func(block *rpcClient.BlockResponse) {
+	for _, commit := range commits {
+		go func(commit *rpcClient.CommitResponse) {
 			defer wg.Done()
 
 			signedVals := struct {
 				Proposer   int32
 				SignedVals []int32
 			}{
-				Proposer:   d.validatorCache.GetAddress(block.Result.Block.Header.ProposerAddress),
+				Proposer:   d.validatorCache.GetAddress(commit.GetProposerAddress()),
 				SignedVals: make([]int32, 0),
 			}
-			precommits := block.Result.Block.LastCommit.Precommits
+			precommits := commit.GetSigners()
 			for _, precommit := range precommits {
 				if precommit != nil {
 					signedVals.SignedVals = append(
@@ -488,20 +488,20 @@ func (d *DataProcessor) ProcessValidatorSignings(
 				}
 			}
 
-			height, err := strconv.ParseUint(block.Result.Block.Header.Height, 10, 64)
+			height, err := commit.GetHeight()
 			if err != nil {
-				log.Printf("Failed to parse block height %s: %v", block.Result.Block.Header.Height, err)
+				log.Printf("Failed to get commit height: %v", err)
 				return
 			}
 
 			validatorChan <- &sqlDataTypes.ValidatorBlockSigning{
 				BlockHeight: height,
-				Timestamp:   block.Result.Block.Header.Time,
+				Timestamp:   commit.GetTimestamp(),
 				Proposer:    signedVals.Proposer,
 				SignedVals:  signedVals.SignedVals,
 				ChainName:   d.chainName,
 			}
-		}(block)
+		}(commit)
 	}
 
 	// Close channel when all goroutines finish
@@ -510,16 +510,16 @@ func (d *DataProcessor) ProcessValidatorSignings(
 		close(validatorChan)
 	}()
 
-	validatorData := make([]sqlDataTypes.ValidatorBlockSigning, 0, len(blocks))
+	validatorData := make([]sqlDataTypes.ValidatorBlockSigning, 0, len(commits))
 	for validator := range validatorChan {
 		validatorData = append(validatorData, *validator)
 	}
 
 	err := d.dbPool.InsertValidatorBlockSignings(validatorData)
 	if err != nil {
-		log.Printf("Failed to insert validator block signings: %v", err)
+		log.Printf("Failed to insert validator commit signings: %v", err)
 	}
-	log.Printf("Validator block signings processed from %d to %d", fromHeight, toHeight)
+	log.Printf("Validator commit signings processed from %d to %d", fromHeight, toHeight)
 }
 
 // createAddressTx is a private func that creates a slice of sqlDataTypes.AddressTx from a

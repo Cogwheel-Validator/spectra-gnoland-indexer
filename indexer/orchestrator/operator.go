@@ -73,7 +73,7 @@ func (or *Orchestrator) HistoricProcess(
 
 		// Step 1: Get blocks concurrently
 		blocks := or.queryOperator.GetFromToBlocks(startHeight, chunkEndHeight)
-
+		commits := or.queryOperator.GetFromToCommits(startHeight, chunkEndHeight)
 		if len(blocks) == 0 {
 			log.Printf("No valid blocks in chunk %d-%d", startHeight, chunkEndHeight)
 		} else {
@@ -83,7 +83,7 @@ func (or *Orchestrator) HistoricProcess(
 			log.Printf("Collected %d transactions from %d blocks in chunk", len(allTransactions), len(blocks))
 
 			// Step 3: Process all data concurrently
-			if err := or.processAllConcurrently(blocks, allTransactions, false, startHeight, chunkEndHeight); err != nil {
+			if err := or.processAllConcurrently(blocks, commits, allTransactions, false, startHeight, chunkEndHeight); err != nil {
 				log.Printf("Error processing chunk %d-%d: %v", startHeight, chunkEndHeight, err)
 			} else {
 				// Progress logging
@@ -205,8 +205,9 @@ func (or *Orchestrator) processLiveChunk(chunkStart, chunkEnd uint64) error {
 
 	// Step 1: Get blocks concurrently
 	blocks := or.queryOperator.GetFromToBlocks(chunkStart, chunkEnd)
+	commits := or.queryOperator.GetFromToCommits(chunkStart, chunkEnd)
 
-	if len(blocks) == 0 {
+	if len(blocks) == 0 && len(commits) == 0 {
 		log.Printf("No valid blocks in live chunk %d-%d", chunkStart, chunkEnd)
 		return nil
 	}
@@ -217,7 +218,7 @@ func (or *Orchestrator) processLiveChunk(chunkStart, chunkEnd uint64) error {
 	log.Printf("Collected %d transactions from %d blocks in live chunk", len(allTransactions), len(blocks))
 
 	// Step 3: Process all data concurrently
-	if err := or.processAllConcurrently(blocks, allTransactions, false, chunkStart, chunkEnd); err != nil {
+	if err := or.processAllConcurrently(blocks, commits, allTransactions, false, chunkStart, chunkEnd); err != nil {
 		return fmt.Errorf("failed to process live chunk %d-%d: %w", chunkStart, chunkEnd, err)
 	}
 
@@ -333,6 +334,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 // The method will not throw an error if the data is not found, it will just return nil
 func (or *Orchestrator) processAllConcurrently(
 	blocks []*rpcClient.BlockResponse,
+	commits []*rpcClient.CommitResponse,
 	transactions []dataprocessor.TrasnactionsData,
 	compressEvents bool,
 	fromHeight uint64,
@@ -409,7 +411,7 @@ func (or *Orchestrator) processAllConcurrently(
 	go func() {
 		defer wg2.Done()
 		log.Printf("Phase 2: Starting ProcessValidatorSignings")
-		or.dataProcessor.ProcessValidatorSignings(blocks, fromHeight, toHeight)
+		or.dataProcessor.ProcessValidatorSignings(commits, fromHeight, toHeight)
 		log.Printf("Phase 2: ProcessValidatorSignings completed")
 	}()
 

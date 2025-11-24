@@ -1,3 +1,7 @@
+########################################################
+# Build and install the indexer
+########################################################
+
 .PHONY: build install clean build-experimental install-experimental build-api
 
 # Get git information
@@ -28,3 +32,18 @@ build-experimental:
 # use at your own risk
 install-experimental:
 	cd indexer && GOEXPERIMENT=greenteagc go install ./... -ldflags="-X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION)"
+
+########################################################
+# Test the indexer
+########################################################
+
+.PHONY: test-race integration-test test
+
+test:
+	go test -v ./...
+
+test-race:
+	go test -v -race ./...
+
+integration-test:
+	cd integration && go test -v -tags=integration -timeout=20m ./...

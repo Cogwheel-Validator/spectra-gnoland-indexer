@@ -31,3 +31,18 @@ func (e *RpcStringError) Error() string {
 	}
 	return fmt.Sprintf("rpc error: %v", e.Err)
 }
+
+// RpcCommitError represents an RPC error that includes the commit context for retry purposes
+type RpcCommitError struct {
+	Height    uint64
+	HasHeight bool // indicates if Height field is valid
+	Err       error
+}
+
+// Error implements the error interface
+func (e *RpcCommitError) Error() string {
+	if e.HasHeight {
+		return fmt.Sprintf("rpc error at height %d: %v", e.Height, e.Err)
+	}
+	return fmt.Sprintf("rpc error: %v", e.Err)
+}

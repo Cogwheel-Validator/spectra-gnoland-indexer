@@ -140,6 +140,66 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 	return blocks
 }
 
+func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*rc.CommitResponse {
+	diff := toHeight - fromHeight + 1
+	if diff < 1 {
+		return nil
+	}
+
+	commits := make([]*rc.CommitResponse, diff)
+	var mu sync.Mutex
+	wg := sync.WaitGroup{}
+	wg.Add(int(diff))
+
+	// Launch goroutines to get the block signers
+	for i := range diff {
+		height := fromHeight + i
+		idx := i // Capture index
+		go func(height uint64, idx int) {
+			commit, err := q.rpcClient.GetCommit(height)
+			if err != nil {
+				// Use retry mechanism with callback pattern
+				retry.RetryWithContext(
+					q.retryAmount,
+					q.pause,
+					q.pauseTime,
+					q.exponentialBackoff,
+					func(args ...any) (*rc.CommitResponse, error) {
+						h := args[0].(uint64)
+						result, rpcErr := q.rpcClient.GetCommit(h)
+						if rpcErr != nil {
+							return nil, rpcErr
+						}
+						return result, nil
+					},
+					func(result *rc.CommitResponse) {
+						mu.Lock()
+						commits[idx] = result
+						mu.Unlock()
+						wg.Done()
+					},
+					func(retryErr error) {
+						log.Printf("failed to get commit %d after retries: %v", height, retryErr)
+						mu.Lock()
+						commits[idx] = nil
+						mu.Unlock()
+						wg.Done()
+					},
+					height,
+				)
+				return
+			}
+			mu.Lock()
+			commits[idx] = commit
+			mu.Unlock()
+			wg.Done()
+		}(height, int(idx))
+	}
+
+	wg.Wait()
+	return commits
+}
+
 // A swarm method to get transactions from a slice of tx hashes
 // This is a fan out method that lauches async workers for each tx and wait to get the resaults
 // the indexer should store them all together as one huge slice of transactions,
