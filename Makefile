@@ -8,14 +8,15 @@
 # Get git information
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_TAG := $(shell git describe --tags --exact-match 2>/dev/null || echo "")
-VERSION := $(if $(GIT_TAG),$(GIT_TAG),dev-$(GIT_COMMIT))
+GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+VERSION := $(if $(GIT_TAG),$(GIT_TAG),$(GIT_BRANCH)-$(GIT_COMMIT))
 
 build:
 	mkdir -p build
-	go build -ldflags="-X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION)" -o build/indexer indexer/main.go
+	go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=d5dfb79 -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=release/0.4.0-d5dfb79" -o build/indexer indexer/main.go
 
 install:
-	cd indexer && go install ./... -ldflags="-X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION)"
+	go install -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=$(GIT_COMMIT) -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=$(VERSION)" indexer/main.go
 
 build-api:
 	mkdir -p build
