@@ -107,10 +107,7 @@ func (sq *SyntheticQueryOperator) GetFromToCommits(fromHeight uint64, toHeight u
 	commits := make([]*rpcClient.CommitResponse, 0, diff)
 
 	for height := fromHeight; height <= toHeight; height++ {
-		commit := sq.getCommit(height)
-		if commit != nil {
-			commits = append(commits, commit)
-		}
+		commits = append(commits, sq.getCommit(height))
 	}
 	return commits
 }

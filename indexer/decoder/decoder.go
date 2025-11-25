@@ -109,6 +109,9 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 
 	// Process each message in the transaction
 	for i, msg := range tx.GetMsgs() {
+		if i > 32767 {
+			return BasicTxData{}, nil, fmt.Errorf("transaction message count exceeds maximum: %d", i)
+		}
 		messageCounter := int16(i)
 		switch m := msg.(type) {
 		case bank.MsgSend:

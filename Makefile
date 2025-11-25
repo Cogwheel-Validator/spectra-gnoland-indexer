@@ -1,8 +1,9 @@
+.PHONY: build install clean build-experimental install-experimental build-api test-race integration-test test
+
 ########################################################
 # Build and install the indexer
 ########################################################
 
-.PHONY: build install clean build-experimental install-experimental build-api
 
 # Get git information
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -36,8 +37,6 @@ install-experimental:
 ########################################################
 # Test the indexer
 ########################################################
-
-.PHONY: test-race integration-test test
 
 test:
 	go test -v ./...

@@ -97,13 +97,14 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		encoder.Close()
+		err = encoder.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		compressed := buf.Bytes()
-		fmt.Printf("Compressed (level %d): %d bytes (%.1f%% of original)\n",
-			level, len(compressed), float64(len(compressed))/float64(len(encoded))*100)
+		fmt.Printf("Compressed (level %d): %d bytes (%.1f%% of original)\n", level, len(compressed), float64(len(compressed))/float64(len(encoded))*100)
 	}
-
 	// Final compression with level 22
 	encoderLevel := zstandard.EncoderLevelFromZstd(22)
 	encoder, err := zstandard.NewWriter(nil, zstandard.WithEncoderLevel(encoderLevel))
@@ -117,12 +118,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	encoder.Close()
-
+	err = encoder.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = encoder.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
 	compressed := buf.Bytes()
-	fmt.Println("Final compressed bytes:", string(compressed))
+	fmt.Println("Final compressed bytes:", hex.EncodeToString(compressed))
 	fmt.Printf("Final length: %d bytes\n", len(compressed))
-
 	decoded, err := DecodeProto(encoded)
 	if err != nil {
 		log.Fatal(err)

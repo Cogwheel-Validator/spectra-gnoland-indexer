@@ -177,7 +177,7 @@ type GenCommitInput struct {
 func (rm *ResponseMaker) GenerateCommitResponse(input GenCommitInput) *rpcClient.CommitResponse {
 	// just like in the gen block we need the data for the header but not really
 	// just generate the hash for block and last block
-	// for others just use empty strings since this is all just to mock the similar expereience
+	// for others just use empty strings since this is all just to mock the similar experience
 	blockHash := rm.generator.GenerateBlockHash()
 	partsHash := ""
 	lastCommitHash := ""

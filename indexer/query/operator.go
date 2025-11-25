@@ -151,7 +151,7 @@ func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*
 	wg := sync.WaitGroup{}
 	wg.Add(int(diff))
 
-	// Launch goroutines to get the block signers
+	// Launch goroutines to get the commits
 	for i := range diff {
 		height := fromHeight + i
 		idx := i // Capture index

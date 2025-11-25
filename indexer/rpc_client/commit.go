@@ -36,7 +36,11 @@ func (cr *CommitResponse) GetHeight() (uint64, error) {
 	if cr == nil {
 		return 0, fmt.Errorf("CommitResponse Header Height is nil")
 	}
-	return strconv.ParseUint(cr.Result.SignedHeader.Header.Height, 10, 64)
+	height, err := strconv.ParseUint(cr.Result.SignedHeader.Header.Height, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse height: %v", err)
+	}
+	return height, nil
 }
 
 // GetTimestamp returns the timestamp of the commit
