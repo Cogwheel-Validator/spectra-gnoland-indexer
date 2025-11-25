@@ -208,6 +208,7 @@ func (t *TimescaleDb) InsertMsgSend(messages []sql_data_types.MsgSend) error {
 			messages[i].ToAddress,
 			makePgxArray(messages[i].Amount),
 			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
 		}, nil
 	})
 
@@ -241,6 +242,7 @@ func (t *TimescaleDb) InsertMsgCall(messages []sql_data_types.MsgCall) error {
 			makePgxArray(messages[i].Send),
 			makePgxArray(messages[i].MaxDeposit),
 			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
 		}, nil
 	})
 
@@ -274,6 +276,7 @@ func (t *TimescaleDb) InsertMsgAddPackage(messages []sql_data_types.MsgAddPackag
 			makePgxArray(messages[i].Send),
 			makePgxArray(messages[i].MaxDeposit),
 			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
 		}, nil
 	})
 
@@ -307,6 +310,7 @@ func (t *TimescaleDb) InsertMsgRun(messages []sql_data_types.MsgRun) error {
 			makePgxArray(messages[i].Send),
 			makePgxArray(messages[i].MaxDeposit),
 			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
 		}, nil
 	})
 

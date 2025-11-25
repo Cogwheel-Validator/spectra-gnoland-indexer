@@ -229,6 +229,11 @@ func (dm *DecodedMsg) convertToDbMsgSend(
 	timestamp time.Time,
 	signerIds []int32,
 ) (*dataTypes.MsgSend, error) {
+	messageCounter, ok := msgMap["message_counter"].(int16)
+	if !ok {
+		return nil, fmt.Errorf("missing message_counter")
+	}
+
 	fromAddress, ok := msgMap["from_address"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing from_address")
@@ -255,13 +260,14 @@ func (dm *DecodedMsg) convertToDbMsgSend(
 	}
 
 	return &dataTypes.MsgSend{
-		TxHash:      txHash,
-		ChainName:   chainName,
-		FromAddress: addressResolver.GetAddress(fromAddress),
-		ToAddress:   addressResolver.GetAddress(toAddress),
-		Amount:      amount,
-		Signers:     signerIds,
-		Timestamp:   timestamp,
+		TxHash:         txHash,
+		ChainName:      chainName,
+		FromAddress:    addressResolver.GetAddress(fromAddress),
+		ToAddress:      addressResolver.GetAddress(toAddress),
+		Amount:         amount,
+		Signers:        signerIds,
+		Timestamp:      timestamp,
+		MessageCounter: messageCounter,
 	}, nil
 }
 
@@ -274,6 +280,11 @@ func (dm *DecodedMsg) convertToDbMsgCall(
 	timestamp time.Time,
 	signerIds []int32,
 ) (*dataTypes.MsgCall, error) {
+	messageCounter, ok := msgMap["message_counter"].(int16)
+	if !ok {
+		return nil, fmt.Errorf("missing message_counter")
+	}
+
 	caller, ok := msgMap["caller"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing caller")
@@ -325,16 +336,17 @@ func (dm *DecodedMsg) convertToDbMsgCall(
 	}
 
 	return &dataTypes.MsgCall{
-		TxHash:     txHash,
-		ChainName:  chainName,
-		Caller:     addressResolver.GetAddress(caller),
-		Send:       send,
-		PkgPath:    pkgPath,
-		FuncName:   funcName,
-		Args:       argsStr,
-		MaxDeposit: maxDeposit,
-		Signers:    signerIds,
-		Timestamp:  timestamp,
+		TxHash:         txHash,
+		MessageCounter: messageCounter,
+		ChainName:      chainName,
+		Caller:         addressResolver.GetAddress(caller),
+		Send:           send,
+		PkgPath:        pkgPath,
+		FuncName:       funcName,
+		Args:           argsStr,
+		MaxDeposit:     maxDeposit,
+		Signers:        signerIds,
+		Timestamp:      timestamp,
 	}, nil
 }
 
@@ -347,6 +359,11 @@ func (dm *DecodedMsg) convertToDbMsgAddPackage(
 	timestamp time.Time,
 	signerIds []int32,
 ) (*dataTypes.MsgAddPackage, error) {
+	messageCounter, ok := msgMap["message_counter"].(int16)
+	if !ok {
+		return nil, fmt.Errorf("missing message_counter")
+	}
+
 	creator, ok := msgMap["creator"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing creator")
@@ -393,15 +410,16 @@ func (dm *DecodedMsg) convertToDbMsgAddPackage(
 	}
 
 	return &dataTypes.MsgAddPackage{
-		TxHash:     txHash,
-		ChainName:  chainName,
-		Creator:    addressResolver.GetAddress(creator),
-		PkgPath:    pkgPath,
-		PkgName:    pkgName,
-		Send:       send,
-		MaxDeposit: maxDeposit,
-		Signers:    signerIds,
-		Timestamp:  timestamp,
+		TxHash:         txHash,
+		MessageCounter: messageCounter,
+		ChainName:      chainName,
+		Creator:        addressResolver.GetAddress(creator),
+		PkgPath:        pkgPath,
+		PkgName:        pkgName,
+		Send:           send,
+		MaxDeposit:     maxDeposit,
+		Signers:        signerIds,
+		Timestamp:      timestamp,
 	}, nil
 }
 
@@ -414,6 +432,11 @@ func (dm *DecodedMsg) convertToDbMsgRun(
 	timestamp time.Time,
 	signerIds []int32,
 ) (*dataTypes.MsgRun, error) {
+	messageCounter, ok := msgMap["message_counter"].(int16)
+	if !ok {
+		return nil, fmt.Errorf("missing message_counter")
+	}
+
 	caller, ok := msgMap["caller"].(string)
 	if !ok {
 		return nil, fmt.Errorf("missing caller")
@@ -460,14 +483,15 @@ func (dm *DecodedMsg) convertToDbMsgRun(
 	}
 
 	return &dataTypes.MsgRun{
-		TxHash:     txHash,
-		ChainName:  chainName,
-		Caller:     addressResolver.GetAddress(caller),
-		PkgPath:    pkgPath,
-		PkgName:    pkgName,
-		Send:       send,
-		MaxDeposit: maxDeposit,
-		Signers:    signerIds,
-		Timestamp:  timestamp,
+		TxHash:         txHash,
+		MessageCounter: messageCounter,
+		ChainName:      chainName,
+		Caller:         addressResolver.GetAddress(caller),
+		PkgPath:        pkgPath,
+		PkgName:        pkgName,
+		Send:           send,
+		MaxDeposit:     maxDeposit,
+		Signers:        signerIds,
+		Timestamp:      timestamp,
 	}, nil
 }

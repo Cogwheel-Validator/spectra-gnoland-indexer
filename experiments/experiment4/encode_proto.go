@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -82,17 +83,45 @@ func main() {
 	fmt.Printf("Length: %d bytes\n", len(encoded))
 
 	// try different compressions
-	zstdOptions := zstandard.WithEncoderLevel(zstandard.SpeedBetterCompression)
-	zstdEncoder, err := zstandard.NewWriter(nil, zstdOptions)
+	// Test with different compression levels
+	for _, level := range []int{1, 2, 3, 10, 15, 18, 20} {
+		encoderLevel := zstandard.EncoderLevelFromZstd(level)
+		encoder, err := zstandard.NewWriter(nil, zstandard.WithEncoderLevel(encoderLevel))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var buf bytes.Buffer
+		encoder.Reset(&buf)
+		_, err = encoder.Write(encoded)
+		if err != nil {
+			log.Fatal(err)
+		}
+		encoder.Close()
+
+		compressed := buf.Bytes()
+		fmt.Printf("Compressed (level %d): %d bytes (%.1f%% of original)\n",
+			level, len(compressed), float64(len(compressed))/float64(len(encoded))*100)
+	}
+
+	// Final compression with level 22
+	encoderLevel := zstandard.EncoderLevelFromZstd(22)
+	encoder, err := zstandard.NewWriter(nil, zstandard.WithEncoderLevel(encoderLevel))
 	if err != nil {
 		log.Fatal(err)
 	}
-	compressed := zstdEncoder.EncodeAll(encoded, nil)
+
+	var buf bytes.Buffer
+	encoder.Reset(&buf)
+	_, err = encoder.Write(encoded)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Compressed bytes:", string(compressed))
-	fmt.Printf("Length: %d bytes\n", len(compressed))
+	encoder.Close()
+
+	compressed := buf.Bytes()
+	fmt.Println("Final compressed bytes:", string(compressed))
+	fmt.Printf("Final length: %d bytes\n", len(compressed))
 
 	decoded, err := DecodeProto(encoded)
 	if err != nil {

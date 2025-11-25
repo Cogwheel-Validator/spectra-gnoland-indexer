@@ -421,28 +421,44 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 	// Insert DbMsgSend messages with address IDs
 	if len(groups.MsgSend) > 0 {
 		if err := d.dbPool.InsertMsgSend(groups.MsgSend); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgSend: %w", err))
+			hashes := make([]string, 0, len(groups.MsgSend))
+			for _, msg := range groups.MsgSend {
+				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
+			}
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgSend: %w, hashes: %v", err, hashes))
 		}
 	}
 
 	// Insert DbMsgCall messages with address IDs
 	if len(groups.MsgCall) > 0 {
 		if err := d.dbPool.InsertMsgCall(groups.MsgCall); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgCall: %w", err))
+			hashes := make([]string, 0, len(groups.MsgCall))
+			for _, msg := range groups.MsgCall {
+				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
+			}
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgCall: %w, hashes: %v", err, hashes))
 		}
 	}
 
 	// Insert DbMsgAddPackage messages with address IDs
 	if len(groups.MsgAddPkg) > 0 {
 		if err := d.dbPool.InsertMsgAddPackage(groups.MsgAddPkg); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgAddPackage: %w", err))
+			hashes := make([]string, 0, len(groups.MsgAddPkg))
+			for _, msg := range groups.MsgAddPkg {
+				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
+			}
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgAddPackage: %w, hashes: %v", err, hashes))
 		}
 	}
 
 	// Insert DbMsgRun messages with address IDs
 	if len(groups.MsgRun) > 0 {
 		if err := d.dbPool.InsertMsgRun(groups.MsgRun); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgRun: %w", err))
+			hashes := make([]string, 0, len(groups.MsgRun))
+			for _, msg := range groups.MsgRun {
+				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
+			}
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgRun: %w, hashes: %v", err, hashes))
 		}
 	}
 
