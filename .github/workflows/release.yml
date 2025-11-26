@@ -41,11 +41,15 @@ jobs:
           mkdir -p build
           
           # Get git commit hash
-          GIT_COMMIT=$(git rev-parse --short HEAD)
+
+          GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+          GIT_TAG := $(shell git describe --tags --exact-match 2>/dev/null || echo "")
+          GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+          VERSION := $(if $(GIT_TAG),$(GIT_TAG),$(GIT_BRANCH)-$(GIT_COMMIT))
           
           # Linux AMD64 for the indexer and the API
-          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${{ steps.version.outputs.version }}" -o build/indexer-linux-amd64 indexer/main.go
-          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${{ steps.version.outputs.version }}" -o build/indexer-api-linux-amd64 api/main.go
+          GOOS=linux GOARCH=amd64 go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=$(GIT_COMMIT) -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=$(VERSION)" -o build/indexer indexer/indexer.go
+          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION)" -o build/api api/main.go
 
     
       - name: Create GitHub Release
