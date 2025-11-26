@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-11-26
+
+Mostly it has some bug fixes.
+
+### Fixed
+
+- The indexer would go into the blocks data and store the signers from the last commit, which is actually all of the block signers from the previous block. So it woult insert it like it was meant for that block height. From now on the indexer will fetch data from the /commit method and insert it properly. [de40740](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/de407407e67ae588141b361307fae18215f53a18)
+- Gnoland can indeed execute multiple message types in the same transaction. The indexer wasn't able to hold this data properly and would cause and error because in the postgres primary key was attached making each message type unique. Now each message type has a message_counter which is a smallint(int16) which is used as a index for that transaction. [d647901](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d64790181c626e2ac0137dd9cce08d10ec2b6a7c)
+
+### Changes
+
+- The REST API now returns a map of int16 and message data for the `/transaction/{tx_hash}/message` route. [74a35b30](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/74a35b301070bb1dab5cbadec6fe64b16ad7eb3b)
+- The indexer should stop using sync.Map and use sync.Mutex with regular map to store the addresses before handing the operation to the AddressSolver function. [dde82a4](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/dde82a4ecc9bce50963fbff3f4e13a3a20b47f9d)
+- The Orchestrator needs to make a fetch to the commit RPC method. This operation is done side by side with fetching the blocks method. A side effect of this is that indexer at that moment will fecth 2X times more request to the RPC, and if the Gnoland node has a limit on the amount of RPC clients that can use it, it might cause the indexer to slow down and throw errors on this requests. In future releases this should be improved. [d647901](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d64790181c626e2ac0137dd9cce08d10ec2b6a7c)
+- Updated the go version to 1.25.4
+
 ## [0.3.0] - 2025-11-10
 
 In this release there are some fixes and improvements. The live process should work properly now and the REST API has some new routes. CLI commands are now combined with the ones from the setup cli. Some processes have been improved to use less memory. 
