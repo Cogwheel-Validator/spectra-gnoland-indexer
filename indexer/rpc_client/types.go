@@ -34,6 +34,7 @@ type Client interface {
 	GetLatestBlockHeight() (uint64, *RpcHeightError)
 	GetTx(txHash string) (*TxResponse, *RpcStringError)
 	GetAbciQuery(path string, data string, height *uint64, prove *bool) (any, error)
+	GetCommit(height uint64) (*CommitResponse, *RpcCommitError)
 }
 
 type RateLimiter interface {

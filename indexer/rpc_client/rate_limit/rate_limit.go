@@ -14,7 +14,7 @@ type ChannelRateLimiter struct {
 
 // NewChannelRateLimiter creates a new ChannelRateLimiter
 //
-// Args:
+// Parameters:
 //   - requestsAllowed: the number of requests allowed per time window
 //   - timeWindow: the time window for rate limiting
 //

@@ -18,7 +18,7 @@ type RetryResult[T any] struct {
 // GenericRetryQuery is a generic retry wrapper that can work with any query function
 // It handles the retry logic and sends the result to a channel
 //
-// Args:
+// Parameters:
 //   - retryAmount: the number of retry attempts, pulled from the query operator retry options
 //   - pause: the number of attempts to pause after failing, pulled from the query operator retry options
 //   - pauseTime: the time to pause after failing, pulled from the query operator retry options

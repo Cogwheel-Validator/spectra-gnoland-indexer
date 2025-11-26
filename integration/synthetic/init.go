@@ -1,6 +1,7 @@
 package synthetic
 
 import (
+	"context"
 	"log"
 
 	addressCache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
@@ -81,7 +82,7 @@ type MockDatabaseHeight struct {
 	lastHeight uint64
 }
 
-func (m *MockDatabaseHeight) GetLastBlockHeight(chainName string) (uint64, error) {
+func (m *MockDatabaseHeight) GetLastBlockHeight(ctx context.Context, chainName string) (uint64, error) {
 	return m.lastHeight, nil
 }
 

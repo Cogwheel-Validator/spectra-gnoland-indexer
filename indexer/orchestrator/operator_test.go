@@ -47,7 +47,7 @@ func (m *MockDataProcessor) ProcessMessages(transactions []dataprocessor.Trasnac
 }
 
 // Mock method for ProcessValidatorSignings
-func (m *MockDataProcessor) ProcessValidatorSignings(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) {
+func (m *MockDataProcessor) ProcessValidatorSignings(commits []*rpcClient.CommitResponse, fromHeight uint64, toHeight uint64) {
 	m.ProcessValidatorSigningsCalled = true
 }
 
@@ -55,8 +55,9 @@ func (m *MockDataProcessor) ProcessValidatorSignings(blocks []*rpcClient.BlockRe
 // The idea should be to count the number of calls to the method
 // and check if the method is called with the correct parameters
 type MockQueryOperator struct {
-	ShouldReturnBlocks bool
-	CallCount          int
+	ShouldReturnBlocks  bool
+	CallCount           int
+	ShouldReturnCommits bool
 }
 
 // Mock method for GetFromToBlocks
@@ -68,6 +69,17 @@ func (m *MockQueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) 
 
 	// Return a single empty block
 	return []*rpcClient.BlockResponse{{}}
+}
+
+// Mock method for GetFromToCommits
+func (m *MockQueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*rpcClient.CommitResponse {
+	m.CallCount++
+	if !m.ShouldReturnCommits {
+		return []*rpcClient.CommitResponse{} // Return empty slice
+	}
+
+	// Return a single empty commit
+	return []*rpcClient.CommitResponse{{}}
 }
 
 // Mock method for GetTransactions
@@ -88,7 +100,7 @@ type MockDatabaseHeight struct {
 }
 
 // Mock method for GetLastBlockHeight
-func (m *MockDatabaseHeight) GetLastBlockHeight(chainName string) (uint64, error) {
+func (m *MockDatabaseHeight) GetLastBlockHeight(ctx context.Context, chainName string) (uint64, error) {
 	if m.ShouldError {
 		return 0, &DatabaseError{"database error"}
 	}
@@ -132,7 +144,8 @@ func TestOrchestrator_HistoricProcess_CallsAllProcessors(t *testing.T) {
 	// Setup mocks
 	mockDataProcessor := &MockDataProcessor{}
 	mockQueryOperator := &MockQueryOperator{
-		ShouldReturnBlocks: true, // Return at least one block
+		ShouldReturnBlocks:  true, // Return at least one block
+		ShouldReturnCommits: true, // Return at least one commit
 	}
 	mockDB := &MockDatabaseHeight{}
 	mockRPC := &MockGnolandRpcClient{}
@@ -179,7 +192,8 @@ func TestOrchestrator_HistoricProcess_SkipsProcessingWhenNoBlocks(t *testing.T) 
 	// Setup mocks - no blocks returned
 	mockDataProcessor := &MockDataProcessor{}
 	mockQueryOperator := &MockQueryOperator{
-		ShouldReturnBlocks: false, // Return empty blocks
+		ShouldReturnBlocks:  false, // Return empty blocks
+		ShouldReturnCommits: false, // Return empty commits
 	}
 	mockDB := &MockDatabaseHeight{}
 	mockRPC := &MockGnolandRpcClient{}
@@ -213,7 +227,10 @@ func TestOrchestrator_HistoricProcess_SkipsProcessingWhenNoBlocks(t *testing.T) 
 func TestOrchestrator_LiveProcess_RespectsContext(t *testing.T) {
 	// Setup mocks
 	mockDataProcessor := &MockDataProcessor{}
-	mockQueryOperator := &MockQueryOperator{}
+	mockQueryOperator := &MockQueryOperator{
+		ShouldReturnBlocks:  true, // Return at least one block
+		ShouldReturnCommits: true, // Return at least one commit
+	}
 	mockDB := &MockDatabaseHeight{HeightToReturn: 50}
 	mockRPC := &MockGnolandRpcClient{HeightToReturn: 100}
 
@@ -251,7 +268,10 @@ func TestOrchestrator_LiveProcess_RespectsContext(t *testing.T) {
 func TestOrchestrator_LiveProcess_SkipDbCheck(t *testing.T) {
 	// Setup mocks
 	mockDataProcessor := &MockDataProcessor{}
-	mockQueryOperator := &MockQueryOperator{}
+	mockQueryOperator := &MockQueryOperator{
+		ShouldReturnBlocks:  true, // Return at least one block
+		ShouldReturnCommits: true, // Return at least one commit
+	}
 	mockDB := &MockDatabaseHeight{ShouldError: true} // Database will error
 	mockRPC := &MockGnolandRpcClient{HeightToReturn: 100}
 
@@ -284,7 +304,10 @@ func TestOrchestrator_Constructor_ValidatesMode(t *testing.T) {
 	}()
 
 	mockDataProcessor := &MockDataProcessor{}
-	mockQueryOperator := &MockQueryOperator{}
+	mockQueryOperator := &MockQueryOperator{
+		ShouldReturnBlocks:  true, // Return at least one block
+		ShouldReturnCommits: true, // Return at least one commit
+	}
 	mockDB := &MockDatabaseHeight{}
 	mockRPC := &MockGnolandRpcClient{}
 

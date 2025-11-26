@@ -8,7 +8,7 @@ import (
 
 // NewRateLimitedRpcClient creates a new rate-limited RPC client wrapper
 //
-// Args:
+// Parameters:
 //   - rpcURL: the url of the rpc client
 //   - timeout: the timeout for the rpc client (optional)
 //   - requestsPerWindow: number of requests allowed per time window
@@ -79,6 +79,12 @@ func (r *RateLimitedRpcClient) GetAbciQuery(path string, data string, height *ui
 	return r.client.GetAbciQuery(path, data, height, prove)
 }
 
+// GetCommit method with rate limiting
+func (r *RateLimitedRpcClient) GetCommit(height uint64) (*CommitResponse, *RpcCommitError) {
+	r.rateLimiter.Wait()
+	return r.client.GetCommit(height)
+}
+
 // TryHealth - non-blocking version that returns false if rate limited
 func (r *RateLimitedRpcClient) TryHealth() (error, bool) {
 	if !r.rateLimiter.Allow() {
@@ -129,6 +135,15 @@ func (r *RateLimitedRpcClient) TryGetAbciQuery(path string, data string, height 
 		return nil, nil, false // rate limited
 	}
 	response, err := r.client.GetAbciQuery(path, data, height, prove)
+	return response, err, true
+}
+
+// TryGetCommit - non-blocking version that returns false if rate limited
+func (r *RateLimitedRpcClient) TryGetCommit(height uint64) (*CommitResponse, *RpcCommitError, bool) {
+	if !r.rateLimiter.Allow() {
+		return nil, nil, false // rate limited
+	}
+	response, err := r.client.GetCommit(height)
 	return response, err, true
 }
 

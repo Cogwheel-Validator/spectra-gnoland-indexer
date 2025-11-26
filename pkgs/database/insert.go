@@ -19,13 +19,19 @@ import (
 // # Used inside of the address cache package to insert the addresses to the database
 //
 // Parameters:
+//   - ctx: the context to use for the insert
 //   - addresses: a slice of addresses to insert
 //   - chainName: the name of the chain to insert the addresses to
 //   - insertValidators: a boolean to indicate if the addresses are validators or accounts
 //
 // Returns:
 //   - error: an error if the insertion fails
-func (t *TimescaleDb) InsertAddresses(addresses []string, chainName string, insertValidators bool) error {
+func (t *TimescaleDb) InsertAddresses(
+	ctx context.Context,
+	addresses []string,
+	chainName string,
+	insertValidators bool,
+) error {
 	column_names := []string{"address", "chain_name"}
 	var table_name string
 	if insertValidators {
@@ -38,7 +44,7 @@ func (t *TimescaleDb) InsertAddresses(addresses []string, chainName string, inse
 		return []any{addresses[i], chainName}, nil
 	})
 	// copy the addresses to the db
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{table_name}, column_names, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{table_name}, column_names, pgxSlice)
 	return err
 }
 
@@ -49,12 +55,13 @@ func (t *TimescaleDb) InsertAddresses(addresses []string, chainName string, inse
 //
 // # Used for inserting a large number of blocks to the database
 //
-// Args:
+// Parameters:
+//   - ctx: the context to use for the insert
 //   - blocks: a slice of blocks to insert
 //
 // Returns:
 //   - error: an error if the insertion fails
-func (t *TimescaleDb) InsertBlocks(blocks []sql_data_types.Blocks) error {
+func (t *TimescaleDb) InsertBlocks(ctx context.Context, blocks []sql_data_types.Blocks) error {
 	// Return early if no blocks to insert
 	if len(blocks) == 0 {
 		return nil
@@ -75,7 +82,7 @@ func (t *TimescaleDb) InsertBlocks(blocks []sql_data_types.Blocks) error {
 	columns := blocks[0].TableColumns()
 
 	// insert the data to the db
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"blocks"}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"blocks"}, columns, pgxSlice)
 	return err
 }
 
@@ -86,12 +93,16 @@ func (t *TimescaleDb) InsertBlocks(blocks []sql_data_types.Blocks) error {
 //
 // # Used for inserting a large number of validator block signings to the database
 //
-// Args:
+// Parameters:
+//   - ctx: the context to use for the insert
 //   - validatorBlockSigning: a slice of validator block signings to insert
 //
 // Returns:
 //   - error: an error if the insertion fails
-func (t *TimescaleDb) InsertValidatorBlockSignings(validatorBlockSigning []sql_data_types.ValidatorBlockSigning) error {
+func (t *TimescaleDb) InsertValidatorBlockSignings(
+	ctx context.Context,
+	validatorBlockSigning []sql_data_types.ValidatorBlockSigning,
+) error {
 	// Return early if no validator block signings to insert
 	if len(validatorBlockSigning) == 0 {
 		return nil
@@ -111,7 +122,7 @@ func (t *TimescaleDb) InsertValidatorBlockSignings(validatorBlockSigning []sql_d
 	columns := validatorBlockSigning[0].TableColumns()
 
 	// insert the data to the db
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"validator_block_signing"}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"validator_block_signing"}, columns, pgxSlice)
 	return err
 }
 
@@ -122,12 +133,16 @@ func (t *TimescaleDb) InsertValidatorBlockSignings(validatorBlockSigning []sql_d
 //
 // # Used for inserting a large number of transaction general data to the database
 //
-// Args:
+// Parameters:
+//   - ctx: the context to use for the insert
 //   - transactionsGeneral: a slice of transaction general data to insert
 //
 // Returns:
 //   - error: an error if the insertion fails
-func (t *TimescaleDb) InsertTransactionsGeneral(transactionsGeneral []sql_data_types.TransactionGeneral) error {
+func (t *TimescaleDb) InsertTransactionsGeneral(
+	ctx context.Context,
+	transactionsGeneral []sql_data_types.TransactionGeneral,
+) error {
 	// Return early if no transactions to insert
 	if len(transactionsGeneral) == 0 {
 		return nil
@@ -154,18 +169,19 @@ func (t *TimescaleDb) InsertTransactionsGeneral(transactionsGeneral []sql_data_t
 	columns := transactionsGeneral[0].TableColumns()
 
 	// insert the data to the db
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"transaction_general"}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"transaction_general"}, columns, pgxSlice)
 	return err
 }
 
 // InsertAddressTx inserts a slice of AddressTx into the database
 //
-// Args:
+// Parameters:
+//   - ctx: the context to use for the insert
 //   - addresses: a slice of AddressTx to insert
 //
 // Returns:
 //   - error: an error if the insertion fails
-func (t *TimescaleDb) InsertAddressTx(addresses []sql_data_types.AddressTx) error {
+func (t *TimescaleDb) InsertAddressTx(ctx context.Context, addresses []sql_data_types.AddressTx) error {
 	// Return early if no addresses to insert
 	if len(addresses) == 0 {
 		return nil
@@ -182,18 +198,19 @@ func (t *TimescaleDb) InsertAddressTx(addresses []sql_data_types.AddressTx) erro
 	})
 
 	columns := addresses[0].TableColumns()
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"address_tx"}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"address_tx"}, columns, pgxSlice)
 	return err
 }
 
 // InsertMsgSend inserts a slice of MsgSend messages into the database
 //
-// Args:
+// Parameters:
+//   - ctx: the context to use for the insert
 //   - messages: a slice of MsgSend messages to insert
 //
 // Returns:
 //   - error: an error if the insertion fails
-func (t *TimescaleDb) InsertMsgSend(messages []sql_data_types.MsgSend) error {
+func (t *TimescaleDb) InsertMsgSend(ctx context.Context, messages []sql_data_types.MsgSend) error {
 	// Return early if no messages to insert
 	if len(messages) == 0 {
 		return nil
@@ -208,22 +225,24 @@ func (t *TimescaleDb) InsertMsgSend(messages []sql_data_types.MsgSend) error {
 			messages[i].ToAddress,
 			makePgxArray(messages[i].Amount),
 			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
 		}, nil
 	})
 
 	columns := messages[0].TableColumns()
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"bank_msg_send"}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"bank_msg_send"}, columns, pgxSlice)
 	return err
 }
 
 // InsertMsgCall inserts a slice of MsgCall messages into the database
 //
-// Args:
+// Parameters:
+//   - ctx: the context to use for the insert
 //   - messages: a slice of MsgCall messages to insert
 //
 // Returns:
 //   - error: an error if the insertion fails
-func (t *TimescaleDb) InsertMsgCall(messages []sql_data_types.MsgCall) error {
+func (t *TimescaleDb) InsertMsgCall(ctx context.Context, messages []sql_data_types.MsgCall) error {
 	// Return early if no messages to insert
 	if len(messages) == 0 {
 		return nil
@@ -241,22 +260,27 @@ func (t *TimescaleDb) InsertMsgCall(messages []sql_data_types.MsgCall) error {
 			makePgxArray(messages[i].Send),
 			makePgxArray(messages[i].MaxDeposit),
 			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
 		}, nil
 	})
 
 	columns := messages[0].TableColumns()
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_call"}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"vm_msg_call"}, columns, pgxSlice)
 	return err
 }
 
 // InsertMsgAddPackage inserts a slice of MsgAddPackage messages into the database
 //
-// Args:
+// Parameters:
+//   - ctx: the context to use for the insert
 //   - messages: a slice of MsgAddPackage messages to insert
 //
 // Returns:
 //   - error: an error if the insertion fails
-func (t *TimescaleDb) InsertMsgAddPackage(messages []sql_data_types.MsgAddPackage) error {
+func (t *TimescaleDb) InsertMsgAddPackage(
+	ctx context.Context,
+	messages []sql_data_types.MsgAddPackage,
+) error {
 	// Return early if no messages to insert
 	if len(messages) == 0 {
 		return nil
@@ -274,22 +298,27 @@ func (t *TimescaleDb) InsertMsgAddPackage(messages []sql_data_types.MsgAddPackag
 			makePgxArray(messages[i].Send),
 			makePgxArray(messages[i].MaxDeposit),
 			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
 		}, nil
 	})
 
 	columns := messages[0].TableColumns()
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_add_package"}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"vm_msg_add_package"}, columns, pgxSlice)
 	return err
 }
 
 // InsertMsgRun inserts a slice of MsgRun messages into the database
 //
-// Args:
+// Parameters:
+//   - ctx: the context to use for the insert
 //   - messages: a slice of MsgRun messages to insert
 //
 // Returns:
 //   - error: an error if the insertion fails
-func (t *TimescaleDb) InsertMsgRun(messages []sql_data_types.MsgRun) error {
+func (t *TimescaleDb) InsertMsgRun(
+	ctx context.Context,
+	messages []sql_data_types.MsgRun,
+) error {
 	// Return early if no messages to insert
 	if len(messages) == 0 {
 		return nil
@@ -307,11 +336,12 @@ func (t *TimescaleDb) InsertMsgRun(messages []sql_data_types.MsgRun) error {
 			makePgxArray(messages[i].Send),
 			makePgxArray(messages[i].MaxDeposit),
 			makePgxArray(messages[i].Signers),
+			messages[i].MessageCounter,
 		}, nil
 	})
 
 	columns := messages[0].TableColumns()
-	_, err := t.pool.CopyFrom(context.Background(), pgx.Identifier{"vm_msg_run"}, columns, pgxSlice)
+	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{"vm_msg_run"}, columns, pgxSlice)
 	return err
 }
 
@@ -321,7 +351,7 @@ func (t *TimescaleDb) InsertMsgRun(messages []sql_data_types.MsgRun) error {
 // bytearrays but to be sure it should be usable on any type that is supposed to be inserted into the database as
 // an array
 //
-// Args:
+// Parameters:
 //   - v: a slice of any type
 //
 // Returns:

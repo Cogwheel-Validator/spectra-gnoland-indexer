@@ -1,4 +1,8 @@
 name: Golangci-lint
+permissions:
+  contents: read
+  packages: read
+  
 on:
   push:
     branches: [dev, release/**]

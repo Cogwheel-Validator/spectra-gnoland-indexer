@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
@@ -14,19 +15,20 @@ type DataProcessor interface {
 	ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64)
 	ProcessTransactions(transactions []dataprocessor.TrasnactionsData, compressEvents bool, fromHeight uint64, toHeight uint64)
 	ProcessMessages(transactions []dataprocessor.TrasnactionsData, fromHeight uint64, toHeight uint64) error
-	ProcessValidatorSignings(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64)
+	ProcessValidatorSignings(commits []*rpcClient.CommitResponse, fromHeight uint64, toHeight uint64)
 }
 
 type QueryOperator interface {
 	GetFromToBlocks(fromHeight uint64, toHeight uint64) []*rpcClient.BlockResponse
 	GetTransactions(txs []string) []*rpcClient.TxResponse
 	GetLatestBlockHeight() (uint64, error)
+	GetFromToCommits(fromHeight uint64, toHeight uint64) []*rpcClient.CommitResponse
 }
 
 // Only needed for one opetaion
 // Part of the timescaledb interface
 type DatabaseHeight interface {
-	GetLastBlockHeight(chainName string) (uint64, error)
+	GetLastBlockHeight(ctx context.Context, chainName string) (uint64, error)
 }
 
 // Only needed for one opetaion

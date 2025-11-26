@@ -33,4 +33,5 @@ type RpcClient interface {
 	GetBlock(height uint64) (*rpcClient.BlockResponse, *rpcClient.RpcHeightError)
 	GetLatestBlockHeight() (uint64, *rpcClient.RpcHeightError)
 	GetTx(txHash string) (*rpcClient.TxResponse, *rpcClient.RpcStringError)
+	GetCommit(height uint64) (*rpcClient.CommitResponse, *rpcClient.RpcCommitError)
 }

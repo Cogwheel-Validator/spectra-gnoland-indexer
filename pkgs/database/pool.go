@@ -13,7 +13,7 @@ import (
 
 // NewTimescaleDb is a constructor function that creates a new TimescaleDb instance
 //
-// Args:
+// Parameters:
 //   - config: the database config, a struct that contains the necessary data from the config file
 //
 // Returns:
@@ -44,7 +44,7 @@ func NewTimescaleDbSetup(config DatabasePoolConfig) *TimescaleDb {
 
 // connectToDb is a internal function that connects to the database for the indexer
 //
-// Args:
+// Parameters:
 //   - config: the database config, a struct that contains the necessary data from the config file
 //
 // Returns:
@@ -135,7 +135,7 @@ func setupConnection(config DatabasePoolConfig) (*pgxpool.Pool, error) {
 
 // create a new database with the given name
 //
-// Args:
+// Parameters:
 //   - db: the database connection pool
 //   - dbname: the name of the database to create
 //
@@ -156,7 +156,7 @@ func CreateDatabase(db *TimescaleDb, dbname string) error {
 // most of the time when the postgres server is running, it will be in the "postgres" database
 // only to be used initiating command
 //
-// Args:
+// Parameters:
 //   - db: the database connection pool
 //   - config: the database config, a struct that contains the necessary data from the config file
 //
@@ -186,7 +186,7 @@ func SwitchDatabase(db *TimescaleDb, config DatabasePoolConfig, dbname string) e
 
 // GetPool returns the database connection pool
 //
-// Args:
+// Parameters:
 //   - db: the database connection pool
 //
 // Returns:

@@ -12,7 +12,7 @@ import (
 // NewSignalHandler is a constructor function that creates a new signal handler with
 // cleanup and state dump functions
 //
-// Args:
+// Parameters:
 //   - cleanup: the cleanup function
 //   - stateDump: the state dump function
 //
@@ -32,7 +32,7 @@ func NewSignalHandler(cleanup func() error, stateDump func() error) *SignalHandl
 
 // Context returns the context that will be cancelled on shutdown signals
 //
-// Args:
+// Parameters:
 //   - sh: the signal handler
 //
 // Returns:
