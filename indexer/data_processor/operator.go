@@ -449,7 +449,7 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 
 	// Insert DbMsgSend messages with address IDs
 	if msgSendCount > 0 {
-		timeout := 10*time.Second + time.Duration(msgSendCount)
+		timeout := 10*time.Second + (time.Duration(msgSendCount) * time.Second / 5)
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		err := d.dbPool.InsertMsgSend(ctx, groups.MsgSend)
 		cancel()
@@ -464,7 +464,7 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 
 	// Insert DbMsgCall messages with address IDs
 	if msgCallCount > 0 {
-		timeout := 10*time.Second + time.Duration(msgCallCount)
+		timeout := 10*time.Second + (time.Duration(msgCallCount) * time.Second / 5)
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		err := d.dbPool.InsertMsgCall(ctx, groups.MsgCall)
 		cancel()
@@ -479,7 +479,7 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 
 	// Insert DbMsgAddPackage messages with address IDs
 	if msgAddPkgCount > 0 {
-		timeout := 10*time.Second + time.Duration(msgAddPkgCount)
+		timeout := 10*time.Second + (time.Duration(msgAddPkgCount) * time.Second / 5)
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		err := d.dbPool.InsertMsgAddPackage(ctx, groups.MsgAddPkg)
 		cancel()
@@ -494,7 +494,7 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 
 	// Insert DbMsgRun messages with address IDs
 	if msgRunCount > 0 {
-		timeout := 10*time.Second + time.Duration(msgRunCount)
+		timeout := 10*time.Second + (time.Duration(msgRunCount) * time.Second / 5)
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		err := d.dbPool.InsertMsgRun(ctx, groups.MsgRun)
 		cancel()

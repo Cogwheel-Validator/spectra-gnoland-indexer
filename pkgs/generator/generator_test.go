@@ -27,15 +27,19 @@ func TestAuthenticGeneration(t *testing.T) {
 
 	// Test key pair access
 	for range 500 {
-		generator.GetRandomKeyPair()
+		kp := generator.GetRandomKeyPair()
+		assert.NotNil(t, kp)
+		assert.NotEmpty(t, kp.Address)
+		assert.NotEmpty(t, kp.PublicKey)
 	}
 
 	// Test synthetic transaction generation 500 times
 	for range 500 {
 		events, tx := generator.GenerateTransaction()
 		assert.NotNil(t, tx)
-		assert.NotNil(t, events)
+		assert.NotNil(t, events.Events)
 	}
+
 }
 
 // RunAllTests runs all the test functions

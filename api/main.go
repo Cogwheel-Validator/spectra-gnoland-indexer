@@ -153,7 +153,9 @@ var rootCmd = &cobra.Command{
 			w.Header().Set("Content-Type", "image/x-icon")
 			_, err := w.Write(favicon)
 			if err != nil {
-				log.Fatalf("failed to write favicon: %v", err)
+				log.Printf("failed to write favicon: %v", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
 			}
 		})
 
