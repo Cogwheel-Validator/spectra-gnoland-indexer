@@ -23,7 +23,7 @@ type Decoder struct {
 
 // NewDecoder creates a new Decoder struct
 //
-// Args:
+// Parameters:
 //   - encodedTx: base64 encoded stdTx
 //
 // Returns:
@@ -39,7 +39,7 @@ func NewDecoder(encodedTx string) *Decoder {
 // The function decodes the data and unmarshals it into a std.Tx struct
 // The struct contains the transaction data and the messages
 //
-// Args:
+// Parameters:
 //   - s: base64 encoded stdTx
 //
 // Returns:
@@ -64,7 +64,7 @@ func (d *Decoder) DecodeStdTxFromBase64() (*std.Tx, error) {
 // to be reflected here, mostly...
 // Some will need to be updated and added manually in the future but for now this is good enough
 //
-// Args:
+// Parameters:
 //   - none
 //
 // Returns:

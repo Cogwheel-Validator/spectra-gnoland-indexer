@@ -103,7 +103,9 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 
 	// Initial setup - get starting height
 	if !skipInitialDbCheck {
-		lastProcessedHeight, err = or.db.GetLastBlockHeight(or.chainName)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		lastProcessedHeight, err = or.db.GetLastBlockHeight(ctx, or.chainName)
 		if err != nil {
 			log.Printf("Failed to get last block height from database: %v", err)
 			log.Printf("Either there are no blocks in the database or the database is not properly configured.")
@@ -330,7 +332,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 
 // This function processes all data using optimized concurrent execution
 //
-// Args:
+// Parameters:
 //   - blocks: a slice of blocks
 //   - transactions: a map of transactions and timestamps
 //   - compressEvents: if true, compress the events
@@ -434,7 +436,7 @@ func (or *Orchestrator) processAll(
 // saveProcessingState is a private method that saves
 // the current processing state to a file
 //
-// Args:
+// Parameters:
 //   - height: the height of the processing state
 //   - reason: the reason for the processing state
 //

@@ -11,8 +11,9 @@ import (
 // Used within the account cache package to get query about the existing accounts
 // and then we can know which ones to insert
 //
-// Args:
+// Parameters:
 //
+//   - ctx: the context to use for the query
 //   - addresses: the addresses to check
 //   - chainName: the name of the chain
 //
@@ -20,7 +21,12 @@ import (
 //
 //   - map[string]int32: the map of existing addresses and their ids
 //   - error: if the query fails
-func (t *TimescaleDb) FindExistingAccounts(addresses []string, chainName string, searchValidators bool) (map[string]int32, error) {
+func (t *TimescaleDb) FindExistingAccounts(
+	ctx context.Context,
+	addresses []string,
+	chainName string,
+	searchValidators bool,
+) (map[string]int32, error) {
 	addressesMap := make(map[string]int32)
 	// we need to check if the addresses are already in the map
 	// so we make this query to the db to get the addresses that are already in the map
@@ -40,7 +46,7 @@ func (t *TimescaleDb) FindExistingAccounts(addresses []string, chainName string,
 		AND address = ANY($2)
 		`
 	}
-	rows, err := t.pool.Query(context.Background(), query, chainName, addresses)
+	rows, err := t.pool.Query(ctx, query, chainName, addresses)
 	if err != nil {
 		return nil, err
 	}
@@ -65,8 +71,9 @@ func (t *TimescaleDb) FindExistingAccounts(addresses []string, chainName string,
 //
 // # Only used when the program is initializing to get all the accounts with their ids
 //
-// Args:
+// Parameters:
 //
+//   - ctx: the context to use for the query
 //   - chainName: the name of the chain
 //   - searchValidators: whether to search for validators or accounts
 //   - highestIndex: the highest index of the addresses already recorded or it could be a 0
@@ -75,7 +82,12 @@ func (t *TimescaleDb) FindExistingAccounts(addresses []string, chainName string,
 //
 //   - map[string]int32: the map of all accounts and their ids
 //   - error: if the query fails
-func (t *TimescaleDb) GetAllAddresses(chainName string, searchValidators bool, highestIndex *int32) (map[string]int32, int32, error) {
+func (t *TimescaleDb) GetAllAddresses(
+	ctx context.Context,
+	chainName string,
+	searchValidators bool,
+	highestIndex *int32,
+) (map[string]int32, int32, error) {
 	addressesMap := make(map[string]int32)
 	var maxIndex int32 = 0
 	if highestIndex != nil {
@@ -98,7 +110,7 @@ func (t *TimescaleDb) GetAllAddresses(chainName string, searchValidators bool, h
 		AND id > $2
 		`
 	}
-	rows, err := t.pool.Query(context.Background(), query, chainName, highestIndex)
+	rows, err := t.pool.Query(ctx, query, chainName, highestIndex)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -125,15 +137,18 @@ func (t *TimescaleDb) GetAllAddresses(chainName string, searchValidators bool, h
 //
 // Used to check if the current database is "gnoland"
 //
+// Parameters:
+//   - ctx: the context to use for the query
+//
 // Returns:
 //
 //   - string: the name of the current database
 //   - error: if the query fails
-func (t *TimescaleDb) CheckCurrentDatabaseName() (string, error) {
+func (t *TimescaleDb) CheckCurrentDatabaseName(ctx context.Context) (string, error) {
 	query := `
 	SELECT current_database()
 	`
-	row := t.pool.QueryRow(context.Background(), query)
+	row := t.pool.QueryRow(ctx, query)
 	var currentDb string
 	err := row.Scan(&currentDb)
 	if err != nil {
@@ -148,19 +163,20 @@ func (t *TimescaleDb) CheckCurrentDatabaseName() (string, error) {
 //
 // # Used to get the last block height from the database for a given chain
 //
-// Args:
+// Parameters:
+//   - ctx: the context to use for the query
 //   - chainName: the name of the chain
 //
 // Returns:
 //   - uint64: the last block height
 //   - error: if the query fails
-func (t *TimescaleDb) GetLastBlockHeight(chainName string) (uint64, error) {
+func (t *TimescaleDb) GetLastBlockHeight(ctx context.Context, chainName string) (uint64, error) {
 	query := `
 	SELECT MAX(height)
 	FROM blocks
 	WHERE chain_name = $1
 	`
-	row := t.pool.QueryRow(context.Background(), query, chainName)
+	row := t.pool.QueryRow(ctx, query, chainName)
 	var lastBlockHeight uint64
 	err := row.Scan(&lastBlockHeight)
 	if err != nil {

@@ -27,7 +27,7 @@ import (
 //   - GetTx: call to get a tx from the rpc client
 //   - GetAbciQuery: call to get a abci query from the rpc client
 //
-// Args:
+// Parameters:
 //
 //   - rpcURL: the url of the rpc client
 //   - timeout: the timeout for the rpc client(optional)
@@ -119,7 +119,7 @@ func (r *RpcGnoland) Health() error {
 
 // GetValidators method to get validators from the rpc client.
 //
-// Args:
+// Parameters:
 //   - height: the height of the block to get the validators for
 //
 // Returns:
@@ -150,7 +150,7 @@ func (r *RpcGnoland) GetValidators(height uint64) (*ValidatorsResponse, *RpcHeig
 
 // GetBlock method to get a block from the rpc client.
 //
-// Args:
+// Parameters:
 //   - height: the height of the block to get
 //
 // Returns:
@@ -211,7 +211,7 @@ func (r *RpcGnoland) GetLatestBlockHeight() (uint64, *RpcHeightError) {
 
 // GetTx method to get a tx from the rpc client.
 //
-// Args:
+// Parameters:
 //   - txHash: the base64 encoded string of the tx to get
 //
 // Returns:
@@ -244,7 +244,7 @@ func (r *RpcGnoland) GetTx(txHash string) (*TxResponse, *RpcStringError) {
 // This method is used to get any kind of data from the rpc client.
 // This might not be used in the indexer but let's keep it here for now.
 //
-// Args:
+// Parameters:
 //   - path: the path of the abci query
 //   - data: the data of the abci query
 //   - height: the height of the block to get the abci query for(optional, if not specified it will get the latest block)

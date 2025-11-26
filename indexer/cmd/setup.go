@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"context"
 	"log"
+	"time"
 
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
@@ -95,7 +97,9 @@ var createDbCmd = &cobra.Command{
 
 		// create a new database named "gnoland"
 		// but check if the current database is "gnoland"
-		currentDb, err := db.CheckCurrentDatabaseName()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		currentDb, err := db.CheckCurrentDatabaseName(ctx)
 		if err != nil {
 			log.Fatalf("failed to check current database name: %v", err)
 		}

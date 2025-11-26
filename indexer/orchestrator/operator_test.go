@@ -100,7 +100,7 @@ type MockDatabaseHeight struct {
 }
 
 // Mock method for GetLastBlockHeight
-func (m *MockDatabaseHeight) GetLastBlockHeight(chainName string) (uint64, error) {
+func (m *MockDatabaseHeight) GetLastBlockHeight(ctx context.Context, chainName string) (uint64, error) {
 	if m.ShouldError {
 		return 0, &DatabaseError{"database error"}
 	}

@@ -41,7 +41,7 @@ type SpecialType struct {
 // GetTableInfo extracts database table information from a struct using reflection
 // This function reads the struct tags and converts them to database metadata
 //
-// Args:
+// Parameters:
 // - structType: the struct type to get the table info from
 // - tableName: the name of the table to get the table info from
 //
@@ -113,7 +113,7 @@ func GetTableInfo(structType interface{}, tableName string) (*TableInfo, error) 
 
 // GenerateCreateTableSQL generates a PostgreSQL CREATE TABLE statement from struct metadata
 //
-// Args:
+// Parameters:
 // - tableInfo: the table info for the table to create
 //
 // Returns:
@@ -174,7 +174,7 @@ func GenerateCreateTableSQL(tableInfo *TableInfo) string {
 
 // GenerateCreateHypertableSQL generates a PostgreSQL CREATE TABLE statement with modern TimescaleDB hypertable syntax
 //
-// Args:
+// Parameters:
 // - tableInfo: the table info for the table to create
 // - chunkInterval: the interval to chunk the table by
 // - partitionColumn: the column to partition the table by
@@ -234,7 +234,7 @@ func GenerateCreateHypertableSQL(tableInfo *TableInfo, chunkInterval string, par
 
 // GenerateSpecialTypeSQL generates a PostgreSQL CREATE TYPE statement from struct metadata
 //
-// Args:
+// Parameters:
 // - specialType: the special type to generate the SQL for
 //
 // Returns:
@@ -260,7 +260,7 @@ func GenerateSpecialTypeSQL(specialType *SpecialType) string {
 
 // CreateTableSQL creates a table in the database based on struct metadata
 //
-// Args:
+// Parameters:
 // - t: the table info for the table to create
 //
 // Returns:
@@ -350,7 +350,7 @@ func (db *DBInitializer) GetTimescaleDBVersion() (*TimescaleDBVersion, error) {
 
 // CreateTableFromStruct creates a database table based on struct tags
 //
-// Args:
+// Parameters:
 // - structType: the struct type to create the table from
 // - tableName: the name of the table to create
 //
@@ -419,7 +419,7 @@ func GetSpecialTypeInfo(structType interface{}, typeName string) (*SpecialType, 
 
 // CreateSpecialTypeFromStruct creates a database type based on struct tags
 //
-// Args:
+// Parameters:
 // - structType: the struct type to create the special type from
 // - typeName: the name of the special type to create
 //
@@ -444,7 +444,7 @@ func (db *DBInitializer) CreateSpecialTypeFromStruct(structType interface{}, typ
 
 // CreateHypertableFromStruct creates a hypertable using the appropriate method based on TimescaleDB version
 //
-// Args:
+// Parameters:
 // - structType: the struct type to create the hypertable from
 // - tableName: the name of the table to create the hypertable from
 // - partitionColumn: the column to partition the table by
@@ -493,7 +493,7 @@ func (db *DBInitializer) createHypertableModern(tableInfo *TableInfo, partitionC
 
 // createHypertableLegacy creates a hypertable using the legacy 3-step process
 //
-// Args:
+// Parameters:
 // - tableInfo: the table info for the table to create
 // - partitionColumn: the column to partition the table by
 // - chunkInterval: the interval to chunk the table by
@@ -542,7 +542,7 @@ func (db *DBInitializer) CreateChainTypeEnum(enumValues []string) error {
 // CreateUser creates a user in the database
 //
 // The function will
-// Args:
+// Parameters:
 // - name: the name of the user to create
 //
 // Returns:

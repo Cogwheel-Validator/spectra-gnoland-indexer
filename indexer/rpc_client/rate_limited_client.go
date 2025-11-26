@@ -8,7 +8,7 @@ import (
 
 // NewRateLimitedRpcClient creates a new rate-limited RPC client wrapper
 //
-// Args:
+// Parameters:
 //   - rpcURL: the url of the rpc client
 //   - timeout: the timeout for the rpc client (optional)
 //   - requestsPerWindow: number of requests allowed per time window

@@ -11,7 +11,7 @@ import (
 
 // NewDecodedMsg creates a new DecodedMsg struct
 //
-// Args:
+// Parameters:
 //   - encodedTx: the encoded transaction
 //
 // Returns:

@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
@@ -27,7 +28,7 @@ type QueryOperator interface {
 // Only needed for one opetaion
 // Part of the timescaledb interface
 type DatabaseHeight interface {
-	GetLastBlockHeight(chainName string) (uint64, error)
+	GetLastBlockHeight(ctx context.Context, chainName string) (uint64, error)
 }
 
 // Only needed for one opetaion

@@ -51,7 +51,7 @@ func NewQueryOperator(
 // the indexer should store them all together as one huge slice of blocks, so the order is not important
 // the speed is what matters here.
 //
-// Args:
+// Parameters:
 //   - fromHeight: the start height
 //   - toHeight: the end height
 //
@@ -204,7 +204,7 @@ func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*
 // This is a fan out method that lauches async workers for each tx and wait to get the resaults
 // the indexer should store them all together as one huge slice of transactions,
 //
-// Args:
+// Parameters:
 //   - txs: a slice of tx hashes
 //
 // Returns:

@@ -19,20 +19,12 @@ import (
 // - Community Edition 2.19.3+ (TimescaleDB)
 // - Cloud edition (Tiger Data)
 //
-// Not Recommended:
-// - Apache TimescaleDB 2.19.3+ (Apache TimescaleDB)
-// To be clear it is not recommended to use the Apache TimescaleDB because it is not tested on and it won't
-// be officially supported. The reason is most of the features that are available in the Community Edition are not
-// available in the Apache TimescaleDB. However it might be possible to use it since we only need to use hypertables
-// which should exist in the Apache TimescaleDB.
-//
-// For maximum compatibility, this implementation supports both approaches.
 
 // ConvertToHypertables is a method that converts the given table names to hypertables
 //
 // This function will only start this process however the whole process will run through the 3 steps
 // This is first step in the process
-// Args:
+// Parameters:
 // - tableNames: a slice of table names to convert to hypertables
 //
 // Returns:
@@ -59,7 +51,7 @@ func (init *DBInitializer) ConvertToHypertables(tableNames []string) {
 //
 // This function will only start this process however the whole process will run through the 3 steps
 // This is second step in the process
-// Args:
+// Parameters:
 // - tables: a map of table names to their columns
 //
 // Returns:
@@ -89,7 +81,7 @@ func (init *DBInitializer) AlterCompressionSegments(tables map[string][]string) 
 //
 // This function will only start this process however the whole process will run through the 3 steps
 // This is third step in the process
-// Args:
+// Parameters:
 // - tableNames: a slice of table names to add the compression policy to
 //
 // Returns:
