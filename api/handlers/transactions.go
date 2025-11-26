@@ -62,7 +62,7 @@ func (h *TransactionsHandler) GetTransactionMessage(
 		case "bank_msg_send":
 			data, err := h.db.GetBankSend(ctx, txHashBase64, h.chainName)
 			if err != nil {
-				return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
+				return nil, huma.Error404NotFound(fmt.Sprintf("Failed to fetch %s data for transaction %s", msgType, input.TxHash), err)
 			}
 			for _, data := range data {
 				index := data.MessageCounter
@@ -79,7 +79,7 @@ func (h *TransactionsHandler) GetTransactionMessage(
 		case "vm_msg_call":
 			data, err := h.db.GetMsgCall(ctx, txHashBase64, h.chainName)
 			if err != nil {
-				return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
+				return nil, huma.Error404NotFound(fmt.Sprintf("Failed to fetch %s data for transaction %s", msgType, input.TxHash), err)
 			}
 			for _, data := range data {
 				index := data.MessageCounter
@@ -99,7 +99,7 @@ func (h *TransactionsHandler) GetTransactionMessage(
 		case "vm_msg_add_package":
 			data, err := h.db.GetMsgAddPackage(ctx, txHashBase64, h.chainName)
 			if err != nil {
-				return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
+				return nil, huma.Error404NotFound(fmt.Sprintf("Failed to fetch %s data for transaction %s", msgType, input.TxHash), err)
 			}
 			for _, data := range data {
 				index := data.MessageCounter
@@ -119,7 +119,7 @@ func (h *TransactionsHandler) GetTransactionMessage(
 		case "vm_msg_run":
 			data, err := h.db.GetMsgRun(ctx, txHashBase64, h.chainName)
 			if err != nil {
-				return nil, huma.Error404NotFound(fmt.Sprintf("Transaction with hash %s not found", input.TxHash), err)
+				return nil, huma.Error404NotFound(fmt.Sprintf("Failed to fetch %s data for transaction %s", msgType, input.TxHash), err)
 			}
 			for _, data := range data {
 				index := data.MessageCounter

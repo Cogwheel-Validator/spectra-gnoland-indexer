@@ -151,7 +151,10 @@ var rootCmd = &cobra.Command{
 		// favicon route
 		router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "image/x-icon")
-			w.Write(favicon)
+			_, err := w.Write(favicon)
+			if err != nil {
+				log.Fatalf("failed to write favicon: %v", err)
+			}
 		})
 
 		// Register Block API routes
