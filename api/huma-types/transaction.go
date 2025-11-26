@@ -11,6 +11,7 @@ type TransactionGetInput struct {
 	TxHash string `path:"tx_hash" minLength:"44" maxLength:"44" doc:"Transaction hash (base64url encoded)" required:"true"`
 }
 
+// TransactionBasicGetOutput represents the response for basic transaction details
 type TransactionBasicGetOutput struct {
 	Body database.Transaction
 }
@@ -48,8 +49,9 @@ type TransactionMessage struct {
 	MaxDeposit []database.Amount `json:"max_deposit,omitempty" doc:"Max deposit (for vm_msg_call, vm_msg_add_package, and vm_msg_run)"`
 }
 
+// TransactionMessageGetOutput represents the response containing all messages within a transaction
 type TransactionMessageGetOutput struct {
-	Body TransactionMessage
+	Body map[int16]TransactionMessage
 }
 
 type TransactionGeneralListGetInput struct {

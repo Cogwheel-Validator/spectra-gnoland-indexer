@@ -23,7 +23,7 @@ func NewBlocksHandler(db DatabaseHandler, chainName string) *BlocksHandler {
 // GetBlock retrieves a block by height
 func (h *BlocksHandler) GetBlock(ctx context.Context, input *humatypes.BlockGetInput) (*humatypes.BlockGetOutput, error) {
 	// Fetch from database
-	block, err := h.db.GetBlock(input.Height, h.chainName)
+	block, err := h.db.GetBlock(ctx, input.Height, h.chainName)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf("Block at height %d not found", input.Height), err)
 	}
@@ -51,7 +51,7 @@ func (h *BlocksHandler) GetFromToBlocks(
 	if input.FromHeight > input.ToHeight {
 		return nil, huma.Error400BadRequest("From height must be less than to height", nil)
 	}
-	blocks, err := h.db.GetFromToBlocks(input.FromHeight, input.ToHeight, h.chainName)
+	blocks, err := h.db.GetFromToBlocks(ctx, input.FromHeight, input.ToHeight, h.chainName)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf("Blocks from height %d to height %d not found", input.FromHeight, input.ToHeight), err)
 	}
@@ -76,7 +76,7 @@ func (h *BlocksHandler) GetAllBlockSigners(
 	input *humatypes.AllBlockSignersGetInput,
 ) (*humatypes.AllBlockSignersGetOutput, error) {
 	// Fetch from database
-	blockSigners, err := h.db.GetAllBlockSigners(h.chainName, input.BlockHeight)
+	blockSigners, err := h.db.GetAllBlockSigners(ctx, h.chainName, input.BlockHeight)
 	if err != nil {
 		return nil, huma.Error404NotFound("Block signers not found", err)
 	}
@@ -92,7 +92,7 @@ func (h *BlocksHandler) GetAllBlockSigners(
 
 // Get latest block height
 func (h *BlocksHandler) GetLatestBlock(ctx context.Context, _ *humatypes.LatestBlockHeightGetInput) (*humatypes.LatestBlockHeightGetOutput, error) {
-	block, err := h.db.GetLatestBlock(h.chainName)
+	block, err := h.db.GetLatestBlock(ctx, h.chainName)
 	if err != nil {
 		return nil, huma.Error404NotFound("Latest block height not found", err)
 	}
@@ -112,7 +112,7 @@ func (h *BlocksHandler) GetLatestBlock(ctx context.Context, _ *humatypes.LatestB
 // Get last x blocks
 func (h *BlocksHandler) GetLastXBlocks(ctx context.Context, input *humatypes.LastXBlocksGetInput) (*humatypes.LastXBlocksGetOutput, error) {
 	// Fetch from database
-	blocks, err := h.db.GetLastXBlocks(h.chainName, input.Amount)
+	blocks, err := h.db.GetLastXBlocks(ctx, h.chainName, input.Amount)
 	if err != nil {
 		return nil, huma.Error404NotFound("Last x blocks not found", err)
 	}

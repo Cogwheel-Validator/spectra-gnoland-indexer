@@ -110,7 +110,7 @@ func (t *TimescaleDb) GetAllAddresses(
 		AND id > $2
 		`
 	}
-	rows, err := t.pool.Query(ctx, query, chainName, highestIndex)
+	rows, err := t.pool.Query(ctx, query, chainName, maxIndex)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -168,7 +168,11 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 // Returns:
 //   - *BlockSigners: the block signers
 //   - error: if the query fails
-func (t *TimescaleDb) GetAllBlockSigners(ctx context.Context, chainName string, blockHeight uint64) (*BlockSigners, error) {
+func (t *TimescaleDb) GetAllBlockSigners(
+	ctx context.Context,
+	chainName string,
+	blockHeight uint64,
+) (*BlockSigners, error) {
 	query := `
 	SELECT
 	vb.block_height,
@@ -203,9 +207,13 @@ func (t *TimescaleDb) GetAllBlockSigners(ctx context.Context, chainName string, 
 //   - chainName: the name of the chain
 //
 // Returns:
-//   - *BankSend: the bank send message
+//   - []*BankSend: the bank send messages
 //   - error: if the query fails
-func (t *TimescaleDb) GetBankSend(ctx context.Context, txHash string, chainName string) (*BankSend, error) {
+func (t *TimescaleDb) GetBankSend(
+	ctx context.Context,
+	txHash string,
+	chainName string,
+) ([]*BankSend, error) {
 	query := `
 	SELECT 
     encode(bms.tx_hash, 'base64') AS tx_hash,
@@ -224,13 +232,31 @@ func (t *TimescaleDb) GetBankSend(ctx context.Context, txHash string, chainName 
 	WHERE bms.tx_hash = decode($1, 'base64')
 	AND bms.chain_name = $2
 	`
-	row := t.pool.QueryRow(ctx, query, txHash, chainName)
-	var bankSend BankSend
-	err := row.Scan(&bankSend.TxHash, &bankSend.Timestamp, &bankSend.FromAddress, &bankSend.ToAddress, &bankSend.Amount, &bankSend.Signers)
+	rows, err := t.pool.Query(ctx, query, txHash, chainName)
 	if err != nil {
 		return nil, err
 	}
-	return &bankSend, nil
+	defer rows.Close()
+	bankSends := make([]*BankSend, 0)
+	for rows.Next() {
+		bankSend := &BankSend{}
+		err := rows.Scan(
+			&bankSend.TxHash,
+			&bankSend.Timestamp,
+			&bankSend.FromAddress,
+			&bankSend.ToAddress,
+			&bankSend.Amount,
+			&bankSend.Signers,
+		)
+		if err != nil {
+			return nil, err
+		}
+		bankSends = append(bankSends, bankSend)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return bankSends, nil
 }
 
 // GetMsgCall gets the msg call message for a given transaction hash
@@ -244,9 +270,13 @@ func (t *TimescaleDb) GetBankSend(ctx context.Context, txHash string, chainName 
 //   - chainName: the name of the chain
 //
 // Returns:
-//   - *MsgCall: the msg call message
+//   - []*MsgCall: the msg call messages
 //   - error: if the query fails
-func (t *TimescaleDb) GetMsgCall(ctx context.Context, txHash string, chainName string) (*MsgCall, error) {
+func (t *TimescaleDb) GetMsgCall(
+	ctx context.Context,
+	txHash string,
+	chainName string,
+) ([]*MsgCall, error) {
 	query := `
 	SELECT 
 	encode(vmc.tx_hash, 'base64') AS tx_hash,
@@ -268,24 +298,35 @@ func (t *TimescaleDb) GetMsgCall(ctx context.Context, txHash string, chainName s
 	WHERE vmc.tx_hash = decode($1, 'base64')
 	AND vmc.chain_name = $2
 	`
-	row := t.pool.QueryRow(ctx, query, txHash, chainName)
-	var msgCall MsgCall
-	err := row.Scan(
-		&msgCall.TxHash,
-		&msgCall.MessageCounter,
-		&msgCall.Timestamp,
-		&msgCall.Caller,
-		&msgCall.PkgPath,
-		&msgCall.FuncName,
-		&msgCall.Args,
-		&msgCall.Send,
-		&msgCall.MaxDeposit,
-		&msgCall.Signers,
-	)
+	rows, err := t.pool.Query(ctx, query, txHash, chainName)
 	if err != nil {
 		return nil, err
 	}
-	return &msgCall, nil
+	defer rows.Close()
+	msgCalls := make([]*MsgCall, 0)
+	for rows.Next() {
+		msgCall := &MsgCall{}
+		err := rows.Scan(
+			&msgCall.TxHash,
+			&msgCall.MessageCounter,
+			&msgCall.Timestamp,
+			&msgCall.Caller,
+			&msgCall.PkgPath,
+			&msgCall.FuncName,
+			&msgCall.Args,
+			&msgCall.Send,
+			&msgCall.MaxDeposit,
+			&msgCall.Signers,
+		)
+		if err != nil {
+			return nil, err
+		}
+		msgCalls = append(msgCalls, msgCall)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return msgCalls, nil
 }
 
 // GetMsgAddPackage gets the msg add package message for a given transaction hash
@@ -299,9 +340,13 @@ func (t *TimescaleDb) GetMsgCall(ctx context.Context, txHash string, chainName s
 //   - chainName: the name of the chain
 //
 // Returns:
-//   - *MsgAddPackage: the msg add package message
+//   - []*MsgAddPackage: the msg add package messages
 //   - error: if the query fails
-func (t *TimescaleDb) GetMsgAddPackage(ctx context.Context, txHash string, chainName string) (*MsgAddPackage, error) {
+func (t *TimescaleDb) GetMsgAddPackage(
+	ctx context.Context,
+	txHash string,
+	chainName string,
+) ([]*MsgAddPackage, error) {
 	query := `
 	SELECT 
 	encode(vmap.tx_hash, 'base64') AS tx_hash,
@@ -323,24 +368,35 @@ func (t *TimescaleDb) GetMsgAddPackage(ctx context.Context, txHash string, chain
 	WHERE vmap.tx_hash = decode($1, 'base64')
 	AND vmap.chain_name = $2
 	`
-	row := t.pool.QueryRow(ctx, query, txHash, chainName)
-	var msgAddPackage MsgAddPackage
-	err := row.Scan(
-		&msgAddPackage.TxHash,
-		&msgAddPackage.MessageCounter,
-		&msgAddPackage.Timestamp,
-		&msgAddPackage.Creator,
-		&msgAddPackage.PkgPath,
-		&msgAddPackage.PkgName,
-		&msgAddPackage.PkgFileNames,
-		&msgAddPackage.Send,
-		&msgAddPackage.MaxDeposit,
-		&msgAddPackage.Signers,
-	)
+	rows, err := t.pool.Query(ctx, query, txHash, chainName)
 	if err != nil {
 		return nil, err
 	}
-	return &msgAddPackage, nil
+	defer rows.Close()
+	msgAddPackages := make([]*MsgAddPackage, 0)
+	for rows.Next() {
+		msgAddPackage := &MsgAddPackage{}
+		err := rows.Scan(
+			&msgAddPackage.TxHash,
+			&msgAddPackage.MessageCounter,
+			&msgAddPackage.Timestamp,
+			&msgAddPackage.Creator,
+			&msgAddPackage.PkgPath,
+			&msgAddPackage.PkgName,
+			&msgAddPackage.PkgFileNames,
+			&msgAddPackage.Send,
+			&msgAddPackage.MaxDeposit,
+			&msgAddPackage.Signers,
+		)
+		if err != nil {
+			return nil, err
+		}
+		msgAddPackages = append(msgAddPackages, msgAddPackage)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return msgAddPackages, nil
 }
 
 // GetMsgRun gets the msg run message for a given transaction hash
@@ -354,9 +410,13 @@ func (t *TimescaleDb) GetMsgAddPackage(ctx context.Context, txHash string, chain
 //   - chainName: the name of the chain
 //
 // Returns:
-//   - *MsgRun: the msg run message
+//   - []*MsgRun: the msg run messages
 //   - error: if the query fails
-func (t *TimescaleDb) GetMsgRun(ctx context.Context, txHash string, chainName string) (*MsgRun, error) {
+func (t *TimescaleDb) GetMsgRun(
+	ctx context.Context,
+	txHash string,
+	chainName string,
+) ([]*MsgRun, error) {
 	query := `
 	SELECT 
 	encode(vmr.tx_hash, 'base64') AS tx_hash,
@@ -378,25 +438,35 @@ func (t *TimescaleDb) GetMsgRun(ctx context.Context, txHash string, chainName st
 	WHERE vmr.tx_hash = decode($1, 'base64')
 	AND vmr.chain_name = $2
 	`
-	row := t.pool.QueryRow(ctx, query, txHash, chainName)
-	var msgRun MsgRun
-	err := row.Scan(
-		&msgRun.TxHash,
-		&msgRun.MessageCounter,
-		&msgRun.Timestamp,
-		&msgRun.Caller,
-		&msgRun.PkgPath,
-		&msgRun.PkgName,
-		&msgRun.PkgFileNames,
-		&msgRun.Send,
-		&msgRun.MaxDeposit,
-		&msgRun.Signers,
-	)
+	rows, err := t.pool.Query(ctx, query, txHash, chainName)
 	if err != nil {
-		log.Println("error getting msg run", err)
 		return nil, err
 	}
-	return &msgRun, nil
+	defer rows.Close()
+	msgRuns := make([]*MsgRun, 0)
+	for rows.Next() {
+		msgRun := &MsgRun{}
+		err := rows.Scan(
+			&msgRun.TxHash,
+			&msgRun.MessageCounter,
+			&msgRun.Timestamp,
+			&msgRun.Caller,
+			&msgRun.PkgPath,
+			&msgRun.PkgName,
+			&msgRun.PkgFileNames,
+			&msgRun.Send,
+			&msgRun.MaxDeposit,
+			&msgRun.Signers,
+		)
+		if err != nil {
+			return nil, err
+		}
+		msgRuns = append(msgRuns, msgRun)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return msgRuns, nil
 }
 
 // GetTransaction gets the transaction for a given transaction hash
@@ -491,7 +561,7 @@ func (t *TimescaleDb) GetLastXTransactions(ctx context.Context, chainName string
 	return transactions, nil
 }
 
-// GetMsgType gets the message type for a given transaction hash
+// GetMsgTypes gets the message type for a given transaction hash
 //
 // Usage:
 //
@@ -502,9 +572,9 @@ func (t *TimescaleDb) GetLastXTransactions(ctx context.Context, chainName string
 //   - chainName: the name of the chain
 //
 // Returns:
-//   - string: the message type
+//   - []string: the message types
 //   - error: if the query fails
-func (t *TimescaleDb) GetMsgType(ctx context.Context, txHash string, chainName string) (string, error) {
+func (t *TimescaleDb) GetMsgTypes(ctx context.Context, txHash string, chainName string) ([]string, error) {
 	query := `
 	SELECT msg_types
 	FROM transaction_general
@@ -512,20 +582,12 @@ func (t *TimescaleDb) GetMsgType(ctx context.Context, txHash string, chainName s
 	AND chain_name = $2
 	`
 	row := t.pool.QueryRow(ctx, query, txHash, chainName)
-	var msgType []string
-	// to future me
-	// in the events the transactions can harbor more transaction types this
-	// will not work, for now I only have seen with one message type per transaction
-	// if this happens at least throw some log warning
-	if len(msgType) >= 2 {
-		log.Println("warning: transaction has more than one message type", msgType)
-		return msgType[0], nil
-	}
-	err := row.Scan(&msgType)
+	var msgTypes []string
+	err := row.Scan(&msgTypes)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return msgType[0], nil
+	return msgTypes, nil
 }
 
 // GetAddressTxs gets the transactions for a given address for a certain time period

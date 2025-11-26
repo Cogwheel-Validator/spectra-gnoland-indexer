@@ -176,7 +176,7 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 	wg.Wait()
 
 	// add multiplier for the timeout depending on the block amount
-	timeout := 10*time.Second + (time.Duration(blockAmount) / 5)
+	timeout := 10*time.Second + (time.Duration(blockAmount) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	err := d.dbPool.InsertBlocks(ctx, blocksData)
@@ -271,7 +271,7 @@ func (d *DataProcessor) ProcessTransactions(
 	transactionsData = transactionsData[:validCount]
 
 	// add multiplier for the timeout depending on the transaction amount
-	timeout := 10*time.Second + (time.Duration(transactionAmount) / 5)
+	timeout := 10*time.Second + (time.Duration(transactionAmount) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	err := d.dbPool.InsertTransactionsGeneral(ctx, transactionsData)
@@ -415,7 +415,7 @@ func (d *DataProcessor) ProcessMessages(
 	// we need to get all of the addresses from the aggregatedDbGroups
 	addresses := createAddressTx(aggregatedDbGroups)
 	// add multiplier for the timeout depending on the address amount
-	timeout := 10*time.Second + time.Duration(len(addresses))
+	timeout := 10*time.Second + (time.Duration(len(addresses)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	err := d.dbPool.InsertAddressTx(ctx, addresses)
 	cancel()
@@ -577,7 +577,7 @@ func (d *DataProcessor) ProcessValidatorSignings(
 		validatorData = append(validatorData, *validator)
 	}
 
-	timeout := 10*time.Second + (time.Duration(commitAmount) / 5)
+	timeout := 10*time.Second + (time.Duration(commitAmount) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	err := d.dbPool.InsertValidatorBlockSignings(ctx, validatorData)
 	cancel()

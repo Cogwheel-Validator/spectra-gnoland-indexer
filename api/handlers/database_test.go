@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -18,13 +19,13 @@ type MockDatabase struct {
 	msgCall       map[string]*database.MsgCall
 	msgAddPackage map[string]*database.MsgAddPackage
 	msgRun        map[string]*database.MsgRun
-	msgTypes      map[string]string
+	msgTypes      map[string][]string
 
 	shouldError bool
 	errorMsg    string
 }
 
-func (m *MockDatabase) GetBlock(height uint64, chainName string) (*database.BlockData, error) {
+func (m *MockDatabase) GetBlock(ctx context.Context, height uint64, chainName string) (*database.BlockData, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -35,7 +36,7 @@ func (m *MockDatabase) GetBlock(height uint64, chainName string) (*database.Bloc
 	return block, nil
 }
 
-func (m *MockDatabase) GetFromToBlocks(fromHeight uint64, toHeight uint64, chainName string) ([]*database.BlockData, error) {
+func (m *MockDatabase) GetFromToBlocks(ctx context.Context, fromHeight uint64, toHeight uint64, chainName string) ([]*database.BlockData, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -50,7 +51,7 @@ func (m *MockDatabase) GetFromToBlocks(fromHeight uint64, toHeight uint64, chain
 	return result, nil
 }
 
-func (m *MockDatabase) GetAllBlockSigners(chainName string, blockHeight uint64) (*database.BlockSigners, error) {
+func (m *MockDatabase) GetAllBlockSigners(ctx context.Context, chainName string, blockHeight uint64) (*database.BlockSigners, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -61,7 +62,7 @@ func (m *MockDatabase) GetAllBlockSigners(chainName string, blockHeight uint64) 
 	return blockSigners, nil
 }
 
-func (m *MockDatabase) GetTransaction(txHash string, chainName string) (*database.Transaction, error) {
+func (m *MockDatabase) GetTransaction(ctx context.Context, txHash string, chainName string) (*database.Transaction, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -72,7 +73,7 @@ func (m *MockDatabase) GetTransaction(txHash string, chainName string) (*databas
 	return transaction, nil
 }
 
-func (m *MockDatabase) GetAddressTxs(address string, chainName string, fromTimestamp time.Time, toTimestamp time.Time) (*[]database.AddressTx, error) {
+func (m *MockDatabase) GetAddressTxs(ctx context.Context, address string, chainName string, fromTimestamp time.Time, toTimestamp time.Time) (*[]database.AddressTx, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -83,7 +84,7 @@ func (m *MockDatabase) GetAddressTxs(address string, chainName string, fromTimes
 	return addressTxs, nil
 }
 
-func (m *MockDatabase) GetLatestBlock(chainName string) (*database.BlockData, error) {
+func (m *MockDatabase) GetLatestBlock(ctx context.Context, chainName string) (*database.BlockData, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -93,7 +94,7 @@ func (m *MockDatabase) GetLatestBlock(chainName string) (*database.BlockData, er
 	return m.latestBlock, nil
 }
 
-func (m *MockDatabase) GetLastXBlocks(chainName string, x uint64) ([]*database.BlockData, error) {
+func (m *MockDatabase) GetLastXBlocks(ctx context.Context, chainName string, x uint64) ([]*database.BlockData, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -104,7 +105,7 @@ func (m *MockDatabase) GetLastXBlocks(chainName string, x uint64) ([]*database.B
 	return blocks, nil
 }
 
-func (m *MockDatabase) GetLastXTransactions(chainName string, x uint64) ([]*database.Transaction, error) {
+func (m *MockDatabase) GetLastXTransactions(ctx context.Context, chainName string, x uint64) ([]*database.Transaction, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -115,18 +116,18 @@ func (m *MockDatabase) GetLastXTransactions(chainName string, x uint64) ([]*data
 	return transactions, nil
 }
 
-func (m *MockDatabase) GetMsgType(txHash string, chainName string) (string, error) {
+func (m *MockDatabase) GetMsgTypes(ctx context.Context, txHash string, chainName string) ([]string, error) {
 	if m.shouldError {
-		return "", fmt.Errorf("%s", m.errorMsg)
+		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
-	msgType, ok := m.msgTypes[txHash]
+	msgTypes, ok := m.msgTypes[txHash]
 	if !ok {
-		return "", fmt.Errorf("message type not found")
+		return nil, fmt.Errorf("message type not found")
 	}
-	return msgType, nil
+	return msgTypes, nil
 }
 
-func (m *MockDatabase) GetBankSend(txHash string, chainName string) (*database.BankSend, error) {
+func (m *MockDatabase) GetBankSend(ctx context.Context, txHash string, chainName string) ([]*database.BankSend, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -134,10 +135,10 @@ func (m *MockDatabase) GetBankSend(txHash string, chainName string) (*database.B
 	if !ok {
 		return nil, fmt.Errorf("bank send not found")
 	}
-	return bankSend, nil
+	return []*database.BankSend{bankSend}, nil
 }
 
-func (m *MockDatabase) GetMsgCall(txHash string, chainName string) (*database.MsgCall, error) {
+func (m *MockDatabase) GetMsgCall(ctx context.Context, txHash string, chainName string) ([]*database.MsgCall, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -145,10 +146,10 @@ func (m *MockDatabase) GetMsgCall(txHash string, chainName string) (*database.Ms
 	if !ok {
 		return nil, fmt.Errorf("message call not found")
 	}
-	return msgCall, nil
+	return []*database.MsgCall{msgCall}, nil
 }
 
-func (m *MockDatabase) GetMsgAddPackage(txHash string, chainName string) (*database.MsgAddPackage, error) {
+func (m *MockDatabase) GetMsgAddPackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgAddPackage, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -156,10 +157,10 @@ func (m *MockDatabase) GetMsgAddPackage(txHash string, chainName string) (*datab
 	if !ok {
 		return nil, fmt.Errorf("message add package not found")
 	}
-	return msgAddPackage, nil
+	return []*database.MsgAddPackage{msgAddPackage}, nil
 }
 
-func (m *MockDatabase) GetMsgRun(txHash string, chainName string) (*database.MsgRun, error) {
+func (m *MockDatabase) GetMsgRun(ctx context.Context, txHash string, chainName string) ([]*database.MsgRun, error) {
 	if m.shouldError {
 		return nil, fmt.Errorf("%s", m.errorMsg)
 	}
@@ -167,5 +168,5 @@ func (m *MockDatabase) GetMsgRun(txHash string, chainName string) (*database.Msg
 	if !ok {
 		return nil, fmt.Errorf("message run not found")
 	}
-	return msgRun, nil
+	return []*database.MsgRun{msgRun}, nil
 }
