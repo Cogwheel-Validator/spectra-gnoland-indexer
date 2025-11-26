@@ -1,8 +1,10 @@
 package addresscache
 
 import (
+	"context"
 	"log"
 	"maps"
+	"time"
 )
 
 // NewAddressCache is a constructor for the AddressCache struct
@@ -10,7 +12,7 @@ import (
 // it will also load the validator addresses if the loadVal is true
 // it will load the regular addresses if the loadVal is false
 //
-// Args:
+// Parameters:
 //   - chainName: the name of the chain
 //   - db: the database connection interface
 //   - loadVal: whether to load the validator addresses
@@ -50,7 +52,7 @@ func NewAddressCache(chainName string, db DatabaseForAddresses, loadVal bool) *A
 // This method is used to add addresses to the cache
 // It will add the addresses to the cache and update the highest index
 //
-// Args:
+// Parameters:
 //   - newAddresses: the new addresses to add to the cache
 //
 // Returns:
@@ -80,7 +82,7 @@ func (a *AddressCache) addAddresses(newAddresses map[string]int32) {
 //   - add more documentation
 //   - add more logging
 //
-// Args:
+// Parameters:
 //   - address: the addresses to solve
 //   - chainName: the chain name
 //   - insertValidators: whether to insert validators
@@ -110,7 +112,9 @@ func (a *AddressCache) AddressSolver(
 	// chech if there is already recorded addresses in the db
 	// technically this should be handled by LoadAddresses but let's make one more check
 	// probably not needed but just in case
-	existingAddresses, err := a.db.FindExistingAccounts(address, chainName, insertValidators)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	existingAddresses, err := a.db.FindExistingAccounts(ctx, address, chainName, insertValidators)
+	cancel()
 	if err != nil {
 		return
 	}
@@ -128,13 +132,18 @@ func (a *AddressCache) AddressSolver(
 
 	if len(addressToAdd) > 1 {
 		for i := range retryAttempts {
-			loopErr := a.db.InsertAddresses(addressToAdd, chainName, insertValidators)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			loopErr := a.db.InsertAddresses(ctx, addressToAdd, chainName, insertValidators)
+			cancel()
+
 			if loopErr != nil {
 				// in the events the oneByOne is true the program will try to insert the addresses one by one
 				// as a final resort with this some might be inserted but some might not
 				if oneByOne != nil && *oneByOne && i == retryAttempts-1 {
 					for _, addr := range addressToAdd {
-						loopErr := a.db.InsertAddresses([]string{addr}, chainName, insertValidators)
+						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						loopErr := a.db.InsertAddresses(ctx, []string{addr}, chainName, insertValidators)
+						cancel()
 						if loopErr != nil {
 							// this is a final resort, so we can log the error for debugging purposes
 							log.Println("Error inserting address:", addr, "error:", loopErr)
@@ -147,14 +156,18 @@ func (a *AddressCache) AddressSolver(
 		}
 	} else if len(addressToAdd) == 1 {
 		// if there is only one address to insert, we can do it directly
-		loopErr := a.db.InsertAddresses([]string{addressToAdd[0]}, chainName, insertValidators)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		loopErr := a.db.InsertAddresses(ctx, []string{addressToAdd[0]}, chainName, insertValidators)
+		cancel()
 		if loopErr != nil {
 			return
 		}
 	}
 	// at the end of the function we should add the addresses to the cache
 	// we need to make a query of the added addresses to get the ids along with the addresses
-	newAddrMap, err := a.db.FindExistingAccounts(addressToAdd, chainName, insertValidators)
+	ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
+	newAddrMap, err := a.db.FindExistingAccounts(ctx, addressToAdd, chainName, insertValidators)
+	cancel()
 	if err != nil {
 		log.Println("Error finding existing accounts:", err)
 		return
@@ -167,7 +180,7 @@ func (a *AddressCache) AddressSolver(
 // This method is used to get the address from the cache
 // If the address is not in the cache, it will return 0
 //
-// Args:
+// Parameters:
 //   - address: the address to get
 //
 // Returns:
@@ -186,7 +199,7 @@ func (a *AddressCache) GetAddress(address string) int32 {
 // This method is called when the program starts and when the cache is empty
 // Should only be called once per program start
 //
-// Args:
+// Parameters:
 //   - chainName: the name of the chain
 //   - loadVal: whether to load the validator addresses
 //   - db: the database connection interface
@@ -195,7 +208,9 @@ func (a *AddressCache) GetAddress(address string) int32 {
 //   - map[string]int32: the map of addresses and their ids
 //   - error: if the query fails
 func loadAddresses(chainName string, loadVal bool, db DatabaseForAddresses) (map[string]int32, int32, error) {
-	addresses, maxIndex, err := db.GetAllAddresses(chainName, loadVal, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	addresses, maxIndex, err := db.GetAllAddresses(ctx, chainName, loadVal, nil)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -1,9 +1,11 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/config"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/handlers"
@@ -16,6 +18,9 @@ import (
 	"github.com/spf13/cobra"
 	// "github.com/go-chi/httprate"
 )
+
+//go:embed public/favicon.ico
+var favicon []byte
 
 var (
 	Commit  = "unknown" // Set via ldflags at build time
@@ -103,9 +108,24 @@ var rootCmd = &cobra.Command{
 
 		api := humachi.New(router, huma.DefaultConfig("Spectra Gnoland Indexer API", Version))
 
-		api.OpenAPI().Info.Title = "Spectra Gnoland Indexer API"
-		api.OpenAPI().Info.Version = Version
-		api.OpenAPI().Info.Description = "API for the Spectra Gnoland Indexer"
+		openApi := api.OpenAPI()
+		openApi.Info = &huma.Info{
+			Title:       "Spectra Gnoland Indexer API",
+			Version:     strings.TrimPrefix(Version, "v"),
+			Description: "API for the Spectra Gnoland Indexer",
+			Contact: &huma.Contact{
+				Name:  "Cogwheel Validator",
+				URL:   "https://cogwheel.zone",
+				Email: "info@cogwheel.zone",
+			},
+			License: &huma.License{
+				Name: "Apache 2.0",
+				URL:  "https://github.com/Cogwheel-Validator/spectra-gnoland-indexer?tab=Apache-2.0-1-ov-file#readme",
+			},
+		}
+		openApi.ExternalDocs = &huma.ExternalDocs{
+			URL: "https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/tree/main/docs",
+		}
 
 		// Initialize database connection from environment variables
 		db := database.NewTimescaleDb(database.DatabasePoolConfig{
@@ -128,20 +148,71 @@ var rootCmd = &cobra.Command{
 		transactionsHandler := handlers.NewTransactionsHandler(db, conf.ChainName)
 		addressHandler := handlers.NewAddressHandler(db, conf.ChainName)
 
+		// favicon route
+		router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "image/x-icon")
+			_, err := w.Write(favicon)
+			if err != nil {
+				log.Printf("failed to write favicon: %v", err)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
+			}
+		})
+
 		// Register Block API routes
-		huma.Get(api, "/block/{height}", blocksHandler.GetBlock)
-		huma.Get(api, "/blocks/{from_height}/{to_height}", blocksHandler.GetFromToBlocks)
-		huma.Get(api, "/blocks/{block_height}/signers", blocksHandler.GetAllBlockSigners)
-		huma.Get(api, "/blocks/latest", blocksHandler.GetLatestBlock)
-		huma.Get(api, "/blocks", blocksHandler.GetLastXBlocks)
+		huma.Get(api, "/block/{height}", blocksHandler.GetBlock,
+			func(op *huma.Operation) {
+				op.Summary = "Get Block Height"
+				op.Description = "Retrieve block data by its height"
+			})
+		huma.Get(api, "/blocks/{from_height}/{to_height}", blocksHandler.GetFromToBlocks,
+			func(op *huma.Operation) {
+				op.Summary = "Get From To Blocks"
+				op.Description = "Retrieve blocks data by its height range"
+			})
+		huma.Get(api, "/blocks/{block_height}/signers", blocksHandler.GetAllBlockSigners,
+			func(op *huma.Operation) {
+				op.Summary = "Get All Block Signers"
+				op.Description = "Retrieve all validators that signed a block by its height"
+			})
+		huma.Get(api, "/blocks/latest", blocksHandler.GetLatestBlock,
+			func(op *huma.Operation) {
+				op.Summary = "Get Latest Block"
+				op.Description = "Retrieve the latest block data"
+			})
+		huma.Get(api, "/blocks", blocksHandler.GetLastXBlocks,
+			func(op *huma.Operation) {
+				op.Summary = "Get Last X Blocks"
+				op.Description = "Retrieve the last X blocks data"
+			})
 
 		// Register Transaction API routes
-		huma.Get(api, "/transaction/{tx_hash}", transactionsHandler.GetTransactionBasic)
-		huma.Get(api, "/transaction/{tx_hash}/message", transactionsHandler.GetTransactionMessage)
-		huma.Get(api, "/transactions", transactionsHandler.GetLastXTransactions)
+		huma.Get(
+			api, "/transaction/{tx_hash}", transactionsHandler.GetTransactionBasic,
+			func(op *huma.Operation) {
+				op.Summary = "Get Transaction Basic"
+				op.Description = "Retrieve basic transaction data by its hash"
+			})
+		huma.Get(
+			api,
+			"/transaction/{tx_hash}/message",
+			transactionsHandler.GetTransactionMessage,
+			func(op *huma.Operation) {
+				op.Summary = "Get All Transaction Messages"
+				op.Description = "Retrieve all messages contained within a transaction by its hash"
+			})
+		huma.Get(api, "/transactions", transactionsHandler.GetLastXTransactions,
+			func(op *huma.Operation) {
+				op.Summary = "Get Last X Transactions"
+				op.Description = "Retrieve the last X transactions data"
+			})
 
 		// Register Address API routes
-		huma.Get(api, "/address/{address}/txs", addressHandler.GetAddressTxs)
+		huma.Get(api, "/address/{address}/txs", addressHandler.GetAddressTxs,
+			func(op *huma.Operation) {
+				op.Summary = "Get Address Transactions"
+				op.Description = "Retrieve all transactions for a given address for a certain time period"
+			})
 
 		// Start server using config values
 		addr := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
@@ -169,7 +240,6 @@ func init() {
 	rootCmd.PersistentFlags().StringP("config", "c", "config-api.yml", "config file path")
 	rootCmd.PersistentFlags().StringP("cert-file", "t", "", "certificate file path")
 	rootCmd.PersistentFlags().StringP("key-file", "k", "", "key file path")
-
 }
 
 func main() {

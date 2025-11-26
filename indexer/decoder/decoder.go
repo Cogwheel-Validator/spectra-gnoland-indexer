@@ -23,7 +23,7 @@ type Decoder struct {
 
 // NewDecoder creates a new Decoder struct
 //
-// Args:
+// Parameters:
 //   - encodedTx: base64 encoded stdTx
 //
 // Returns:
@@ -39,7 +39,7 @@ func NewDecoder(encodedTx string) *Decoder {
 // The function decodes the data and unmarshals it into a std.Tx struct
 // The struct contains the transaction data and the messages
 //
-// Args:
+// Parameters:
 //   - s: base64 encoded stdTx
 //
 // Returns:
@@ -64,7 +64,7 @@ func (d *Decoder) DecodeStdTxFromBase64() (*std.Tx, error) {
 // to be reflected here, mostly...
 // Some will need to be updated and added manually in the future but for now this is good enough
 //
-// Args:
+// Parameters:
 //   - none
 //
 // Returns:
@@ -108,7 +108,11 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 	var messages []map[string]any
 
 	// Process each message in the transaction
-	for _, msg := range tx.GetMsgs() {
+	for i, msg := range tx.GetMsgs() {
+		if i > 32767 {
+			return BasicTxData{}, nil, fmt.Errorf("transaction message count exceeds maximum: %d", i)
+		}
+		messageCounter := int16(i)
 		switch m := msg.(type) {
 		case bank.MsgSend:
 			// amount should have something like 1000000 ugnot we just need to split it and convert it to uint64
@@ -117,10 +121,11 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 				amount = []Coin{}
 			}
 			messages = append(messages, map[string]any{
-				"msg_type":     "bank_msg_send",
-				"from_address": m.FromAddress.String(),
-				"to_address":   m.ToAddress.String(),
-				"amount":       amount,
+				"msg_type":        "bank_msg_send",
+				"from_address":    m.FromAddress.String(),
+				"to_address":      m.ToAddress.String(),
+				"amount":          amount,
+				"message_counter": messageCounter,
 			})
 		case vm.MsgCall:
 			caller := m.Caller.String()
@@ -139,13 +144,14 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 			// combine the args into a string
 			args := strings.Join(m.Args, ",")
 			messages = append(messages, map[string]any{
-				"msg_type":    "vm_msg_call",
-				"caller":      caller,
-				"pkg_path":    pkgPath,
-				"func_name":   funcName,
-				"args":        args,
-				"send":        send,
-				"max_deposit": maxDeposit,
+				"msg_type":        "vm_msg_call",
+				"caller":          caller,
+				"pkg_path":        pkgPath,
+				"func_name":       funcName,
+				"args":            args,
+				"send":            send,
+				"max_deposit":     maxDeposit,
+				"message_counter": messageCounter,
 			})
 		case vm.MsgAddPackage:
 			pkgPath := m.Package.Path
@@ -161,13 +167,14 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 				maxDeposit = []Coin{}
 			}
 			messages = append(messages, map[string]any{
-				"msg_type":       "vm_msg_add_package",
-				"pkg_path":       pkgPath,
-				"pkg_name":       pkgName,
-				"pkg_file_names": pkgFileNames,
-				"creator":        creator,
-				"send":           send,
-				"max_deposit":    maxDeposit,
+				"msg_type":        "vm_msg_add_package",
+				"pkg_path":        pkgPath,
+				"pkg_name":        pkgName,
+				"pkg_file_names":  pkgFileNames,
+				"creator":         creator,
+				"send":            send,
+				"max_deposit":     maxDeposit,
+				"message_counter": messageCounter,
 			})
 
 		case vm.MsgRun:
@@ -186,13 +193,14 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 				maxDeposit = []Coin{}
 			}
 			messages = append(messages, map[string]any{
-				"msg_type":       "vm_msg_run",
-				"caller":         caller,
-				"pkg_path":       pkgPath,
-				"pkg_name":       pkgName,
-				"pkg_file_names": pkgFileNames,
-				"send":           send,
-				"max_deposit":    maxDeposit,
+				"msg_type":        "vm_msg_run",
+				"caller":          caller,
+				"pkg_path":        pkgPath,
+				"pkg_name":        pkgName,
+				"pkg_file_names":  pkgFileNames,
+				"send":            send,
+				"max_deposit":     maxDeposit,
+				"message_counter": messageCounter,
 			})
 		// case for AnyNewMessage add here:
 		default:

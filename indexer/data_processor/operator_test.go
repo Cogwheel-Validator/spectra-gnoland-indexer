@@ -1,6 +1,7 @@
 package dataprocessor_test
 
 import (
+	"context"
 	"testing"
 
 	dataProcessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
@@ -14,37 +15,37 @@ type MockDatabase struct {
 	LastInsertError          error
 }
 
-func (m *MockDatabase) InsertBlocks(blocks []sqlDataTypes.Blocks) error {
+func (m *MockDatabase) InsertBlocks(ctx context.Context, blocks []sqlDataTypes.Blocks) error {
 	m.InsertBlocksCalled = true
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertValidatorBlockSignings(signings []sqlDataTypes.ValidatorBlockSigning) error {
+func (m *MockDatabase) InsertValidatorBlockSignings(ctx context.Context, signings []sqlDataTypes.ValidatorBlockSigning) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertTransactionsGeneral(transactions []sqlDataTypes.TransactionGeneral) error {
+func (m *MockDatabase) InsertTransactionsGeneral(ctx context.Context, transactions []sqlDataTypes.TransactionGeneral) error {
 	m.InsertTransactionsCalled = true
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgSend(messages []sqlDataTypes.MsgSend) error {
+func (m *MockDatabase) InsertMsgSend(ctx context.Context, messages []sqlDataTypes.MsgSend) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgCall(messages []sqlDataTypes.MsgCall) error {
+func (m *MockDatabase) InsertMsgCall(ctx context.Context, messages []sqlDataTypes.MsgCall) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgAddPackage(messages []sqlDataTypes.MsgAddPackage) error {
+func (m *MockDatabase) InsertMsgAddPackage(ctx context.Context, messages []sqlDataTypes.MsgAddPackage) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertMsgRun(messages []sqlDataTypes.MsgRun) error {
+func (m *MockDatabase) InsertMsgRun(ctx context.Context, messages []sqlDataTypes.MsgRun) error {
 	return m.LastInsertError
 }
 
-func (m *MockDatabase) InsertAddressTx(addresses []sqlDataTypes.AddressTx) error {
+func (m *MockDatabase) InsertAddressTx(ctx context.Context, addresses []sqlDataTypes.AddressTx) error {
 	return m.LastInsertError
 }
 
@@ -111,17 +112,17 @@ func TestDataProcessor_DatabaseInterface(t *testing.T) {
 	var db dataProcessor.Database = &MockDatabase{}
 
 	// Test interface methods
-	err := db.InsertBlocks([]sqlDataTypes.Blocks{})
+	err := db.InsertBlocks(context.Background(), []sqlDataTypes.Blocks{})
 	if err != nil {
 		t.Errorf("InsertBlocks should not return error with nil input, got: %v", err)
 	}
 
-	err = db.InsertTransactionsGeneral([]sqlDataTypes.TransactionGeneral{})
+	err = db.InsertTransactionsGeneral(context.Background(), []sqlDataTypes.TransactionGeneral{})
 	if err != nil {
 		t.Errorf("InsertTransactionsGeneral should not return error with nil input, got: %v", err)
 	}
 
-	err = db.InsertAddressTx([]sqlDataTypes.AddressTx{})
+	err = db.InsertAddressTx(context.Background(), []sqlDataTypes.AddressTx{})
 	if err != nil {
 		t.Errorf("InsertAddressTx should not return error with nil input, got: %v", err)
 	}

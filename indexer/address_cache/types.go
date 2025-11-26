@@ -1,10 +1,12 @@
 package addresscache
 
+import "context"
+
 // A database interface for what AddressCache needs from database
 type DatabaseForAddresses interface {
-	FindExistingAccounts(addresses []string, chainName string, searchValidators bool) (map[string]int32, error)
-	InsertAddresses(addresses []string, chainName string, insertValidators bool) error
-	GetAllAddresses(chainName string, searchValidators bool, highestIndex *int32) (map[string]int32, int32, error)
+	FindExistingAccounts(ctx context.Context, addresses []string, chainName string, searchValidators bool) (map[string]int32, error)
+	InsertAddresses(ctx context.Context, addresses []string, chainName string, insertValidators bool) error
+	GetAllAddresses(ctx context.Context, chainName string, searchValidators bool, highestIndex *int32) (map[string]int32, int32, error)
 }
 
 // AddressCache is a map of addresses tied to their int32 index in the database

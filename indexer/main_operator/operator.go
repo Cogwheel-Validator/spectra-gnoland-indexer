@@ -111,7 +111,7 @@ func InitMainOperator(
 // initializeDatabase is a private function to initialize the database
 // it is used to initialize the database for the main operator
 //
-// Args:
+// Parameters:
 //   - conf: the config
 //   - env: the environment
 //
@@ -174,7 +174,7 @@ func initializeDatabase(conf *config.Config, env *config.Environment) *database.
 // initializeMajorConstructors is a private function to initialize the major constructors
 // it is used to initialize the major constructors for the main operator
 //
-// Args:
+// Parameters:
 //   - conf: the config
 //   - env: the environment
 //   - chainName: the chain name

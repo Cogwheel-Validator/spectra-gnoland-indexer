@@ -62,7 +62,7 @@ func (er *EventResult) GetCompressedData() []byte {
 // 1. Native postgres format ([]sqlDataTypes.Event)
 // 2. Compressed protobuf format ([]byte)
 //
-// Args:
+// Parameters:
 //   - txResponse: a transaction response
 //   - useCompressed: if true, returns compressed format; otherwise native format
 //

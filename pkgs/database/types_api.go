@@ -30,48 +30,52 @@ type Amount struct {
 }
 
 type BankSend struct {
-	TxHash      string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
-	Timestamp   time.Time `json:"timestamp" doc:"Transaction timestamp"`
-	FromAddress string    `json:"from_address" doc:"From address (addresses)"`
-	ToAddress   string    `json:"to_address" doc:"To address (addresses)"`
-	Amount      []Amount  `json:"amount" doc:"Amount"`
-	Signers     []string  `json:"signers" doc:"Signers (addresses)"`
+	MessageCounter int16     `json:"message_counter" doc:"Transaction order integer, starts from 0"`
+	TxHash         string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp      time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	FromAddress    string    `json:"from_address" doc:"From address (addresses)"`
+	ToAddress      string    `json:"to_address" doc:"To address (addresses)"`
+	Amount         []Amount  `json:"amount" doc:"Amount"`
+	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
 }
 
 type MsgCall struct {
-	TxHash     string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
-	Timestamp  time.Time `json:"timestamp" doc:"Transaction timestamp"`
-	Caller     string    `json:"caller" doc:"Caller address (addresses)"`
-	Send       []Amount  `json:"send" doc:"Send amount"`
-	PkgPath    string    `json:"pkg_path" doc:"Package path"`
-	FuncName   string    `json:"func_name" doc:"Function name"`
-	Args       string    `json:"args" doc:"Arguments"`
-	MaxDeposit []Amount  `json:"max_deposit" doc:"Max deposit"`
-	Signers    []string  `json:"signers" doc:"Signers (addresses)"`
+	MessageCounter int16     `json:"message_counter" doc:"Transaction order integer, starts from 0"`
+	TxHash         string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp      time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	Caller         string    `json:"caller" doc:"Caller address (addresses)"`
+	Send           []Amount  `json:"send" doc:"Send amount"`
+	PkgPath        string    `json:"pkg_path" doc:"Package path"`
+	FuncName       string    `json:"func_name" doc:"Function name"`
+	Args           string    `json:"args" doc:"Arguments"`
+	MaxDeposit     []Amount  `json:"max_deposit" doc:"Max deposit"`
+	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
 }
 
 type MsgAddPackage struct {
-	TxHash       string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
-	Timestamp    time.Time `json:"timestamp" doc:"Transaction timestamp"`
-	Creator      string    `json:"creator" doc:"Creator address (addresses)"`
-	PkgPath      string    `json:"pkg_path" doc:"Package path"`
-	PkgName      string    `json:"pkg_name" doc:"Package name"`
-	PkgFileNames []string  `json:"pkg_file_names" doc:"Package file names"`
-	Send         []Amount  `json:"send" doc:"Send amount"`
-	MaxDeposit   []Amount  `json:"max_deposit" doc:"Max deposit"`
-	Signers      []string  `json:"signers" doc:"Signers (addresses)"`
+	MessageCounter int16     `json:"message_counter" doc:"Transaction order integer, starts from 0"`
+	TxHash         string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp      time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	Creator        string    `json:"creator" doc:"Creator address (addresses)"`
+	PkgPath        string    `json:"pkg_path" doc:"Package path"`
+	PkgName        string    `json:"pkg_name" doc:"Package name"`
+	PkgFileNames   []string  `json:"pkg_file_names" doc:"Package file names"`
+	Send           []Amount  `json:"send" doc:"Send amount"`
+	MaxDeposit     []Amount  `json:"max_deposit" doc:"Max deposit"`
+	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
 }
 
 type MsgRun struct {
-	TxHash       string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
-	Timestamp    time.Time `json:"timestamp" doc:"Transaction timestamp"`
-	Caller       string    `json:"caller" doc:"Caller address (addresses)"`
-	PkgPath      string    `json:"pkg_path" doc:"Package path"`
-	PkgName      string    `json:"pkg_name" doc:"Package name"`
-	PkgFileNames []string  `json:"pkg_file_names" doc:"Package file names"`
-	Send         []Amount  `json:"send" doc:"Send amount"`
-	MaxDeposit   []Amount  `json:"max_deposit" doc:"Max deposit"`
-	Signers      []string  `json:"signers" doc:"Signers (addresses)"`
+	MessageCounter int16     `json:"message_counter" doc:"Transaction order integer, starts from 0"`
+	TxHash         string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp      time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	Caller         string    `json:"caller" doc:"Caller address (addresses)"`
+	PkgPath        string    `json:"pkg_path" doc:"Package path"`
+	PkgName        string    `json:"pkg_name" doc:"Package name"`
+	PkgFileNames   []string  `json:"pkg_file_names" doc:"Package file names"`
+	Send           []Amount  `json:"send" doc:"Send amount"`
+	MaxDeposit     []Amount  `json:"max_deposit" doc:"Max deposit"`
+	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
 }
 
 type Transaction struct {

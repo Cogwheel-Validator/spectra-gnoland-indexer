@@ -65,33 +65,16 @@ func (or *Orchestrator) HistoricProcess(
 	for startHeight := fromHeight; startHeight <= toHeight; {
 		chunkEndHeight := min(startHeight+or.config.MaxBlockChunkSize-1, toHeight)
 
-		chunkStartTime := time.Now()
 		log.Printf("Processing chunk from %d to %d", startHeight, chunkEndHeight)
 
 		// Update current processing height
 		or.currentProcessingHeight = startHeight
 
-		// Step 1: Get blocks concurrently
-		blocks := or.queryOperator.GetFromToBlocks(startHeight, chunkEndHeight)
+		// Process the chunk
+		err := or.processChunk(startHeight, chunkEndHeight)
+		if err != nil {
+			log.Printf("Error processing chunk %d-%d: %v", startHeight, chunkEndHeight, err)
 
-		if len(blocks) == 0 {
-			log.Printf("No valid blocks in chunk %d-%d", startHeight, chunkEndHeight)
-		} else {
-			// Step 2: Collect all transactions from all blocks in this chunk
-			allTransactions := or.collectTransactionsFromBlocks(blocks)
-
-			log.Printf("Collected %d transactions from %d blocks in chunk", len(allTransactions), len(blocks))
-
-			// Step 3: Process all data concurrently
-			if err := or.processAllConcurrently(blocks, allTransactions, false, startHeight, chunkEndHeight); err != nil {
-				log.Printf("Error processing chunk %d-%d: %v", startHeight, chunkEndHeight, err)
-			} else {
-				// Progress logging
-				chunkDuration := time.Since(chunkStartTime)
-				totalDuration := time.Since(startTime)
-				log.Printf("Chunk %d-%d completed in %v, total time: %v",
-					startHeight, chunkEndHeight, chunkDuration, totalDuration)
-			}
 		}
 
 		// Always advance to next chunk, regardless of whether blocks were found
@@ -120,13 +103,15 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 
 	// Initial setup - get starting height
 	if !skipInitialDbCheck {
-		lastProcessedHeight, err = or.db.GetLastBlockHeight(or.chainName)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		lastProcessedHeight, err = or.db.GetLastBlockHeight(ctx, or.chainName)
 		if err != nil {
 			log.Printf("Failed to get last block height from database: %v", err)
 			log.Printf("Either there are no blocks in the database or the database is not properly configured.")
 			log.Printf("Use skipInitialDbCheck=true if this is expected to run from the latest chain height without previous data.")
 			log.Printf("Starting from height 1")
-			lastProcessedHeight = 1
+			lastProcessedHeight = 0
 		}
 		log.Printf("Retrieved last processed height from database: %d", lastProcessedHeight)
 	} else {
@@ -161,7 +146,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 			continue
 		}
 
-		blocksBehind := int64(latestHeight) - int64(lastProcessedHeight)
+		blocksBehind := latestHeight - lastProcessedHeight
 
 		// If caught up, wait and continue
 		if blocksBehind <= 0 {
@@ -171,7 +156,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		}
 
 		// Adjust chunk size based on how far behind we are
-		currentChunkSize := min(uint64(blocksBehind), or.config.MaxBlockChunkSize)
+		currentChunkSize := min(blocksBehind, or.config.MaxBlockChunkSize)
 
 		chunkStart := lastProcessedHeight + 1
 		chunkEnd := min(chunkStart+currentChunkSize-1, latestHeight)
@@ -182,7 +167,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		or.currentProcessingHeight = chunkStart
 
 		// Process this chunk
-		err = or.processLiveChunk(chunkStart, chunkEnd)
+		err = or.processChunk(chunkStart, chunkEnd)
 		if err != nil {
 			log.Printf("Error processing live chunk %d-%d: %v", chunkStart, chunkEnd, err)
 			time.Sleep(or.config.LivePooling)
@@ -199,14 +184,29 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 	}
 }
 
-// processLiveChunk processes a single chunk of blocks for live processing
-func (or *Orchestrator) processLiveChunk(chunkStart, chunkEnd uint64) error {
+// processChunk processes a single chunk of blocks for live processing
+func (or *Orchestrator) processChunk(chunkStart, chunkEnd uint64) error {
 	chunkStartTime := time.Now()
 
 	// Step 1: Get blocks concurrently
-	blocks := or.queryOperator.GetFromToBlocks(chunkStart, chunkEnd)
+	var wg sync.WaitGroup
+	wg.Add(2)
 
-	if len(blocks) == 0 {
+	var blocks []*rpcClient.BlockResponse
+	var commits []*rpcClient.CommitResponse
+
+	go func() {
+		defer wg.Done()
+		blocks = or.queryOperator.GetFromToBlocks(chunkStart, chunkEnd)
+	}()
+	go func() {
+		defer wg.Done()
+		commits = or.queryOperator.GetFromToCommits(chunkStart, chunkEnd)
+	}()
+
+	wg.Wait()
+
+	if len(blocks) == 0 && len(commits) == 0 {
 		log.Printf("No valid blocks in live chunk %d-%d", chunkStart, chunkEnd)
 		return nil
 	}
@@ -217,18 +217,21 @@ func (or *Orchestrator) processLiveChunk(chunkStart, chunkEnd uint64) error {
 	log.Printf("Collected %d transactions from %d blocks in live chunk", len(allTransactions), len(blocks))
 
 	// Step 3: Process all data concurrently
-	if err := or.processAllConcurrently(blocks, allTransactions, false, chunkStart, chunkEnd); err != nil {
+	if err := or.processAll(blocks, commits, allTransactions, false, chunkStart, chunkEnd); err != nil {
 		return fmt.Errorf("failed to process live chunk %d-%d: %w", chunkStart, chunkEnd, err)
 	}
 
 	chunkDuration := time.Since(chunkStartTime)
-	log.Printf("Live chunk %d-%d completed in %v", chunkStart, chunkEnd, chunkDuration)
+	log.Printf("Chunk %d-%d completed in %v", chunkStart, chunkEnd, chunkDuration)
 
 	return nil
 }
 
 // updateProgressMetrics updates and logs progress metrics for live processing
-func (or *Orchestrator) updateProgressMetrics(chunkStart, chunkEnd uint64, blocksBehind int64, lastProgressTime *time.Time) {
+func (or *Orchestrator) updateProgressMetrics(
+	chunkStart, chunkEnd, blocksBehind uint64,
+	lastProgressTime *time.Time,
+) {
 	now := time.Now()
 	timeSinceLastProgress := now.Sub(*lastProgressTime)
 
@@ -241,8 +244,17 @@ func (or *Orchestrator) updateProgressMetrics(chunkStart, chunkEnd uint64, block
 	}
 }
 
-// collectTransactionsFromBlocks extracts all transactions from blocks and queries them concurrently
-// This mimics the Python _process_historical_block_chunk behavior
+/*
+	collectTransactionsFromBlocks extracts all transactions from blocks and queries them concurrently
+
+Parameters:
+  - blocks: a slice of blocks
+
+Returns:
+  - a slice of transactions
+
+The method will not throw an error if the transactions are not found, it will just return an empty slice.
+*/
 func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockResponse) []dataprocessor.TrasnactionsData {
 	// Collect all transaction hashes from all blocks
 	var allTxHashes []string
@@ -320,7 +332,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 
 // This function processes all data using optimized concurrent execution
 //
-// Args:
+// Parameters:
 //   - blocks: a slice of blocks
 //   - transactions: a map of transactions and timestamps
 //   - compressEvents: if true, compress the events
@@ -331,8 +343,9 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 //   - error: if processing fails
 //
 // The method will not throw an error if the data is not found, it will just return nil
-func (or *Orchestrator) processAllConcurrently(
+func (or *Orchestrator) processAll(
 	blocks []*rpcClient.BlockResponse,
+	commits []*rpcClient.CommitResponse,
 	transactions []dataprocessor.TrasnactionsData,
 	compressEvents bool,
 	fromHeight uint64,
@@ -409,7 +422,7 @@ func (or *Orchestrator) processAllConcurrently(
 	go func() {
 		defer wg2.Done()
 		log.Printf("Phase 2: Starting ProcessValidatorSignings")
-		or.dataProcessor.ProcessValidatorSignings(blocks, fromHeight, toHeight)
+		or.dataProcessor.ProcessValidatorSignings(commits, fromHeight, toHeight)
 		log.Printf("Phase 2: ProcessValidatorSignings completed")
 	}()
 
@@ -423,7 +436,7 @@ func (or *Orchestrator) processAllConcurrently(
 // saveProcessingState is a private method that saves
 // the current processing state to a file
 //
-// Args:
+// Parameters:
 //   - height: the height of the processing state
 //   - reason: the reason for the processing state
 //

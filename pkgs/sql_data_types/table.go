@@ -285,6 +285,7 @@ func (tg *TransactionGeneral) GetMessageTypes() []string {
 // - ToAddress (int32)
 // - Amount (Amount[])
 // - Signers (int32[])
+// - MessageCounter (int16)
 //
 // PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgSend struct {
@@ -294,9 +295,10 @@ type MsgSend struct {
 	// gno address, pull from the gno_addresses table
 	FromAddress int32 `db:"from_address" dbtype:"INTEGER" nullable:"false" primary:"false"`
 	// gno address, pull from the gno_addresses table
-	ToAddress int32    `db:"to_address" dbtype:"INTEGER" nullable:"true" primary:"false"`
-	Amount    []Amount `db:"amount" dbtype:"amount[]" nullable:"false" primary:"false"`
-	Signers   []int32  `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	ToAddress      int32    `db:"to_address" dbtype:"INTEGER" nullable:"true" primary:"false"`
+	Amount         []Amount `db:"amount" dbtype:"amount[]" nullable:"false" primary:"false"`
+	Signers        []int32  `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	MessageCounter int16    `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
 }
 
 // TableName returns the name of the table for the MsgSend struct
@@ -352,6 +354,7 @@ func (ms *MsgSend) GetAllAddresses() *TxAddresses {
 //   - Send (Amount[])
 //   - MaxDeposit (Amount[])
 //   - Signers (int32[])
+//   - MessageCounter (int16)
 //
 // PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgCall struct {
@@ -359,13 +362,14 @@ type MsgCall struct {
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	// gno address, pull from the gno_addresses table
-	Caller     int32    `db:"caller" dbtype:"INTEGER" nullable:"false" primary:"false"`
-	PkgPath    string   `db:"pkg_path" dbtype:"TEXT" nullable:"true" primary:"false"`
-	FuncName   string   `db:"func_name" dbtype:"TEXT" nullable:"true" primary:"false"`
-	Args       string   `db:"args" dbtype:"TEXT" nullable:"true" primary:"false"`
-	Send       []Amount `db:"send" dbtype:"amount[]" nullable:"true" primary:"false"`
-	MaxDeposit []Amount `db:"max_deposit" dbtype:"amount[]" nullable:"true" primary:"false"`
-	Signers    []int32  `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	Caller         int32    `db:"caller" dbtype:"INTEGER" nullable:"false" primary:"false"`
+	PkgPath        string   `db:"pkg_path" dbtype:"TEXT" nullable:"true" primary:"false"`
+	FuncName       string   `db:"func_name" dbtype:"TEXT" nullable:"true" primary:"false"`
+	Args           string   `db:"args" dbtype:"TEXT" nullable:"true" primary:"false"`
+	Send           []Amount `db:"send" dbtype:"amount[]" nullable:"true" primary:"false"`
+	MaxDeposit     []Amount `db:"max_deposit" dbtype:"amount[]" nullable:"true" primary:"false"`
+	Signers        []int32  `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	MessageCounter int16    `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
 }
 
 func (mc MsgCall) TableName() string {
@@ -417,6 +421,7 @@ func (mc *MsgCall) GetAllAddresses() *TxAddresses {
 // - MaxDeposit (Amount[])
 // - Signers (int32[])
 // - Timestamp (time.Time)
+// - MessageCounter (int16)
 //
 // PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgAddPackage struct {
@@ -431,7 +436,8 @@ type MsgAddPackage struct {
 	Send         []Amount `db:"send" dbtype:"amount[]" nullable:"true" primary:"false"`
 	MaxDeposit   []Amount `db:"max_deposit" dbtype:"amount[]" nullable:"true" primary:"false"`
 	// signers are the addresses that signed the transaction
-	Signers []int32 `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	Signers        []int32 `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	MessageCounter int16   `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
 }
 
 func (ma MsgAddPackage) TableName() string {
@@ -483,6 +489,7 @@ func (ma *MsgAddPackage) GetAllAddresses() *TxAddresses {
 // - Send (Amount[])
 // - MaxDeposit (Amount[])
 // - Signers (int32[])
+// - MessageCounter (int16)
 //
 // PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgRun struct {
@@ -497,7 +504,8 @@ type MsgRun struct {
 	Send         []Amount `db:"send" dbtype:"amount[]" nullable:"true" primary:"false"`
 	MaxDeposit   []Amount `db:"max_deposit" dbtype:"amount[]" nullable:"true" primary:"false"`
 	// signers are the addresses that signed the transaction
-	Signers []int32 `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	Signers        []int32 `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	MessageCounter int16   `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
 }
 
 // A method to get the columns of the struct

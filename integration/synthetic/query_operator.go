@@ -30,6 +30,9 @@ type SyntheticQueryOperator struct {
 	// Pre-generated data for consistent testing
 	blocks       map[uint64]*rpcClient.BlockResponse
 	transactions map[string]*rpcClient.TxResponse
+	commits      map[uint64]*rpcClient.CommitResponse
+	// response maker
+	responseMaker *ResponseMaker
 }
 
 // NewSyntheticQueryOperator creates a new synthetic query operator
@@ -52,6 +55,8 @@ func NewSyntheticQueryOperator(chainID string, fromHeight uint64, maxHeight uint
 		signedValidators: validators,
 		blocks:           make(map[uint64]*rpcClient.BlockResponse),
 		transactions:     make(map[string]*rpcClient.TxResponse),
+		commits:          make(map[uint64]*rpcClient.CommitResponse),
+		responseMaker:    NewResponseMaker(gen),
 	}
 
 	// Pre-generate some blocks and transactions for consistency
@@ -92,17 +97,33 @@ func (sq *SyntheticQueryOperator) GetTransactions(txHashes []string) []*rpcClien
 	return transactions
 }
 
+// GetFromToCommits implements the QueryOperator interface by returning synthetic commits
+func (sq *SyntheticQueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*rpcClient.CommitResponse {
+	diff := toHeight - fromHeight + 1
+	if diff < 1 {
+		return nil
+	}
+
+	commits := make([]*rpcClient.CommitResponse, 0, diff)
+
+	for height := fromHeight; height <= toHeight; height++ {
+		commits = append(commits, sq.getCommit(height))
+	}
+	return commits
+}
+
 // GetLatestBlockHeight implements the QueryOperator interface
 func (sq *SyntheticQueryOperator) GetLatestBlockHeight() (uint64, error) {
 	return sq.currentHeight, nil
 }
 
-// preGenerateData creates a consistent dataset of blocks and transactions
+// preGenerateData creates a consistent dataset of blocks, transactions and commits
 func (sq *SyntheticQueryOperator) preGenerateData(fromHeight uint64, maxHeight uint64) {
 	startTime := time.Now()
 	// Generate blocks from height start to maxHeight
 	for height := fromHeight; height <= maxHeight; height++ {
 		sq.createSynthBlock(height)
+		sq.createCommit(height)
 
 		// Log progress every 100 blocks
 		if height%100 == 0 {
@@ -111,6 +132,7 @@ func (sq *SyntheticQueryOperator) preGenerateData(fromHeight uint64, maxHeight u
 	}
 	log.Printf("Pre-generated data for blocks from %d to %d in %v", fromHeight, maxHeight, time.Since(startTime))
 	log.Printf("Total transactions generated: %d", len(sq.transactions))
+	log.Printf("Total commits generated: %d", len(sq.commits))
 }
 
 // getBlock returns existing block or creates a new one
@@ -173,15 +195,13 @@ func (sq *SyntheticQueryOperator) createSynthBlock(height uint64) (*rpcClient.Bl
 
 	// Create the block using existing synthetic response maker
 	blockInput := GenBlockInput{
-		Height:           height,
-		ChainID:          sq.chainID,
-		Timestamp:        blockTimestamp,
-		ProposerAddress:  sq.signedValidators[height%uint64(len(sq.signedValidators))], // random validator
-		SignedValidators: sq.signedValidators,
-		TxsRaw:           txRaws,
+		Height:    height,
+		ChainID:   sq.chainID,
+		Timestamp: blockTimestamp,
+		TxsRaw:    txRaws,
 	}
 
-	block := GenerateBlockResponse(blockInput)
+	block := sq.responseMaker.GenerateBlockResponse(blockInput)
 	sq.blocks[height] = block
 
 	return block, txResponses
@@ -211,10 +231,32 @@ func (sq *SyntheticQueryOperator) createTransaction(
 		Events: txEvents,
 	}
 
-	tx := GenerateTransactionResponse(txInput)
+	tx := sq.responseMaker.GenerateTransactionResponse(txInput)
 	sq.transactions[txHash] = tx
 
 	return tx
+}
+
+// createCommit generates a synthetic commit for the given height
+func (sq *SyntheticQueryOperator) createCommit(height uint64) *rpcClient.CommitResponse {
+	commitInput := GenCommitInput{
+		Height:           height,
+		ChainID:          sq.chainID,
+		Timestamp:        baseTimestamp.Add(time.Duration(height-1) * blockProductionRate),
+		ProposerAddress:  sq.signedValidators[height%uint64(len(sq.signedValidators))], // random validator
+		SignedValidators: sq.signedValidators,
+	}
+	commit := sq.responseMaker.GenerateCommitResponse(commitInput)
+	sq.commits[height] = commit
+	return commit
+}
+
+func (sq *SyntheticQueryOperator) getCommit(height uint64) *rpcClient.CommitResponse {
+	if commit, ok := sq.commits[height]; ok {
+		return commit
+	}
+	log.Fatal("commit not found")
+	return nil
 }
 
 // SetCurrentHeight allows updating the current height for live testing scenarios

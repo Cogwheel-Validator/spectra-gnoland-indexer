@@ -1,6 +1,7 @@
 package dataprocessor
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/decoder"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
@@ -16,7 +18,7 @@ import (
 
 // Constructor function for the DataProcessor struct
 //
-// Args:
+// Parameters:
 //   - db: the database connection interface
 //   - addressCache: the address cache interface
 //   - validatorCache: the validator cache interface
@@ -40,10 +42,10 @@ func NewDataProcessor(
 }
 
 // ProcessValidatorAddresses is a method to process the validator addresses from a slice of blocks
-// it will process the validator addresses from the blocks and store them in a sync.Map
-// it will then extract the addresses from the sync.Map and insert them into the address cache
+// it will process the validator addresses from the blocks and store them in a map[string]struct{}
+// it will then extract the addresses from the map[string]struct{} and insert them into the address cache
 //
-// Args:
+// Parameters:
 //   - blocks: a slice of blocks
 //   - fromHeight: the start height
 //   - toHeight: the end height
@@ -57,9 +59,10 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 	fromHeight uint64,
 	toHeight uint64,
 ) {
-	// sync.Map for thread-safe concurrent access and inser it as address/bool
+	// map[string]struct{} for thread-safe concurrent access and insert it as address/struct{}
 	// the program should be able to avoid duplicates since it is a map
-	var addressesMap sync.Map
+	var mu sync.Mutex
+	addressesMap := make(map[string]struct{})
 	wg := sync.WaitGroup{}
 	wg.Add(len(blocks))
 
@@ -72,24 +75,27 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 			precommits := block.Result.Block.LastCommit.Precommits
 			for _, precommit := range precommits {
 				if precommit != nil {
-					addressesMap.Store(precommit.ValidatorAddress, true)
+					mu.Lock()
+					addressesMap[precommit.ValidatorAddress] = struct{}{}
+					mu.Unlock()
 				}
 			}
 
 			// Process proposer
 			proposer := block.Result.Block.Header.ProposerAddress
-			addressesMap.Store(proposer, true)
+			mu.Lock()
+			addressesMap[proposer] = struct{}{}
+			mu.Unlock()
 		}(block)
 	}
 
 	wg.Wait()
 
-	// Extract unique addresses from sync.Map
+	// Extract unique addresses from map[string]struct{}
 	addresses := make([]string, 0)
-	addressesMap.Range(func(key, value interface{}) bool {
-		addresses = append(addresses, key.(string))
-		return true
-	})
+	for address := range addressesMap {
+		addresses = append(addresses, address)
+	}
 
 	// retry 3 times just for the sake of it
 	d.validatorCache.AddressSolver(addresses, d.chainName, true, 3, nil)
@@ -100,7 +106,7 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 // it will process the blocks using async workers and store them directly into a result slice
 // it will then insert the blocks into the database
 //
-// Args:
+// Parameters:
 //   - blocks: a slice of blocks
 //   - fromHeight: the start height
 //   - toHeight: the end height
@@ -111,10 +117,11 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 // The method will not throw an error if the blocks are not found, it will just return nil
 func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) {
 	// Preallocate slice to avoid growing allocations
-	blocksData := make([]sqlDataTypes.Blocks, len(blocks))
+	blockAmount := len(blocks)
+	blocksData := make([]sqlDataTypes.Blocks, blockAmount)
 	var mu sync.Mutex
 	wg := sync.WaitGroup{}
-	wg.Add(len(blocks))
+	wg.Add(blockAmount)
 
 	for idx, block := range blocks {
 		go func(idx int, block *rpcClient.BlockResponse) {
@@ -168,7 +175,11 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 
 	wg.Wait()
 
-	err := d.dbPool.InsertBlocks(blocksData)
+	// add multiplier for the timeout depending on the block amount
+	timeout := 10*time.Second + (time.Duration(blockAmount) * time.Second / 5)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := d.dbPool.InsertBlocks(ctx, blocksData)
 	if err != nil {
 		log.Printf("Failed to insert blocks: %v", err)
 	}
@@ -179,7 +190,7 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 // it will process the transactions using async workers and collect them in a preallocated slice
 // it will then insert the transactions into the database
 //
-// Args:
+// Parameters:
 //   - transactions: a map of transactions and timestamps
 //   - compressEvents: if true, compress the events
 //
@@ -194,11 +205,12 @@ func (d *DataProcessor) ProcessTransactions(
 	toHeight uint64) {
 
 	// Preallocate slice to avoid growing allocations
-	transactionsData := make([]sqlDataTypes.TransactionGeneral, len(transactions))
+	transactionAmount := len(transactions)
+	transactionsData := make([]sqlDataTypes.TransactionGeneral, transactionAmount)
 	var mu sync.Mutex
 	var validCount int
 	wg := sync.WaitGroup{}
-	wg.Add(len(transactions))
+	wg.Add(transactionAmount)
 
 	for idx, transaction := range transactions {
 		go func(idx int, transaction TrasnactionsData) {
@@ -258,19 +270,24 @@ func (d *DataProcessor) ProcessTransactions(
 	// It is more of a safety feature than nececity
 	transactionsData = transactionsData[:validCount]
 
-	err := d.dbPool.InsertTransactionsGeneral(transactionsData)
+	// add multiplier for the timeout depending on the transaction amount
+	timeout := 10*time.Second + (time.Duration(transactionAmount) * time.Second / 5)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err := d.dbPool.InsertTransactionsGeneral(ctx, transactionsData)
 	if err != nil {
 		log.Printf("Failed to insert transactions: %v", err)
+		return
 	}
 	log.Printf("Transactions processed from %d to %d", fromHeight, toHeight)
 }
 
 // ProcessMessages processes all messages from transactions using concurrent "swarm method"
 // This method uses a two-phase concurrent approach:
-// 1. Collect and resolve all addresses to IDs using concurrent workers and sync.Map
+// 1. Collect and resolve all addresses to IDs using concurrent workers and map[string]struct{}
 // 2. Convert messages to database-ready format with address IDs using concurrent processing
 //
-// Args:
+// Parameters:
 //   - transactions: a map of transactions and timestamps
 //   - fromHeight: the start height
 //   - toHeight: the end height
@@ -282,11 +299,13 @@ func (d *DataProcessor) ProcessMessages(
 	fromHeight uint64,
 	toHeight uint64) error {
 
-	// Phase 1: Concurrent address collection using sync.Map
-	var addressesMap sync.Map
-	addressCollectionChan := make(chan []*decoder.DecodedMsg, len(transactions))
+	// Phase 1: Concurrent address collection using map[strinct]struct{}
+	var mu sync.Mutex
+	transactionAmount := len(transactions)
+	addressesMap := make(map[string]struct{})
+	addressCollectionChan := make(chan []*decoder.DecodedMsg, transactionAmount)
 	wg1 := sync.WaitGroup{}
-	wg1.Add(len(transactions))
+	wg1.Add(transactionAmount)
 
 	// Launch goroutines to collect addresses concurrently
 	for _, transaction := range transactions {
@@ -298,11 +317,13 @@ func (d *DataProcessor) ProcessMessages(
 				return
 			}
 
-			// Collect addresses from this transaction and store in sync.Map
+			// Collect addresses from this transaction and store in map[string]struct{}
 			addresses := decodedMsg.CollectAllAddresses()
+			mu.Lock()
 			for _, address := range addresses {
-				addressesMap.Store(address, true) // Thread-safe deduplication
+				addressesMap[address] = struct{}{}
 			}
+			mu.Unlock()
 
 			addressCollectionChan <- []*decoder.DecodedMsg{decodedMsg}
 		}(transaction)
@@ -320,12 +341,11 @@ func (d *DataProcessor) ProcessMessages(
 		allDecodedMsgs = append(allDecodedMsgs, decodedMsgs[0])
 	}
 
-	// Extract addresses from sync.Map and resolve to IDs
+	// Extract addresses from map[string]struct{} and resolve to IDs
 	allAddresses := make([]string, 0)
-	addressesMap.Range(func(key, value interface{}) bool {
-		allAddresses = append(allAddresses, key.(string))
-		return true
-	})
+	for address := range addressesMap {
+		allAddresses = append(allAddresses, address)
+	}
 
 	if len(allAddresses) > 0 {
 		d.addressCache.AddressSolver(allAddresses, d.chainName, false, 3, nil)
@@ -343,7 +363,7 @@ func (d *DataProcessor) ProcessMessages(
 	var aggregationMutex sync.Mutex
 
 	wg2 := sync.WaitGroup{}
-	wg2.Add(len(transactions))
+	wg2.Add(transactionAmount)
 
 	// Launch goroutines to process messages concurrently
 	for idx, transaction := range transactions {
@@ -394,7 +414,11 @@ func (d *DataProcessor) ProcessMessages(
 	// Create a slice of sqlDataType.AddressTx
 	// we need to get all of the addresses from the aggregatedDbGroups
 	addresses := createAddressTx(aggregatedDbGroups)
-	err := d.dbPool.InsertAddressTx(addresses)
+	// add multiplier for the timeout depending on the address amount
+	timeout := 10*time.Second + (time.Duration(len(addresses)) * time.Second / 5)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	err := d.dbPool.InsertAddressTx(ctx, addresses)
+	cancel()
 	if err != nil {
 		return fmt.Errorf("failed to insert address tx: %w", err)
 	}
@@ -418,31 +442,68 @@ func (d *DataProcessor) ProcessMessages(
 func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) error {
 	var insertErrors []error
 
+	msgSendCount := len(groups.MsgSend)
+	msgCallCount := len(groups.MsgCall)
+	msgAddPkgCount := len(groups.MsgAddPkg)
+	msgRunCount := len(groups.MsgRun)
+
 	// Insert DbMsgSend messages with address IDs
-	if len(groups.MsgSend) > 0 {
-		if err := d.dbPool.InsertMsgSend(groups.MsgSend); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgSend: %w", err))
+	if msgSendCount > 0 {
+		timeout := 10*time.Second + (time.Duration(msgSendCount) * time.Second / 5)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		err := d.dbPool.InsertMsgSend(ctx, groups.MsgSend)
+		cancel()
+		if err != nil {
+			hashes := make([]string, 0, len(groups.MsgSend))
+			for _, msg := range groups.MsgSend {
+				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
+			}
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgSend: %w, hashes: %v", err, hashes))
 		}
 	}
 
 	// Insert DbMsgCall messages with address IDs
-	if len(groups.MsgCall) > 0 {
-		if err := d.dbPool.InsertMsgCall(groups.MsgCall); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgCall: %w", err))
+	if msgCallCount > 0 {
+		timeout := 10*time.Second + (time.Duration(msgCallCount) * time.Second / 5)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		err := d.dbPool.InsertMsgCall(ctx, groups.MsgCall)
+		cancel()
+		if err != nil {
+			hashes := make([]string, 0, len(groups.MsgCall))
+			for _, msg := range groups.MsgCall {
+				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
+			}
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgCall: %w, hashes: %v", err, hashes))
 		}
 	}
 
 	// Insert DbMsgAddPackage messages with address IDs
-	if len(groups.MsgAddPkg) > 0 {
-		if err := d.dbPool.InsertMsgAddPackage(groups.MsgAddPkg); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgAddPackage: %w", err))
+	if msgAddPkgCount > 0 {
+		timeout := 10*time.Second + (time.Duration(msgAddPkgCount) * time.Second / 5)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		err := d.dbPool.InsertMsgAddPackage(ctx, groups.MsgAddPkg)
+		cancel()
+		if err != nil {
+			hashes := make([]string, 0, len(groups.MsgAddPkg))
+			for _, msg := range groups.MsgAddPkg {
+				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
+			}
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgAddPackage: %w, hashes: %v", err, hashes))
 		}
 	}
 
 	// Insert DbMsgRun messages with address IDs
-	if len(groups.MsgRun) > 0 {
-		if err := d.dbPool.InsertMsgRun(groups.MsgRun); err != nil {
-			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgRun: %w", err))
+	if msgRunCount > 0 {
+		timeout := 10*time.Second + (time.Duration(msgRunCount) * time.Second / 5)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		err := d.dbPool.InsertMsgRun(ctx, groups.MsgRun)
+		cancel()
+		if err != nil {
+			hashes := make([]string, 0, len(groups.MsgRun))
+			for _, msg := range groups.MsgRun {
+				hashes = append(hashes, base64.StdEncoding.EncodeToString(msg.TxHash))
+			}
+			insertErrors = append(insertErrors, fmt.Errorf("failed to insert DbMsgRun: %w, hashes: %v", err, hashes))
 		}
 	}
 
@@ -459,27 +520,28 @@ func (d *DataProcessor) insertDbMessageGroups(groups *decoder.DbMessageGroups) e
 }
 
 func (d *DataProcessor) ProcessValidatorSignings(
-	blocks []*rpcClient.BlockResponse,
+	commits []*rpcClient.CommitResponse,
 	fromHeight uint64,
 	toHeight uint64) {
 
-	validatorChan := make(chan *sqlDataTypes.ValidatorBlockSigning, len(blocks))
+	commitAmount := len(commits)
+	validatorChan := make(chan *sqlDataTypes.ValidatorBlockSigning, commitAmount)
 	wg := sync.WaitGroup{}
-	wg.Add(len(blocks))
+	wg.Add(commitAmount)
 
 	// Process blocks concurrently
-	for _, block := range blocks {
-		go func(block *rpcClient.BlockResponse) {
+	for _, commit := range commits {
+		go func(commit *rpcClient.CommitResponse) {
 			defer wg.Done()
 
 			signedVals := struct {
 				Proposer   int32
 				SignedVals []int32
 			}{
-				Proposer:   d.validatorCache.GetAddress(block.Result.Block.Header.ProposerAddress),
+				Proposer:   d.validatorCache.GetAddress(commit.GetProposerAddress()),
 				SignedVals: make([]int32, 0),
 			}
-			precommits := block.Result.Block.LastCommit.Precommits
+			precommits := commit.GetSigners()
 			for _, precommit := range precommits {
 				if precommit != nil {
 					signedVals.SignedVals = append(
@@ -488,20 +550,20 @@ func (d *DataProcessor) ProcessValidatorSignings(
 				}
 			}
 
-			height, err := strconv.ParseUint(block.Result.Block.Header.Height, 10, 64)
+			height, err := commit.GetHeight()
 			if err != nil {
-				log.Printf("Failed to parse block height %s: %v", block.Result.Block.Header.Height, err)
+				log.Printf("Failed to get commit height: %v", err)
 				return
 			}
 
 			validatorChan <- &sqlDataTypes.ValidatorBlockSigning{
 				BlockHeight: height,
-				Timestamp:   block.Result.Block.Header.Time,
+				Timestamp:   commit.GetTimestamp(),
 				Proposer:    signedVals.Proposer,
 				SignedVals:  signedVals.SignedVals,
 				ChainName:   d.chainName,
 			}
-		}(block)
+		}(commit)
 	}
 
 	// Close channel when all goroutines finish
@@ -510,23 +572,30 @@ func (d *DataProcessor) ProcessValidatorSignings(
 		close(validatorChan)
 	}()
 
-	validatorData := make([]sqlDataTypes.ValidatorBlockSigning, 0, len(blocks))
+	validatorData := make([]sqlDataTypes.ValidatorBlockSigning, 0, len(commits))
 	for validator := range validatorChan {
 		validatorData = append(validatorData, *validator)
 	}
 
-	err := d.dbPool.InsertValidatorBlockSignings(validatorData)
+	timeout := 10*time.Second + (time.Duration(commitAmount) * time.Second / 5)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	err := d.dbPool.InsertValidatorBlockSignings(ctx, validatorData)
+	cancel()
 	if err != nil {
-		log.Printf("Failed to insert validator block signings: %v", err)
+		log.Printf("Failed to insert validator commit signings: %v", err)
 	}
-	log.Printf("Validator block signings processed from %d to %d", fromHeight, toHeight)
+	log.Printf("Validator commit signings processed from %d to %d", fromHeight, toHeight)
 }
 
 // createAddressTx is a private func that creates a slice of sqlDataTypes.AddressTx from a
 // decoder.DbMessageGroups using concurrent workers with mutex-based aggregation
 // it should be used to create the data for the address_tx table
 func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
-	txAmount := len(msg.MsgSend) + len(msg.MsgCall) + len(msg.MsgAddPkg) + len(msg.MsgRun)
+	msgSendCount := len(msg.MsgSend)
+	msgCallCount := len(msg.MsgCall)
+	msgAddPkgCount := len(msg.MsgAddPkg)
+	msgRunCount := len(msg.MsgRun)
+	txAmount := msgSendCount + msgCallCount + msgAddPkgCount + msgRunCount
 	if txAmount == 0 {
 		return []sqlDataTypes.AddressTx{}
 	}
@@ -536,7 +605,7 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 	wg := sync.WaitGroup{}
 
 	// Process MsgSend messages
-	wg.Add(len(msg.MsgSend))
+	wg.Add(msgSendCount)
 	for _, msgItem := range msg.MsgSend {
 		go func(msgItem sqlDataTypes.MsgSend) {
 			defer wg.Done()
@@ -564,7 +633,7 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 	}
 
 	// Process MsgCall messages
-	wg.Add(len(msg.MsgCall))
+	wg.Add(msgCallCount)
 	for _, msgItem := range msg.MsgCall {
 		go func(msgItem sqlDataTypes.MsgCall) {
 			defer wg.Done()
@@ -590,7 +659,7 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 	}
 
 	// Process MsgAddPkg messages
-	wg.Add(len(msg.MsgAddPkg))
+	wg.Add(msgAddPkgCount)
 	for _, msgItem := range msg.MsgAddPkg {
 		go func(msgItem sqlDataTypes.MsgAddPackage) {
 			defer wg.Done()
@@ -616,7 +685,7 @@ func createAddressTx(msg *decoder.DbMessageGroups) []sqlDataTypes.AddressTx {
 	}
 
 	// Process MsgRun messages
-	wg.Add(len(msg.MsgRun))
+	wg.Add(msgRunCount)
 	for _, msgItem := range msg.MsgRun {
 		go func(msgItem sqlDataTypes.MsgRun) {
 			defer wg.Done()

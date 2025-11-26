@@ -8,53 +8,39 @@ import (
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/generator"
 )
 
-type GenBlockInput struct {
-	Height           uint64
-	ChainID          string
-	Timestamp        time.Time
-	ProposerAddress  string
-	SignedValidators []string
-	TxsRaw           []string
+type ResponseMaker struct {
+	generator *generator.DataGenerator
 }
 
-func GenerateBlockResponse(input GenBlockInput) *rpcClient.BlockResponse {
-	gen := generator.NewDataGenerator(500)
-
-	// here is the deal the progrma will just make some hash here
-	// usually there are 2 hashes, new hash and hash from the previous block
-	// however for this instance we will just ignore it because
-	// this level of precision is not needed since the purpose is to
-	// test the indexer
-	blockHash := gen.GenerateBlockHash()
-	partsHash := gen.GenerateBlockHash()
-
-	// the program will generate some hash for the previous block
-	// so it has some similaraties to the real response
-	lastBlockHash := gen.GenerateBlockHash()
-	lastPartsHash := gen.GenerateBlockHash()
-
-	// just make some random hash here
-	lastCommitHash := gen.GenerateBlockHash()
-	dataHash := gen.GenerateBlockHash()
-	validatorsHash := gen.GenerateBlockHash()
-	nextValidatorsHash := gen.GenerateBlockHash()
-	consensusHash := gen.GenerateBlockHash()
-	appHash := gen.GenerateBlockHash()
-	lastResultsHash := gen.GenerateBlockHash()
-
-	precommits := make([]*rpcClient.Precommit, 0, len(input.SignedValidators))
-	for i, validator := range input.SignedValidators {
-		precommits = append(precommits, &rpcClient.Precommit{
-			ValidatorAddress: validator,
-			ValidatorIndex:   strconv.Itoa(i),
-			Signature:        gen.GenerateBlockHash(),
-			Type:             2, // not sure why 2 but that is what I saw in the real data
-			Height:           strconv.FormatUint(input.Height, 10),
-			Round:            "0",
-			BlockID:          rpcClient.BlockID{Hash: blockHash, Parts: rpcClient.Parts{Total: "1", Hash: partsHash}},
-			Timestamp:        input.Timestamp,
-		})
+func NewResponseMaker(generator *generator.DataGenerator) *ResponseMaker {
+	return &ResponseMaker{
+		generator: generator,
 	}
+}
+
+type GenBlockInput struct {
+	Height    uint64
+	ChainID   string
+	Timestamp time.Time
+	TxsRaw    []string
+}
+
+func (rm *ResponseMaker) GenerateBlockResponse(input GenBlockInput) *rpcClient.BlockResponse {
+	// just generate the hash for block and last block
+	// for others just use empty strings since this is all just to mock the similar expereience
+	blockHash := rm.generator.GenerateBlockHash()
+	lastBlockHash := rm.generator.GenerateBlockHash()
+	partsHash := ""
+	lastPartsHash := ""
+	lastCommitHash := ""
+	dataHash := ""
+	validatorsHash := ""
+	nextValidatorsHash := ""
+	consensusHash := ""
+	appHash := ""
+	lastResultsHash := ""
+
+	precommits := make([]*rpcClient.Precommit, 0) // just mock it since we do not need it for the block
 
 	block := rpcClient.BlockResponse{
 		Jsonrpc: "2.0",
@@ -74,7 +60,7 @@ func GenerateBlockResponse(input GenBlockInput) *rpcClient.BlockResponse {
 					NumTxs:          "0", // it is not really important for the indexer
 					TotalTxs:        "0", // it is not really important for the indexer
 					AppVersion:      "1.0.0",
-					ProposerAddress: input.ProposerAddress,
+					ProposerAddress: "", // just mock it since we do not need it for the block
 					LastBlockID:     rpcClient.BlockID{Hash: lastBlockHash, Parts: rpcClient.Parts{Total: "1", Hash: lastPartsHash}},
 					// just make some random hash here
 					LastCommitHash:     lastCommitHash,
@@ -95,7 +81,7 @@ func GenerateBlockResponse(input GenBlockInput) *rpcClient.BlockResponse {
 					NumTxs:             "0", // it is not really important for the indexer
 					TotalTxs:           "0", // it is not really important for the indexer
 					AppVersion:         "1.0.0",
-					ProposerAddress:    input.ProposerAddress,
+					ProposerAddress:    "", // just mock it since we do not need it for the block
 					LastBlockID:        rpcClient.BlockID{Hash: lastBlockHash, Parts: rpcClient.Parts{Total: "1", Hash: lastPartsHash}},
 					LastCommitHash:     lastCommitHash,
 					DataHash:           dataHash,
@@ -129,7 +115,7 @@ type GenTransactionInput struct {
 	Events *generator.TxEvents
 }
 
-func GenerateTransactionResponse(input GenTransactionInput) *rpcClient.TxResponse {
+func (rm *ResponseMaker) GenerateTransactionResponse(input GenTransactionInput) *rpcClient.TxResponse {
 	// because I pretty much complicated this part of the code the
 	// program will now need to pull the data from proto events
 	// and convert them to rpc client events
@@ -178,4 +164,68 @@ func GenerateTransactionResponse(input GenTransactionInput) *rpcClient.TxRespons
 		},
 	}
 	return &txResponse
+}
+
+type GenCommitInput struct {
+	Height           uint64
+	ChainID          string
+	Timestamp        time.Time
+	ProposerAddress  string
+	SignedValidators []string
+}
+
+func (rm *ResponseMaker) GenerateCommitResponse(input GenCommitInput) *rpcClient.CommitResponse {
+	// just like in the gen block we need the data for the header but not really
+	// just generate the hash for block and last block
+	// for others just use empty strings since this is all just to mock the similar experience
+	blockHash := rm.generator.GenerateBlockHash()
+	partsHash := ""
+	lastCommitHash := ""
+	dataHash := ""
+	validatorsHash := ""
+	nextValidatorsHash := ""
+	consensusHash := ""
+	appHash := ""
+	lastResultsHash := ""
+
+	precommits := make([]*rpcClient.Precommit, 0, len(input.SignedValidators))
+	for i, validator := range input.SignedValidators {
+		precommits = append(precommits, &rpcClient.Precommit{
+			ValidatorAddress: validator,
+			ValidatorIndex:   strconv.Itoa(i),
+			Signature:        rm.generator.GenerateBlockHash(),
+			Type:             2, // not sure why 2 but that is what I saw in the real data
+			Height:           strconv.FormatUint(input.Height, 10),
+			Round:            "0",
+			BlockID:          rpcClient.BlockID{Hash: blockHash, Parts: rpcClient.Parts{Total: "1", Hash: partsHash}},
+			Timestamp:        input.Timestamp,
+		})
+	}
+
+	commitResponse := rpcClient.CommitResponse{
+		Jsonrpc: "2.0",
+		ID:      1,
+		Result: rpcClient.CommitResult{
+			SignedHeader: rpcClient.SignedHeader{
+				Header: rpcClient.BlockHeader{
+					Height:             strconv.FormatUint(input.Height, 10),
+					Time:               input.Timestamp,
+					ChainID:            input.ChainID,
+					ProposerAddress:    input.ProposerAddress,
+					LastCommitHash:     lastCommitHash,
+					DataHash:           dataHash,
+					ValidatorsHash:     validatorsHash,
+					NextValidatorsHash: nextValidatorsHash,
+					ConsensusHash:      consensusHash,
+					AppHash:            appHash,
+					LastResultsHash:    lastResultsHash,
+				},
+				Commit: rpcClient.Commit{
+					BlockID:    rpcClient.BlockID{Hash: blockHash, Parts: rpcClient.Parts{Total: "1", Hash: partsHash}},
+					Precommits: precommits,
+				},
+			},
+		},
+	}
+	return &commitResponse
 }
