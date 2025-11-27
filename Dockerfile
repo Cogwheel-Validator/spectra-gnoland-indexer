@@ -9,7 +9,7 @@ ARG GIT_TAG=""
 ARG GIT_BRANCH=""
 ARG VERSION=""
 
-RUN RUN if [ -z "$VERSION" ]; then \
+RUN if [ -z "$VERSION" ]; then \
     if [ -n "$GIT_TAG" ]; then VERSION="$GIT_TAG"; \
     else VERSION="${GIT_BRANCH}-${GIT_COMMIT}"; \
     fi; \
