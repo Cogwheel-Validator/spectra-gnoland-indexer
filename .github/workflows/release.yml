@@ -36,22 +36,36 @@ jobs:
             echo "docker_tag=latest" >> $GITHUB_OUTPUT
           fi
 
+      - name: Get git metadata
+        id: gitmeta
+        run: |
+          # actions/checkout provides the .git directory so these commands will work
+          echo "git_commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)" >> $GITHUB_OUTPUT
+          echo "git_tag=$(git describe --tags --exact-match 2>/dev/null || echo)" >> $GITHUB_OUTPUT
+          echo "git_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo)" >> $GITHUB_OUTPUT
+
       - name: Build binaries
+        env:
+          GIT_COMMIT: ${{ steps.gitmeta.outputs.git_commit }}
+          GIT_TAG: ${{ steps.gitmeta.outputs.git_tag }}
+          GIT_BRANCH: ${{ steps.gitmeta.outputs.git_branch }}
+          VERSION_INPUT: ${{ steps.version.outputs.version }}
         run: |
           mkdir -p build
-          
-          # Get git commit hash
 
-          GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-          GIT_TAG := $(shell git describe --tags --exact-match 2>/dev/null || echo "")
-          GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-          VERSION := $(if $(GIT_TAG),$(GIT_TAG),$(GIT_BRANCH)-$(GIT_COMMIT))
-          
-          # Linux AMD64 for the indexer and the API
-          GOOS=linux GOARCH=amd64 go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=$(GIT_COMMIT) -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=$(VERSION)" -o build/indexer indexer/indexer.go
-          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION)" -o build/api api/main.go
+          # Compute VERSION (prefer tag, otherwise branch-commit)
+          if [ -n "$GIT_TAG" ]; then
+            VERSION="$GIT_TAG"
+          else
+            VERSION="${GIT_BRANCH}-${GIT_COMMIT}"
+          fi
 
-    
+          echo "Building with VERSION=$VERSION, GIT_COMMIT=$GIT_COMMIT"
+
+          # Linux AMD64 for the indexer and the API (adjust ldflags packages as needed)
+          GOOS=linux GOARCH=amd64 go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT} -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}" -o build/indexer indexer/indexer.go
+          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION}" -o build/api api/main.go
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -60,27 +74,7 @@ jobs:
           generate_release_notes: true
           body: |
             ## Release ${{ steps.version.outputs.version }}
-            
-            ### Installation for the indexer
-            Download the binary for your platform and make it executable:
-            ```bash
-            chmod +x indexer-*
-            ```
-
-            You will need to set up the database for the indexer, check the docs for more information.
-            When you have the database running run the cmd to create the database and the user.
-            ```bash
-            indexer setup create-db --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --new-db-name gnoland --chain-name gnoland
-            indexer setup create-user --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --user writer --privilege writer
-            ```
-
-            From here you can run the indexer using live or historic mode
-            ```bash
-            ./indexer run live --config config.yml
-            ./indexer run historic --config config.yml --from-height 1000 --to-height 2000
-            ```
-
-            For more information check the docs.
+            ...
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -105,5 +99,8 @@ jobs:
             ghcr.io/cogwheel-validator/spectra-gnoland-indexer:${{ steps.version.outputs.docker_tag }}
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
+            GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
+            GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
+            GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

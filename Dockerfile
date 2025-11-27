@@ -4,13 +4,19 @@ WORKDIR /app
 
 COPY . .
 
-ARG GIT_COMMIT = $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-ARG GIT_TAG = $(shell git describe --tags --exact-match 2>/dev/null || echo "")
-ARG GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-ARG VERSION = $(if $(GIT_TAG),$(GIT_TAG),$(GIT_BRANCH)-$(GIT_COMMIT))
+ARG GIT_COMMIT=""
+ARG GIT_TAG=""
+ARG GIT_BRANCH=""
+ARG VERSION=""
 
-RUN go install -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=$(GIT_COMMIT) -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=$(VERSION)" indexer/indexer.go && \
-    chmod +x indexer
+RUN RUN if [ -z "$VERSION" ]; then \
+    if [ -n "$GIT_TAG" ]; then VERSION="$GIT_TAG"; \
+    else VERSION="${GIT_BRANCH}-${GIT_COMMIT}"; \
+    fi; \
+    fi && \
+    go build -ldflags="-X 'github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT}' -X 'github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}'" -o indexer ./indexer
+
+RUN chmod +x indexer
 
 FROM debian:trixie-slim
 
