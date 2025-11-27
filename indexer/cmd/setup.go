@@ -53,7 +53,7 @@ func init() {
 	createDbCmd.Flags().String("chain-name", "", "The chain name for the database type enum, default is gnoland")
 
 	// create-config specific flags
-	createConfigCmd.Flags().StringP("config", "c", "config.yaml", "The config file name, default is config.yaml")
+	createConfigCmd.Flags().StringP("config", "c", "config.yml", "The config file name, default is config.yml")
 	createConfigCmd.Flags().BoolP("overwrite", "o", false, "Overwrite the existing config file, default is false")
 }
 

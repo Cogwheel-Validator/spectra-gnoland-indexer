@@ -74,7 +74,34 @@ jobs:
           generate_release_notes: true
           body: |
             ## Release ${{ steps.version.outputs.version }}
-            ...
+            
+            ### Installation for the indexer
+            Download the binary for your platform and make it executable:
+            ```bash
+            chmod +x indexer-*
+            ```
+
+            You will need to set up the database for the indexer, check the docs for more information.
+
+            To generate a default config use:
+            ```bash
+            indexer setup create-config
+            ```
+            This will create a config.yml in the current directory.
+
+            When you have the database running run the cmd to create the database and the user.
+            ```bash
+            indexer setup create-db --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --new-db-name gnoland --chain-name gnoland
+            indexer setup create-user --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --user writer --privilege writer
+            ```
+
+            From here you can run the indexer using live or historic mode
+            ```bash
+            ./indexer run live --config config.yml
+            ./indexer run historic --config config.yml --from-height 1 --to-height 2000
+            ```
+
+            For more information check the docs.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
