@@ -211,7 +211,18 @@ var rootCmd = &cobra.Command{
 		huma.Get(api, "/address/{address}/txs", addressHandler.GetAddressTxs,
 			func(op *huma.Operation) {
 				op.Summary = "Get Address Transactions"
-				op.Description = "Retrieve all transactions for a given address for a certain time period"
+				op.Description = `Retrieve all transactions for a given address.
+				There are 3 ways to query the transactions:
+				
+				1. by timestamp range
+				2. by cursor
+				3. by limit and page
+
+				For the timestamp range, you can specify the from and to timestamps.
+				For the cursor, just make the first query without any parameters besides the address. 
+				The query will contain the data alongside the next cursor that can be used as a query to get the data needed.
+				For the limit and page, you can specify the limit and page to get the next set of transactions.
+				`
 			})
 
 		// Start server using config values

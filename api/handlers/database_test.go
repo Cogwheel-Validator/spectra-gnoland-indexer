@@ -73,15 +73,25 @@ func (m *MockDatabase) GetTransaction(ctx context.Context, txHash string, chainN
 	return transaction, nil
 }
 
-func (m *MockDatabase) GetAddressTxs(ctx context.Context, address string, chainName string, fromTimestamp time.Time, toTimestamp time.Time) (*[]database.AddressTx, error) {
+func (m *MockDatabase) GetAddressTxs(
+	ctx context.Context,
+	address string,
+	chainName string,
+	fromTimestamp *time.Time,
+	toTimestamp *time.Time,
+	limit *uint64,
+	page *uint64,
+	cursor *string,
+) (*[]database.AddressTx, string, uint64, error) {
 	if m.shouldError {
-		return nil, fmt.Errorf("%s", m.errorMsg)
+		return nil, "", 0, fmt.Errorf("%s", m.errorMsg)
 	}
 	addressTxs, ok := m.addressTxs[address]
 	if !ok {
-		return nil, fmt.Errorf("address transactions not found")
+		return nil, "", 0, fmt.Errorf("address transactions not found")
 	}
-	return addressTxs, nil
+	txCount := uint64(len(*addressTxs))
+	return addressTxs, "", txCount, nil
 }
 
 func (m *MockDatabase) GetLatestBlock(ctx context.Context, chainName string) (*database.BlockData, error) {

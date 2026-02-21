@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"time"
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
 	"github.com/danielgtaylor/huma/v2"
@@ -20,17 +21,42 @@ func (h *AddressHandler) GetAddressTxs(
 	ctx context.Context,
 	input *humatypes.AddressGetInput,
 ) (*humatypes.AddressGetOutput, error) {
-	address, err := h.db.GetAddressTxs(
+	var fromTs, toTs *time.Time
+	if !input.FromTimestamp.IsZero() {
+		fromTs = &input.FromTimestamp
+	}
+	if !input.ToTimestamp.IsZero() {
+		toTs = &input.ToTimestamp
+	}
+	var limit, page *uint64
+	if input.Limit != 0 {
+		limit = &input.Limit
+	}
+	if input.Page != 0 {
+		page = &input.Page
+	}
+	var cursor *string
+	if input.Cursor != "" {
+		cursor = &input.Cursor
+	}
+	addressTxs, nextCursor, txCount, err := h.db.GetAddressTxs(
 		ctx,
 		input.Address,
 		h.chainName,
-		input.FromTimestamp,
-		input.ToTimestamp,
+		fromTs,
+		toTs,
+		limit,
+		page,
+		cursor,
 	)
 	if err != nil {
 		return nil, huma.Error404NotFound("Address not found", err)
 	}
 	return &humatypes.AddressGetOutput{
-		Body: *address,
+		Body: humatypes.AddressTxsBody{
+			AddressTxs: *addressTxs,
+			TxCount:    txCount,
+			NextCursor: nextCursor,
+		},
 	}, nil
 }
