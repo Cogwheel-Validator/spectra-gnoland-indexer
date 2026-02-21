@@ -1,4 +1,16 @@
-.PHONY: build install clean build-experimental install-experimental build-api test-race integration-test test
+.PHONY: 
+	build 
+	install 
+	clean 
+	build-experimental 
+	install-experimental 
+	build-api 
+	integration-test 
+	test 
+	vulnerability-scan 
+	snyk 
+	semgrep 
+	code-quality
 
 ########################################################
 # Build and install the indexer
@@ -37,8 +49,25 @@ build-experimental:
 test:
 	go test -v ./...
 
-test-race:
-	go test -v -race ./...
-
 integration-test:
 	cd integration && go test -v -tags=integration -timeout=20m ./...
+
+########################################################
+# Vulnerability scanning
+########################################################
+
+vulnerability-scan:
+	govulncheck ./...
+
+snyk:
+	snyk test 
+
+semgrep:
+	semgrep ci
+
+########################################################
+# Code quality
+########################################################
+
+code-quality:
+	golangci-lint run
