@@ -49,3 +49,7 @@ server.key
 
 # Jet Brains
 .idea/
+
+# Docker
+.dockerignore
+docker-compose-local.yml
