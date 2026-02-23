@@ -107,3 +107,18 @@ Most of the vm messages I guess were ok but without looking at the real data and
 Regular addresses were stored but the validator addresses were not. I will need to fix this later.
 
 Overall the test was a success. There were bugs related to the synthetic data generator and the indexer.
+
+## Test run on 2026-02-23
+
+### Test configuration
+
+- **Chain ID**: gnoland
+- **Max height**: 200000
+- **From height**: 1
+- **To height**: 200000
+- **Block production rate**: 1 block per 5 seconds
+- **Regular addresses**: 500
+- **Validators**: 50
+- **Number of transactions**: 528365
+
+The test was improved to run more efficiently. The whole test took around 5 minutes to conclude.

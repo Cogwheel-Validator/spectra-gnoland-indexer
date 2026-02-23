@@ -1,16 +1,15 @@
-.PHONY: 
-	build 
-	install 
-	clean 
-	build-experimental 
-	install-experimental 
-	build-api 
-	integration-test 
-	test 
-	vulnerability-scan 
-	snyk 
-	semgrep 
-	code-quality
+.PHONY: build 
+		install 
+		clean 
+		build-experimental 
+		install-experimental 
+		build-api 
+		integration-test 
+		test 
+		vulnerability-scan 
+		snyk 
+		semgrep 
+		code-quality
 
 ########################################################
 # Build and install the indexer

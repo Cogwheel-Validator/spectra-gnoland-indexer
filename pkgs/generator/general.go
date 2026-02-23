@@ -27,7 +27,6 @@ import (
 //
 // The code does contain some of the implementation meant for training the zstandard and protobuf experiments.
 // For now this will serve for the integration purposes.
-// TODO: rework this later to be somewhat more accurate and to have a seperated training and integration code.
 
 type TxEvents struct {
 	Events []eventsProto.Event `json:"Events"`
@@ -46,9 +45,8 @@ func NewDataGenerator(size int) *DataGenerator {
 	cryptoGen := NewCryptoGenerator(seed)
 
 	return &DataGenerator{
-		rand:      rand.New(rand.NewSource(seed)),
-		cryptoGen: cryptoGen,
-		// declare ammount of keys by size integer
+		rand:        rand.New(rand.NewSource(seed)),
+		cryptoGen:   cryptoGen,
 		keyPairPool: cryptoGen.GenerateKeyPairPool(size),
 	}
 }
@@ -243,7 +241,7 @@ var eventTemplates = map[string]func(*DataGenerator) eventsProto.Event{
 // Generate synthetic transactions for integration tests
 func (g *DataGenerator) GenerateTransaction() (TxEvents, std.Tx) {
 	// some transactions do not have any events like bank send, other vm msgs might have events
-	// but untill some real events are available use the event templates
+	// but until some real events are available use the event templates
 	// declare the transaction type first
 	// bank send should be maybe 40% of the time?
 	// vm. MsgCall and MsgRun should be 50% (25/25) of the time?
@@ -414,33 +412,33 @@ func (g *DataGenerator) GenerateArgs() string {
 	// mostly I have seen some longer ones for validator registration
 	// so I think we will just generate a radnom lenght depending on the generator
 	// since it is hard to know how much each transaction will have we will just generate a random length
-	var lenght int
+	var length int
 	var randomNum float32
 	switch randomNum = g.rand.Float32(); {
 	// 15% chance of having short arguments
 	case randomNum <= 0.15:
-		lenght = 12
+		length = 12
 	// 15% chance of having medium arguments
 	case randomNum > 0.15 && randomNum <= 0.3:
-		lenght = 24
+		length = 24
 	// 15% chance of having long arguments
 	case randomNum > 0.3 && randomNum <= 0.45:
-		lenght = 36
+		length = 36
 	// 30% chance of having very long arguments
 	case randomNum > 0.45 && randomNum <= 0.75:
-		lenght = 48
+		length = 48
 	// 15% chance of having very long arguments
 	case randomNum > 0.75 && randomNum <= 0.9:
-		lenght = 60
+		length = 60
 	// 9% chance of having very long arguments
 	case randomNum > 0.9 && randomNum <= 0.99:
-		lenght = 72
+		length = 72
 	// 0.9% chance of having very long arguments
 	case randomNum > 0.99 && randomNum <= 0.999:
-		lenght = 84
+		length = 84
 	// 0.1% chance of having very long arguments
 	case randomNum > 0.999 && randomNum <= 1.0:
-		lenght = 3000
+		length = 3000
 	}
 	loremIpsum := `Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
 	Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, 
@@ -448,10 +446,10 @@ func (g *DataGenerator) GenerateArgs() string {
 	Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat 
 	nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia 
 	deserunt mollit anim id est laborum.`
-	if lenght > len(loremIpsum) {
+	if length > len(loremIpsum) {
 		loremIpsum = strings.Repeat(loremIpsum, 10)
 	}
-	return loremIpsum[:lenght]
+	return loremIpsum[:length]
 }
 
 func (g *DataGenerator) GeneratePackageName() string {
