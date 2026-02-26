@@ -225,6 +225,18 @@ var rootCmd = &cobra.Command{
 				`
 			})
 
+		// Register Convert Base64 API routes
+		huma.Post(api, "/convert/base64-to-base64url", handlers.ConvertFromBase64toBase64Url,
+			func(op *huma.Operation) {
+				op.Summary = "Convert Base64 to Base64Url"
+				op.Description = "Convert a base64 encoded tx hash to a base64url encoded tx hash"
+			})
+		huma.Post(api, "/convert/base64url-to-base64", handlers.ConvertFromBase64UrlToBase64,
+			func(op *huma.Operation) {
+				op.Summary = "Convert Base64Url to Base64"
+				op.Description = "Convert a base64url encoded tx hash to a base64 encoded tx hash"
+			})
+
 		// Start server using config values
 		addr := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
 		log.Printf("Starting server on %s", addr)
