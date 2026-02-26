@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -94,8 +95,21 @@ func (r *RpcGnoland) performRequest(method string, params map[string]any, result
 		}
 	}()
 
-	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
-		return fmt.Errorf("failed to decode response: %w", err)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("http error %s: %s", resp.Status, string(body))
+	}
+
+	if err := json.Unmarshal(body, result); err != nil {
+		preview := string(body)
+		if len(preview) > 200 {
+			preview = preview[:200] + "..."
+		}
+		return fmt.Errorf("failed to decode response (non-JSON body): %w; body preview: %q", err, preview)
 	}
 
 	return nil
