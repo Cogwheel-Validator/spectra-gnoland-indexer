@@ -10,10 +10,9 @@ require (
 	github.com/go-chi/cors v1.2.2
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/joho/godotenv v1.5.1
-	github.com/klauspost/compress v1.18.4
-	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
+	github.com/valyala/gozstd v1.24.0
 	go.yaml.in/yaml/v4 v4.0.0-rc.4
 	golang.org/x/term v0.40.0
 	google.golang.org/protobuf v1.36.11

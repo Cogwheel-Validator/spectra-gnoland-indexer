@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	eventsProto "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/events_proto"
+	eventsProto "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/events_proto"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
