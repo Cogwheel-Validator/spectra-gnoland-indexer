@@ -94,7 +94,7 @@ func (gv GnoValidatorAddress) GetTableInfo() (*dbinit.TableInfo, error) {
 //   - Timestamp (time.Time)
 //   - Chain ID (string)
 //   - Proposer address (int32)
-//   - Txs ([]string)
+//   - Txs ([][]byte)
 //   - Chain Name (string)
 //
 // PRIMARY KEY (height, timestamp, chain_name)
@@ -132,21 +132,15 @@ func (b Blocks) TableColumns() []string {
 //   - Timestamp (time.Time)
 //   - Proposer (int32)
 //   - Signed validators (int32 all of the validators that signed the block)
-//   - Chain ID (string)
-//   - Missed validators (int32 all of the validators that missed the block)
+//   - Chain Name (string)
 //
-// PRIMARY KEY (block_height, timestamp, chain_id)
+// PRIMARY KEY (block_height, timestamp, chain_name)
 type ValidatorBlockSigning struct {
 	BlockHeight uint64    `db:"block_height" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp   time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	Proposer    int32     `db:"proposer" dbtype:"integer" nullable:"false" primary:"false"`
 	SignedVals  []int32   `db:"signed_vals" dbtype:"integer[]" nullable:"false" primary:"false"`
 	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"` // use type enum chain_name from postgres
-	// MissedVals  []int32   `db:"missed_vals" dbtype:"integer" nullable:"false" primary:"false"`
-	// can't confirm who is in the active set without making a smart contract query to the DAO smart contract
-	// which could cost a lot of gas if the program checks it constantly, also in "historical" mode when the program
-	// is running it can't check previous active set without having some over engeneered system to track the votes from the DAO
-	// so only store the signed validators because that is the only thing we can gather and confirm they did sign
 }
 
 // TableName returns the name of the table for the ValidatorBlockSigning struct
@@ -221,11 +215,6 @@ func (at AddressTx) TableColumns() []string {
 // - Fee (Fee)
 //
 // PRIMARY KEY (tx_hash, chain_name, timestamp)
-//
-// INFO about this type!
-// This project is open source hence for the sake of wider addoption this table storer both compressed and native format
-// But what kind of data will be stored should be managed by the config.
-// It is not recommended to use both modes at the same time.
 type TransactionGeneral struct {
 	TxHash      []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
