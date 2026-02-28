@@ -38,6 +38,7 @@ config.yml
 test_config.yml
 .env
 config-api.yml
+training-config.yml
 
 # State dumps and diagnostics directories
 state_dumps/

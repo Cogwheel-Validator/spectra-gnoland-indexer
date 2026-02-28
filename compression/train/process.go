@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"sync"
+	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/events_proto"
@@ -35,21 +37,10 @@ func CollectEvents(db *database.TimescaleDb, chainName string, amount uint64) ([
 		return nil, fmt.Errorf("amount cannot be 0")
 	}
 	var limit uint64
-	var offset uint64
 	var goroutines int
-	if amount <= 100 {
-		limit = amount
-	} else {
-		limit = 100
-	}
+	limit = min(amount, 100)
 
-	// use goroutines to get all of the needed data faster
-	if offset > 0 {
-		goroutines = int(offset)
-	} else {
-		goroutines = 1
-	}
-
+	goroutines = int(math.Ceil(float64(amount) / 100))
 	transactions := make([]*database.Transaction, 0)
 	wg := sync.WaitGroup{}
 	wg.Add(goroutines)
@@ -58,22 +49,26 @@ func CollectEvents(db *database.TimescaleDb, chainName string, amount uint64) ([
 		go func(i int) {
 			defer wg.Done()
 			offset := uint64(i) * limit
-			transactions, err := db.GetTransactionsByOffset(context.Background(), chainName, limit, offset)
+			log.Printf("getting the transactions from %s with limit %d and offset %d", chainName, limit, offset)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			txs, err := db.GetTransactionsByOffset(ctx, chainName, limit, offset)
 			if err != nil {
-				log.Printf("failed to get transactions by offset: %v", err)
+				log.Printf("failed to get transactions from %s with limit %d and offset %d: %v", chainName, limit, offset, err)
 				return
 			}
+			log.Printf("got %d transactions from %s with limit %d and offset %d", len(txs), chainName, limit, offset)
 			mu.Lock()
-			transactions = append(transactions, transactions...)
+			transactions = append(transactions, txs...)
 			mu.Unlock()
 		}(i)
 	}
 	wg.Wait()
 	events := make([][]byte, 0)
 	for _, transaction := range transactions {
-		txEvents := &transaction.TxEvents
-		if len(*txEvents) > 0 {
-			for _, event := range *txEvents {
+		txEvents := transaction.TxEvents
+		if len(txEvents) > 0 {
+			for _, event := range txEvents {
 				protoAttrs := make([]*events_proto.Attribute, 0)
 				for _, attribute := range event.Attributes {
 					protoAttrs = append(protoAttrs, events_proto.NewAttributeFromString(attribute.Key, attribute.Value))
@@ -93,6 +88,8 @@ func CollectEvents(db *database.TimescaleDb, chainName string, amount uint64) ([
 			}
 		}
 	}
+	log.Printf("All events collected")
+	log.Printf("Collected %d events", len(events))
 	return events, nil
 }
 
