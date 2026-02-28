@@ -30,6 +30,7 @@ There are total of 5 routes available. This are the basic routes that are needed
 ## Setup API
 
 To setup the API you can use the config file. The example config file is in the root under config-api.yml.example.
+
 ```yaml
 # Example config file for the API
 host: 127.0.0.1
@@ -73,6 +74,7 @@ You can make the API by running the following command from the project root:
 ```bash
 make build-api
 ```
+
 This command will build the API and it will be located in the build directory.
 
 To run the API you can use the following command:
@@ -88,4 +90,3 @@ You can also use the following command to run the API with HTTPS if you have the
 ```
 
 The docker image doesn't exist for now and it will be added in the future.
-
