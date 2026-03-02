@@ -330,13 +330,13 @@ func (d *DataProcessor) ProcessMessages(
 	var mu sync.Mutex
 	transactionAmount := len(transactions)
 	addressesMap := make(map[string]struct{})
-	allDecodedMsgs := make([]*decoder.DecodedMsg, 0, transactionAmount)
+	allDecodedMsgs := make([]*decoder.DecodedMsg, transactionAmount)
 	wg1 := sync.WaitGroup{}
 	wg1.Add(transactionAmount)
 
 	// Launch goroutines to collect addresses concurrently
-	for _, transaction := range transactions {
-		go func(transaction TrasnactionsData) {
+	for idx, transaction := range transactions {
+		go func(idx int, transaction TrasnactionsData) {
 			defer wg1.Done()
 			decodedMsg := decoder.NewDecodedMsg(transaction.Response.Result.Tx)
 			if decodedMsg == nil {
@@ -356,10 +356,10 @@ func (d *DataProcessor) ProcessMessages(
 			for _, address := range addresses {
 				addressesMap[address] = struct{}{}
 			}
-			allDecodedMsgs = append(allDecodedMsgs, decodedMsg)
+			allDecodedMsgs[idx] = decodedMsg
 			mu.Unlock()
 
-		}(transaction)
+		}(idx, transaction)
 	}
 
 	wg1.Wait()
@@ -574,13 +574,13 @@ func (d *DataProcessor) ProcessValidatorSignings(
 
 	commitAmount := len(commits)
 	mu := sync.Mutex{}
-	validatorData := make([]sqlDataTypes.ValidatorBlockSigning, 0, len(commits))
+	validatorData := make([]sqlDataTypes.ValidatorBlockSigning, commitAmount)
 	wg := sync.WaitGroup{}
 	wg.Add(commitAmount)
 
 	// Process blocks concurrently
-	for _, commit := range commits {
-		go func(commit *rpcClient.CommitResponse) {
+	for idx, commit := range commits {
+		go func(idx int, commit *rpcClient.CommitResponse) {
 			defer wg.Done()
 
 			signedVals := struct {
@@ -611,15 +611,15 @@ func (d *DataProcessor) ProcessValidatorSignings(
 			}
 
 			mu.Lock()
-			validatorData = append(validatorData, sqlDataTypes.ValidatorBlockSigning{
+			validatorData[idx] = sqlDataTypes.ValidatorBlockSigning{
 				BlockHeight: height,
 				Timestamp:   commit.GetTimestamp(),
 				Proposer:    signedVals.Proposer,
 				SignedVals:  signedVals.SignedVals,
 				ChainName:   d.chainName,
-			})
+			}
 			mu.Unlock()
-		}(commit)
+		}(idx, commit)
 	}
 
 	wg.Wait()

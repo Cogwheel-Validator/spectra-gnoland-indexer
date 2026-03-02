@@ -2,12 +2,15 @@ package contexthook
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 )
+
+var l = logger.Get()
 
 // NewSignalHandler is a constructor function that creates a new signal handler with
 // cleanup and state dump functions
@@ -63,14 +66,14 @@ func (sh *SignalHandler) StartListening() {
 
 	go func() {
 		sig := <-signalChan
-		log.Printf("Received signal: %v", sig)
+		l.Info().Msgf("Received signal: %v", sig)
 
 		switch sig {
 		case os.Interrupt, syscall.SIGTERM:
-			log.Printf("Starting graceful shutdown...")
+			l.Info().Msg("Starting graceful shutdown...")
 			sh.gracefulShutdown()
 		case syscall.SIGQUIT:
-			log.Printf("Emergency shutdown requested, dumping state...")
+			l.Info().Msg("Emergency shutdown requested, dumping state...")
 			sh.emergencyShutdown()
 		}
 	}()
@@ -89,7 +92,7 @@ func (sh *SignalHandler) gracefulShutdown() {
 
 	// Give operations time to finish gracefully
 	shutdownTimeout := 30 * time.Second
-	log.Printf("Waiting up to %v for operations to complete...", shutdownTimeout)
+	l.Info().Msgf("Waiting up to %v for operations to complete...", shutdownTimeout)
 
 	done := make(chan struct{})
 	go func() {
@@ -99,22 +102,22 @@ func (sh *SignalHandler) gracefulShutdown() {
 
 	select {
 	case <-done:
-		log.Printf("All operations completed successfully")
+		l.Info().Msg("All operations completed successfully")
 	case <-time.After(shutdownTimeout):
-		log.Printf("Timeout reached, forcing shutdown")
+		l.Info().Msg("Timeout reached, forcing shutdown")
 	}
 
 	// Run cleanup function if provided
 	if sh.cleanup != nil {
-		log.Printf("Running cleanup operations...")
+		l.Info().Msg("Running cleanup operations...")
 		if err := sh.cleanup(); err != nil {
-			log.Printf("Error during cleanup: %v", err)
+			l.Error().Caller().Stack().Err(err).Msgf("Error during cleanup")
 		} else {
-			log.Printf("Cleanup completed successfully")
+			l.Info().Msg("Cleanup completed successfully")
 		}
 	}
 
-	log.Printf("Graceful shutdown complete")
+	l.Info().Msg("Graceful shutdown complete")
 	os.Exit(0)
 }
 
@@ -130,15 +133,15 @@ func (sh *SignalHandler) emergencyShutdown() {
 
 	// Dump state if function is provided
 	if sh.stateDump != nil {
-		log.Printf("Dumping application state...")
+		l.Info().Msg("Dumping application state...")
 		if err := sh.stateDump(); err != nil {
-			log.Printf("Error dumping state: %v", err)
+			l.Error().Caller().Stack().Err(err).Msgf("Error dumping state")
 		} else {
-			log.Printf("State dump completed")
+			l.Info().Msg("State dump completed")
 		}
 	}
 
-	log.Printf("Emergency shutdown complete")
+	l.Info().Msg("Emergency shutdown complete")
 	os.Exit(1)
 }
 
