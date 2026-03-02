@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -113,17 +112,17 @@ func (p *dbParams) createDatabaseConfig() database.DatabasePoolConfig {
 	}
 }
 
-func createConfig(overwrite bool, fileName string) {
+func createConfig(overwrite bool, fileName string) error {
 	if fileName == "" {
 		fileName = "config.yml"
 	}
 	absolutePath, err := filepath.Abs(fileName)
 	if err != nil {
-		log.Fatalf("failed to get absolute path: %v", err)
+		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 	fileName = absolutePath
-	// config file
-	config := config.Config{
+
+	cfg := config.Config{
 		RpcUrl:                    "http://localhost:26657",
 		PoolMaxConns:              50,
 		PoolMinConns:              10,
@@ -140,25 +139,27 @@ func createConfig(overwrite bool, fileName string) {
 		PauseTime:                 &[]time.Duration{15 * time.Second}[0],
 		ExponentialBackoff:        &[]time.Duration{2 * time.Second}[0],
 	}
-	// marshal the config to yaml
-	yamlFile, err := yaml.Marshal(config)
+
+	yamlFile, err := yaml.Marshal(cfg)
 	if err != nil {
-		log.Fatalf("failed to marshal config: %v", err)
+		return fmt.Errorf("failed to marshal config: %w", err)
 	}
-	// check if the config file exists
+
 	if _, err = os.Stat(fileName); err == nil {
 		if overwrite {
 			if writeErr := os.WriteFile(fileName, yamlFile, 0644); writeErr != nil {
-				log.Fatalf("failed to overwrite config file: %v", writeErr)
+				return fmt.Errorf("failed to overwrite config file: %w", writeErr)
 			}
 		} else {
-			log.Fatalf("config file already exists, use --overwrite to overwrite it")
+			return fmt.Errorf("config file already exists, use --overwrite to overwrite it")
 		}
 	} else if os.IsNotExist(err) {
 		if writeErr := os.WriteFile(fileName, yamlFile, 0644); writeErr != nil {
-			log.Fatalf("failed to create config file: %v", writeErr)
+			return fmt.Errorf("failed to create config file: %w", writeErr)
 		}
 	} else {
-		log.Fatalf("failed to stat config file: %v", err)
+		return fmt.Errorf("failed to stat config file: %w", err)
 	}
+
+	return nil
 }

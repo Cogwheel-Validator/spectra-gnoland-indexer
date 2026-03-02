@@ -3,9 +3,12 @@ package dbinit
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
+
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 )
+
+var l = logger.Get()
 
 // Hypertable management for TimescaleDB
 //
@@ -42,7 +45,12 @@ func (init *DBInitializer) ConvertToHypertables(tableNames []string) {
 		sql := fmt.Sprintf("SELECT create_hypertable('%s', 'timestamp', chunk_time_interval => INTERVAL '1 weeks')", tableName)
 		_, err := init.pool.Exec(context.Background(), sql)
 		if err != nil {
-			log.Fatalf("failed to convert table %s to hypertable: %v", tableName, err)
+			l.Error().
+				Caller().
+				Stack().
+				Msgf(
+					"failed to convert table %s to hypertable: %v", tableName, err,
+				)
 		}
 	}
 }
@@ -72,7 +80,12 @@ func (init *DBInitializer) AlterCompressionSegments(tables map[string][]string) 
 			`, tableName, columnsString)
 		_, err := init.pool.Exec(context.Background(), sql)
 		if err != nil {
-			log.Fatalf("failed to alter compression segments for table %s: %v", tableName, err)
+			l.Error().
+				Caller().
+				Stack().
+				Msgf(
+					"failed to alter compression segments for table %s: %v", tableName, err,
+				)
 		}
 	}
 }
@@ -96,7 +109,12 @@ func (init *DBInitializer) AddCompressionPolicy(tableNames []string) {
 			`, tableName)
 		_, err := init.pool.Exec(context.Background(), sql)
 		if err != nil {
-			log.Fatalf("failed to add compression policy for table %s: %v", tableName, err)
+			l.Error().
+				Caller().
+				Stack().
+				Msgf(
+					"failed to add compression policy for table %s: %v", tableName, err,
+				)
 		}
 	}
 }

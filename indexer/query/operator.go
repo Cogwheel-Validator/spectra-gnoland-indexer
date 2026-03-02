@@ -1,13 +1,15 @@
 package query
 
 import (
-	"log"
 	"sync"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/retry"
 	rc "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 )
+
+var l = logger.Get()
 
 var (
 	defaultRetryAmount        = 6
@@ -46,7 +48,7 @@ func NewQueryOperator(
 }
 
 // A swarm method to get blocks from a to b chain height inclusive
-// This is a fan out method that lauches async workers for each block and wait to get the resaults
+// This is a fan out method that launches async workers for each block and wait to get the results
 // The order of the blocks is not guaranteed but it shouldn't matter because at the end of the process
 // the indexer should store them all together as one huge slice of blocks, so the order is not important
 // the speed is what matters here.
@@ -119,7 +121,11 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 						wg.Done()
 					},
 					func(retryErr error) {
-						log.Printf("failed to get block %d after retries: %v", height, retryErr)
+						l.Error().
+							Caller().
+							Stack().
+							Err(retryErr).
+							Msgf("failed to get block %d after retries", height)
 						mu.Lock()
 						blocks[idx] = nil
 						mu.Unlock()
@@ -179,7 +185,11 @@ func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*
 						wg.Done()
 					},
 					func(retryErr error) {
-						log.Printf("failed to get commit %d after retries: %v", height, retryErr)
+						l.Error().
+							Caller().
+							Stack().
+							Err(retryErr).
+							Msgf("failed to get commit %d after retries", height)
 						mu.Lock()
 						commits[idx] = nil
 						mu.Unlock()
@@ -259,7 +269,11 @@ func (q *QueryOperator) GetTransactions(txs []string) []*rc.TxResponse {
 						wg.Done()
 					},
 					func(retryErr error) {
-						log.Printf("failed to get tx %s after retries: %v", tx, retryErr)
+						l.Error().
+							Caller().
+							Stack().
+							Err(retryErr).
+							Msgf("failed to get tx %s after retries", tx)
 						mu.Lock()
 						transactions[idx] = nil
 						mu.Unlock()

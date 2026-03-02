@@ -3,7 +3,6 @@ package dbinit
 import (
 	"context"
 	"fmt"
-	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -464,16 +463,16 @@ func (db *DBInitializer) CreateHypertableFromStruct(structType interface{}, tabl
 	version, err := db.GetTimescaleDBVersion()
 	if err != nil {
 		// If we can't detect version, fall back to legacy method
-		log.Printf("Warning: Could not detect TimescaleDB version (%v), using legacy method", err)
+		l.Warn().Err(err).Msg("Warning: Could not detect TimescaleDB version, using legacy method")
 		return db.createHypertableLegacy(tableInfo, partitionColumn, chunkInterval)
 	}
 
 	// Use modern syntax for 2.19.3+, legacy for older versions
 	if version.IsModernVersion() {
-		log.Printf("Using modern hypertable syntax for TimescaleDB %d.%d.%d", version.Major, version.Minor, version.Patch)
+		l.Info().Msgf("Using modern hypertable syntax for TimescaleDB %d.%d.%d", version.Major, version.Minor, version.Patch)
 		return db.createHypertableModern(tableInfo, partitionColumn, chunkInterval)
 	} else {
-		log.Printf("Using legacy hypertable syntax for TimescaleDB %d.%d.%d", version.Major, version.Minor, version.Patch)
+		l.Info().Msgf("Using legacy hypertable syntax for TimescaleDB %d.%d.%d", version.Major, version.Minor, version.Patch)
 		return db.createHypertableLegacy(tableInfo, partitionColumn, chunkInterval)
 	}
 }
@@ -487,7 +486,7 @@ func (db *DBInitializer) createHypertableModern(tableInfo *TableInfo, partitionC
 		return fmt.Errorf("failed to create hypertable %s using modern syntax: %w", tableInfo.TableName, err)
 	}
 
-	log.Printf("Successfully created hypertable: %s", tableInfo.TableName)
+	l.Info().Msgf("Successfully created hypertable: %s", tableInfo.TableName)
 	return nil
 }
 
@@ -517,7 +516,7 @@ func (db *DBInitializer) createHypertableLegacy(tableInfo *TableInfo, partitionC
 		return fmt.Errorf("failed to convert table %s to hypertable: %w", tableInfo.TableName, err)
 	}
 
-	log.Printf("Successfully created hypertable (legacy): %s", tableInfo.TableName)
+	l.Info().Msgf("Successfully created hypertable (legacy): %s", tableInfo.TableName)
 	return nil
 }
 
@@ -549,11 +548,12 @@ func (db *DBInitializer) CreateChainTypeEnum(enumValues []string) error {
 // - nil: if the function is successful
 // - error: if the function fails
 func (db *DBInitializer) CreateUser(userName string) error {
-	fmt.Printf("Creating user %s.....\n", userName)
-	fmt.Printf("Enter the password for the new user: ")
+	l.Info().Msgf("Creating user %s.....\n", userName)
+	l.Info().Msg("Enter the password for the new user: ")
 	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
-		log.Fatalf("failed to read password: %v", err)
+		l.Error().Err(err).Msg("failed to read password")
+		return fmt.Errorf("failed to read password: %w", err)
 	}
 	password := string(bytePassword)
 
@@ -562,7 +562,7 @@ func (db *DBInitializer) CreateUser(userName string) error {
 	// if error is related to user already existing mark it as a warning and continue
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			log.Printf("User %s already exists, skipping creation", userName)
+			l.Warn().Msgf("User %s already exists, skipping creation", userName)
 			return nil
 		} else {
 			return fmt.Errorf("failed to create user %s: %w", userName, err)

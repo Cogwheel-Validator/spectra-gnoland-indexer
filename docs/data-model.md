@@ -96,7 +96,7 @@ erDiagram
         chain_name chain_name UNIQUE
     }
     address_tx {
-        INTEGER address_id
+        INTEGER address PK
         BYTEA tx_hash
         chain_name chain_name
         TIMESTAMPTZ timestamp PK

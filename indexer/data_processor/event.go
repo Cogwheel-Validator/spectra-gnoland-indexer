@@ -53,7 +53,7 @@ func (er *EventResult) GetCompressedData() []byte {
 // 1. native postgres format
 // 2. protobuf format
 //
-// Untill the training is done and safe to use focus on the native postgres format.
+// Until the training is done and safe to use focus on the native postgres format.
 
 // EventSolver is a function that solves the event of a transaction
 // it will solve the event of a transaction and return the event

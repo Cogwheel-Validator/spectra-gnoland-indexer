@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"context"
-	"log"
 	"time"
 
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
 	"github.com/spf13/cobra"
 )
@@ -61,14 +61,16 @@ var createDbCmd = &cobra.Command{
 	Use:   "create-db",
 	Short: "Create a new database named gnoland",
 	Long: `Create a new database named gnoland for the indexer. It goes\n
-	throught a lot of steps to create the database and insert the tables and data.`,
+	through a lot of steps to create the database and insert the tables and data.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log.Printf("Initiating the cmd to set up the database for the indexer...")
+		l := logger.Get()
+		l.Info().Msg("initiating database setup for the indexer")
 
 		// Parse and validate common database flags
 		params, err := parseCommonFlags(cmd, "postgres")
 		if err != nil {
-			log.Fatalf("failed to parse flags: %v", err)
+			l.Error().Err(err).Msg("failed to parse flags")
+			return err
 		}
 
 		// get the new database name from the flags
@@ -86,7 +88,8 @@ var createDbCmd = &cobra.Command{
 		// Prompt for password
 		params.password, err = promptPassword()
 		if err != nil {
-			log.Fatalf("failed to read password: %v", err)
+			l.Error().Err(err).Msg("failed to read password")
+			return err
 		}
 
 		// Create database config
@@ -101,26 +104,28 @@ var createDbCmd = &cobra.Command{
 		defer cancel()
 		currentDb, err := db.CheckCurrentDatabaseName(ctx)
 		if err != nil {
-			log.Fatalf("failed to check current database name: %v", err)
+			l.Error().Err(err).Msg("failed to check current database name")
+			return err
 		}
-		log.Printf("Logged in into the database %s", currentDb)
+		l.Info().Str("db", currentDb).Msg("logged into database")
 
 		// if the current database is not "gnoland", create a new database named "gnoland"
 		// and insert all of the tables and data from the "gnoland" database
 		if currentDb != newDbName {
-			// create a new database named "gnoland"
-			log.Printf("Creating a new database named %s", newDbName)
+			l.Info().Str("db", newDbName).Msg("creating new database")
 			err = database.CreateDatabase(db, newDbName)
 			if err != nil {
-				log.Fatalf("failed to create database: %v", err)
+				l.Error().Err(err).Msg("failed to create database")
+				return err
 			}
-			// switch to the new database
-			log.Printf("Switching to the new database %s", newDbName)
-			// only for now later add dbName value, it is only for the testing now
+
+			l.Info().Str("db", newDbName).Msg("switching to new database")
 			err = database.SwitchDatabase(db, dbConfig, newDbName)
 			if err != nil {
-				log.Fatalf("failed to switch database: %v", err)
+				l.Error().Err(err).Msg("failed to switch database")
+				return err
 			}
+
 			// insert all of the tables and data from the new database
 			// First create special types (custom postgres types that tables depend on)
 			// and type enums
@@ -137,23 +142,25 @@ var createDbCmd = &cobra.Command{
 			dbInit := dbinit.NewDBInitializer(db.GetPool())
 
 			// Create special types first (they need to exist before tables that use them)
-			log.Printf("Inserting all of the special types into the %s database", chainName)
+			l.Info().Str("chain", chainName).Msg("inserting special types")
 			for _, specialType := range specialTypes {
 				err = dbInit.CreateSpecialTypeFromStruct(specialType, specialType.TypeName())
 				if err != nil {
-					log.Fatalf("failed to create special type %s: %v", specialType.TypeName(), err)
+					l.Error().Err(err).Str("type", specialType.TypeName()).Msg("failed to create special type")
+					return err
 				}
 			}
 
 			// Create type enums
-			log.Printf("Inserting all of the type enums into the %s database", chainName)
+			l.Info().Str("chain", chainName).Msg("inserting type enums")
 			err = dbInit.CreateChainTypeEnum(typeEnums)
 			if err != nil {
-				log.Fatalf("failed to create type enum %s: %v", typeEnums, err)
+				l.Error().Err(err).Strs("enums", typeEnums).Msg("failed to create type enum")
+				return err
 			}
 
 			// Create regular tables (non-time-series tables)
-			log.Printf("Inserting all of the regular tables into the %s database", chainName)
+			l.Info().Str("chain", chainName).Msg("inserting regular tables")
 			regularTables := []sql_data_types.DBTable{
 				sql_data_types.GnoAddress{},
 				sql_data_types.GnoValidatorAddress{},
@@ -162,12 +169,13 @@ var createDbCmd = &cobra.Command{
 			for _, dataType := range regularTables {
 				err = dbInit.CreateTableFromStruct(dataType, dataType.TableName())
 				if err != nil {
-					log.Fatalf("failed to create table %s: %v", dataType.TableName(), err)
+					l.Error().Err(err).Str("table", dataType.TableName()).Msg("failed to create table")
+					return err
 				}
 			}
 
 			// Create hypertables (time-series tables with timestamp columns)
-			log.Printf("Inserting all of the hypertables into the %s database", chainName)
+			l.Info().Str("chain", chainName).Msg("inserting hypertables")
 			hypertables := []struct {
 				table           sql_data_types.DBTable
 				partitionColumn string
@@ -186,12 +194,13 @@ var createDbCmd = &cobra.Command{
 			for _, ht := range hypertables {
 				err = dbInit.CreateHypertableFromStruct(ht.table, ht.table.TableName(), ht.partitionColumn, ht.chunkInterval)
 				if err != nil {
-					log.Fatalf("failed to create hypertable %s: %v", ht.table.TableName(), err)
+					l.Error().Err(err).Str("table", ht.table.TableName()).Msg("failed to create hypertable")
+					return err
 				}
 			}
-			log.Printf("Successfully created all of the hypertables into the %s database", chainName)
+			l.Info().Str("chain", chainName).Msg("successfully created all hypertables")
 		} else {
-			log.Printf("The current database is %s, and it already exists", currentDb)
+			l.Info().Str("db", currentDb).Msg("database already exists, skipping creation")
 			// TODO else if the current database is "gnoland" then we need to check if the tables exist
 			// and if they don't exist then we need to create them
 			// also any kind of future updates to the database should be done here
@@ -205,30 +214,37 @@ var createUserCmd = &cobra.Command{
 	Short: "Create a new user for the database",
 	Long:  `Create a new user for the database. It will ask for the password and create the user.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		l := logger.Get()
+
 		// Parse and validate common database flags
 		params, err := parseCommonFlags(cmd, "gnoland")
 		if err != nil {
-			log.Fatalf("failed to parse flags: %v", err)
+			l.Error().Err(err).Msg("failed to parse flags")
+			return err
 		}
 
 		// Get privilege flag
 		privilege, _ := cmd.Flags().GetString("privilege")
 		if privilege == "" {
-			log.Fatalf("privilege is required")
+			l.Error().Msg("privilege is required")
+			return cmd.Usage()
 		} else if privilege != "reader" && privilege != "writer" {
-			log.Fatalf("invalid privilege: %s", privilege)
+			l.Error().Str("privilege", privilege).Msg("invalid privilege")
+			return cmd.Usage()
 		}
 
 		// get the user name from the flags
 		userName, _ := cmd.Flags().GetString("user")
 		if userName == "" {
-			log.Fatalf("user name is required")
+			l.Error().Msg("user name is required")
+			return cmd.Usage()
 		}
 
 		// Prompt for password
 		params.password, err = promptPassword()
 		if err != nil {
-			log.Fatalf("failed to read password: %v", err)
+			l.Error().Err(err).Msg("failed to read password")
+			return err
 		}
 
 		// Create database config and connection
@@ -239,16 +255,18 @@ var createUserCmd = &cobra.Command{
 		// Create a new user
 		err = dbInit.CreateUser(userName)
 		if err != nil {
-			log.Fatalf("failed to create user: %v", err)
+			l.Error().Err(err).Str("user", userName).Msg("failed to create user")
+			return err
 		}
 
 		// Appoint privileges to the user
 		err = dbInit.AppointPrivileges(params.user, privilege, []string{})
 		if err != nil {
-			log.Fatalf("failed to appoint privileges to user: %v", err)
+			l.Error().Err(err).Str("user", params.user).Str("privilege", privilege).Msg("failed to appoint privileges")
+			return err
 		}
 
-		log.Printf("Successfully created user %s with privilege %s", params.user, privilege)
+		l.Info().Str("user", params.user).Str("privilege", privilege).Msg("successfully created user")
 		return nil
 	},
 }
@@ -259,14 +277,18 @@ var createConfigCmd = &cobra.Command{
 	Long: `Generate a config with default values. It will make a config file with default values. 
 	You can add --overwrite to overwrite the existing config file. And you can use --config to specifly the path`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		l := logger.Get()
+
 		// get the config file name from the flags
 		configFileName, _ := cmd.Flags().GetString("config")
 		if configFileName == "" {
 			configFileName = "config.yaml"
 		}
 		overwrite, _ := cmd.Flags().GetBool("overwrite")
-		createConfig(overwrite, configFileName)
-		log.Printf("Successfully created config file %s", configFileName)
+		if err := createConfig(overwrite, configFileName); err != nil {
+			return err
+		}
+		l.Info().Str("file", configFileName).Msg("successfully created config file")
 		return nil
 	},
 }
