@@ -67,6 +67,9 @@ func CollectEvents(db *database.TimescaleDb, chainName string, amount uint64) ([
 	events := make([][]byte, 0)
 	for _, transaction := range transactions {
 		txEvents := transaction.TxEvents
+		protoTxEvents := &events_proto.TxEvents{
+			Events: make([]*events_proto.Event, 0),
+		}
 		if len(txEvents) > 0 {
 			for _, event := range txEvents {
 				protoAttrs := make([]*events_proto.Attribute, 0)
@@ -79,14 +82,15 @@ func CollectEvents(db *database.TimescaleDb, chainName string, amount uint64) ([
 					Attributes: protoAttrs,
 					PkgPath:    &event.PkgPath,
 				}
-				bs, err := proto.Marshal(protoEv)
-				if err != nil {
-					log.Printf("failed to marshal event: %v", err)
-					continue
-				}
-				events = append(events, bs)
+				protoTxEvents.Events = append(protoTxEvents.Events, protoEv)
 			}
 		}
+		bs, err := proto.Marshal(protoTxEvents)
+		if err != nil {
+			log.Printf("failed to marshal tx events: %v", err)
+			continue
+		}
+		events = append(events, bs)
 	}
 	log.Printf("All events collected")
 	log.Printf("Collected %d events", len(events))
