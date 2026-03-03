@@ -22,6 +22,8 @@ require (
 	google.golang.org/protobuf v1.36.11
 )
 
+require github.com/klauspost/compress v1.18.4 // indirect
+
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect

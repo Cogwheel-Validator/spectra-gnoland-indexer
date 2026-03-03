@@ -69,7 +69,10 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("failed to collect events: %v", err)
 		}
-		dict := train.BuildZstdDict(events)
+		dict, err := train.BuildZstdDict(events)
+		if err != nil {
+			log.Fatalf("failed to build zstd dictionary: %v", err)
+		}
 		err = os.WriteFile(dictPath, dict, 0644)
 		if err != nil {
 			log.Fatalf("failed to write zstd dictionary: %v", err)

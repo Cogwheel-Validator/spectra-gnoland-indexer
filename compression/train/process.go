@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/events_proto"
-	"github.com/valyala/gozstd"
+	"github.com/klauspost/compress/zstd"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -85,6 +86,9 @@ func CollectEvents(db *database.TimescaleDb, chainName string, amount uint64) ([
 				protoTxEvents.Events = append(protoTxEvents.Events, protoEv)
 			}
 		}
+		if len(protoTxEvents.Events) == 0 {
+			continue
+		}
 		bs, err := proto.Marshal(protoTxEvents)
 		if err != nil {
 			log.Printf("failed to marshal tx events: %v", err)
@@ -98,7 +102,30 @@ func CollectEvents(db *database.TimescaleDb, chainName string, amount uint64) ([
 }
 
 // BuildZstdDict builds the zstd dict from the events
-func BuildZstdDict(events [][]byte) []byte {
-	// limit zstd dict to 64KB
-	return gozstd.BuildDict(events, 64*1024)
+func BuildZstdDict(events [][]byte) ([]byte, error) {
+	const maxHistorySize = 112 << 10
+
+	var history []byte
+	for _, e := range events {
+		history = append(history, e...)
+		if len(history) >= maxHistorySize {
+			break
+		}
+	}
+	if len(history) > maxHistorySize {
+		history = history[:maxHistorySize]
+	}
+
+	lvl := zstd.SpeedBestCompression
+	dict, err := zstd.BuildDict(zstd.BuildDictOptions{
+		ID:       1,
+		Contents: events,
+		History:  history,
+		Level:    lvl,
+		DebugOut: os.Stdout,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return dict, nil
 }

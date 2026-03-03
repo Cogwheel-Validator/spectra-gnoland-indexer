@@ -70,3 +70,15 @@ semgrep:
 
 code-quality:
 	golangci-lint run
+
+########################################################
+# Train the zstd dictionary
+########################################################
+
+.PHONY: train-zstd
+
+train-zstd:
+	@echo "Training the zstd dictionary"
+	@read -p "Enter the amount of events to collect (default: 10000): " amount; \
+	amount=$${amount:-10000}; \
+	go run compression/cmd/main.go --config training-config.yml --amount $$amount --chain-name gnoland --dict-path ./pkgs/dict_loader/events.zstd.bin
