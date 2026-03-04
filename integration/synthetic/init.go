@@ -82,7 +82,7 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 
 	// Run the historic process - this will use synthetic data but process it through
 	// the real data processor and store it in the real database
-	orch.HistoricProcess(testConfig.FromHeight, testConfig.ToHeight)
+	orch.HistoricProcess(testConfig.FromHeight, testConfig.ToHeight, false)
 
 	log.Printf("Synthetic integration test completed successfully!")
 	return nil

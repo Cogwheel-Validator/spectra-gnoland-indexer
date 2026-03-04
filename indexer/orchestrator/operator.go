@@ -52,7 +52,8 @@ func NewOrchestrator(
 
 func (or *Orchestrator) HistoricProcess(
 	fromHeight uint64,
-	toHeight uint64) {
+	toHeight uint64,
+	compressEvents bool) {
 	l.Info().Msgf("Starting historic process from %d to %d", fromHeight, toHeight)
 	startTime := time.Now()
 
@@ -73,7 +74,7 @@ func (or *Orchestrator) HistoricProcess(
 		or.currentProcessingHeight = startHeight
 
 		// Process the chunk
-		err := or.processChunk(startHeight, chunkEndHeight)
+		err := or.processChunk(startHeight, chunkEndHeight, compressEvents)
 		if err != nil {
 			l.Error().
 				Caller().
@@ -95,7 +96,7 @@ func (or *Orchestrator) HistoricProcess(
 	l.Info().Msgf("Historic process completed from %d to %d in %v", fromHeight, toHeight, totalDuration)
 }
 
-func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool) {
+func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool, compressEvents bool) {
 	l.Info().Msg("Starting live block processing")
 
 	var lastProcessedHeight uint64
@@ -181,7 +182,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		or.currentProcessingHeight = chunkStart
 
 		// Process this chunk
-		err = or.processChunk(chunkStart, chunkEnd)
+		err = or.processChunk(chunkStart, chunkEnd, compressEvents)
 		if err != nil {
 			l.Error().
 				Caller().
@@ -203,7 +204,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 }
 
 // processChunk processes a single chunk of blocks for live processing
-func (or *Orchestrator) processChunk(chunkStart, chunkEnd uint64) error {
+func (or *Orchestrator) processChunk(chunkStart, chunkEnd uint64, compressEvents bool) error {
 	chunkStartTime := time.Now()
 
 	// Step 1: Get blocks concurrently
@@ -235,7 +236,7 @@ func (or *Orchestrator) processChunk(chunkStart, chunkEnd uint64) error {
 	l.Info().Msgf("Collected %d transactions from %d blocks in live chunk", len(allTransactions), len(blocks))
 
 	// Step 3: Process all data concurrently
-	if err := or.processAll(blocks, commits, allTransactions, false, chunkStart, chunkEnd); err != nil {
+	if err := or.processAll(blocks, commits, allTransactions, compressEvents, chunkStart, chunkEnd); err != nil {
 		return fmt.Errorf("failed to process live chunk %d-%d: %w", chunkStart, chunkEnd, err)
 	}
 

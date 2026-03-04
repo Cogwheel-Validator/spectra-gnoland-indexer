@@ -1,9 +1,11 @@
 package cmd
 
 import (
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
+	"fmt"
+
 	mainOperator "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/main_operator"
 	mainTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/main_types"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -71,6 +73,10 @@ var liveCmd = &cobra.Command{
 		}
 
 		l.Info().Msg("indexer started")
+		if compressEvents {
+			l.Warn().Msg("compress events is enabled, this is experimental and it might slow down the data processing speed")
+		}
+		fmt.Println(compressEvents)
 		mainOperator.InitMainOperator(configPath, ".", rateLimitFlags, runningFlags)
 		return nil
 	},

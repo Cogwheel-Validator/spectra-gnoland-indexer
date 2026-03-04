@@ -91,7 +91,7 @@ func InitMainOperator(
 	// let the orchestrator do it's thing
 	switch runningFlags.RunningMode {
 	case "live":
-		orch.LiveProcess(signalHandler.Context(), runningFlags.SkipInitialDbCheck)
+		orch.LiveProcess(signalHandler.Context(), runningFlags.SkipInitialDbCheck, runningFlags.CompressEvents)
 	case "historic":
 		if runningFlags.FromHeight == 0 || runningFlags.ToHeight == 0 {
 			l.Fatal().Caller().Stack().Msg("from height and to height are required for historic mode")
@@ -104,7 +104,7 @@ func InitMainOperator(
 			<-signalHandler.Context().Done()
 			l.Info().Msg("Shutdown signal received during historic processing")
 		}()
-		orch.HistoricProcess(runningFlags.FromHeight, runningFlags.ToHeight)
+		orch.HistoricProcess(runningFlags.FromHeight, runningFlags.ToHeight, runningFlags.CompressEvents)
 	default:
 		l.Fatal().Caller().Stack().Msg("invalid running mode, please choose between live and historic")
 	}

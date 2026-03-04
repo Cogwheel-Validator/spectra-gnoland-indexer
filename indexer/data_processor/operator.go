@@ -264,6 +264,10 @@ func (d *DataProcessor) ProcessTransactions(
 			}
 
 			// Use mutex only when writing to shared slice
+			txEvents := events.GetNativeEvents()
+			txEventsCompressed := events.GetCompressedData()
+			compressionOn := events.IsCompressed()
+
 			mu.Lock()
 			transactionsData[idx] = sqlDataTypes.TransactionGeneral{
 				TxHash:             txHash,
@@ -271,9 +275,9 @@ func (d *DataProcessor) ProcessTransactions(
 				Timestamp:          transaction.Timestamp,
 				BlockHeight:        transaction.BlockHeight,
 				MsgTypes:           msgTypes,
-				TxEvents:           events.GetNativeEvents(),
-				TxEventsCompressed: events.GetCompressedData(),
-				CompressionOn:      compressEvents,
+				TxEvents:           txEvents,
+				TxEventsCompressed: txEventsCompressed,
+				CompressionOn:      compressionOn,
 				GasUsed:            gasUsed,
 				GasWanted:          gasWanted,
 				Fee:                fee,
