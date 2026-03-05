@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-03-05
+
+This release has some new features added and minor improvements.
+
+The zstd compression has been added. This it is not production ready and still in development, however
+initial testing has been done and it seems to work, about 30% less storage is required.
+
+The API has been improved with some new routes and minor improvements. The cursor based pagination has been added
+to the API on certain routes. The API now also has POST utilities to convert between Base64 and Base64URL.
+
+The docker image for the API has been added. This allows for easy deployment of the API via docker.
+The docker compose file has been adjusted for full deployment via docker(for production and development).
+
+### Added
+
+- Indexer can now compress the events using zstandard compression with the use of `-e or --compress-events` flag. Still in development.
+- CLI tool to train the zstandard dictionary from the database.
+- POST utilities to convert between Base64 and Base64URL
+- Docker image for the API
+- Cursor based pagination to the API on certain routes.
+
+### Changes
+
+- Renamed routes of some API routes to be more descriptive.
+- Docker compose adjusted for full deployment via docker(for production and development)
+- Some minor performance improvements during data processing.
+- Updated the go version to 1.25.7 and all of the dependencies to the latest version.
+
 ## [0.4.0] - 2025-11-26
 
 Mostly it has some bug fixes.
