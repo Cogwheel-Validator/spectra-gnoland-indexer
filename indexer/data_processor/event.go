@@ -20,7 +20,15 @@ const (
 var dictBytes = dictloader.LoadDict()
 var zstdDict = zstd.WithEncoderDict(dictBytes)
 var zstdLvl = zstd.WithEncoderLevel(zstd.SpeedBestCompression)
-var zstdWriter, _ = zstd.NewWriter(nil, zstdDict, zstdLvl)
+var zstdWriter *zstd.Encoder
+
+func init() {
+	var err error
+	zstdWriter, err = zstd.NewWriter(nil, zstdDict, zstdLvl)
+	if err != nil {
+		l.Fatal().Err(err).Msg("failed to initialize zstd writer")
+	}
+}
 
 // EventResult holds the result of EventSolver with type discrimination
 type EventResult struct {
@@ -78,11 +86,6 @@ func EventSolver(txResponse *rpcClient.TxResponse, useCompressed bool) (*EventRe
 			return nil, err
 		}
 		compressed := zstdWriter.EncodeAll(protoSerializedEv, nil)
-		defer func() {
-			if err := zstdWriter.Close(); err != nil {
-				l.Error().Caller().Stack().Msgf("failed to close zstd writer: %v", err)
-			}
-		}()
 		return &EventResult{
 			Format:         CompressedFormat,
 			CompressedData: compressed,

@@ -1,6 +1,9 @@
 package database
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // BlockData represents the actual block data returned in the response body
 type BlockData struct {
@@ -103,6 +106,9 @@ type FullTxData struct {
 }
 
 func (f *FullTxData) ToTransaction(decode func([]byte) (*[]Event, error)) (*Transaction, error) {
+	if decode == nil {
+		return nil, errors.New("decode function is nil")
+	}
 	tx := &Transaction{
 		TxHash:      f.TxHash,
 		Timestamp:   f.Timestamp,
@@ -116,6 +122,9 @@ func (f *FullTxData) ToTransaction(decode func([]byte) (*[]Event, error)) (*Tran
 		events, err := decode(f.TxEventsCompressed)
 		if err != nil {
 			return nil, err
+		}
+		if events == nil {
+			return nil, errors.New("events are nil")
 		}
 		tx.TxEvents = *events
 	} else {

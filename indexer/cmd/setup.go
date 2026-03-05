@@ -262,13 +262,13 @@ var createUserCmd = &cobra.Command{
 		}
 
 		// Appoint privileges to the user
-		err = dbInit.AppointPrivileges(params.user, privilege, []string{})
+		err = dbInit.AppointPrivileges(userName, privilege, []string{})
 		if err != nil {
-			l.Error().Err(err).Str("user", params.user).Str("privilege", privilege).Msg("failed to appoint privileges")
+			l.Error().Err(err).Str("user", userName).Str("privilege", privilege).Msg("failed to appoint privileges")
 			return err
 		}
 
-		l.Info().Str("user", params.user).Str("privilege", privilege).Msg("successfully created user")
+		l.Info().Str("user", userName).Str("privilege", privilege).Msg("successfully created user")
 		return nil
 	},
 }

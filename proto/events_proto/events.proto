@@ -1,7 +1,7 @@
 syntax = "proto3";
-package events_proto;
+package events_proto.v1;
 
-option go_package = "../pkgs/events_proto";
+option go_package = "../../pkgs/events_proto";
 
 message TxEvents {
     repeated Event events = 1;
