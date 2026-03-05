@@ -180,3 +180,14 @@ func (m *MockDatabase) GetMsgRun(ctx context.Context, txHash string, chainName s
 	}
 	return []*database.MsgRun{msgRun}, nil
 }
+
+func (m *MockDatabase) GetTransactionsByCursor(ctx context.Context, chainName string, cursor string, limit uint64) ([]*database.Transaction, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("%s", m.errorMsg)
+	}
+	transactions := make([]*database.Transaction, 0, len(m.transactions))
+	for _, transaction := range m.transactions {
+		transactions = append(transactions, transaction)
+	}
+	return transactions, nil
+}

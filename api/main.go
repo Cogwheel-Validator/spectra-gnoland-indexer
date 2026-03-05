@@ -201,10 +201,16 @@ var rootCmd = &cobra.Command{
 				op.Summary = "Get All Transaction Messages"
 				op.Description = "Retrieve all messages contained within a transaction by its hash"
 			})
-		huma.Get(api, "/transactions", transactionsHandler.GetLastXTransactions,
+		huma.Get(api, "/transactions", transactionsHandler.GetTransactionsByCursor,
 			func(op *huma.Operation) {
-				op.Summary = "Get Last X Transactions"
-				op.Description = "Retrieve the last X transactions data"
+				op.Summary = "Get Transactions"
+				op.Description = `Retrieve transactions by setting the limit and using cursor.
+				To fetch multiple transaction you can use this endpoint. Without cursor you will
+				fetch latest data. However if you need to acquire older data you can use cursor.
+				The cursor is a string in the form of timestamp|tx_hash(base64url encoded).
+				The timestamp is the timestamp of the transaction and the tx_hash is the hash of the transaction.
+				The tx_hash is base64url encoded to be able to query safely via API.
+				`
 			})
 
 		// Register Address API routes

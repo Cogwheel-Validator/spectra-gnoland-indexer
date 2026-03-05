@@ -36,4 +36,5 @@ type DatabaseHandler interface {
 	GetMsgCall(ctx context.Context, txHash string, chainName string) ([]*database.MsgCall, error)
 	GetMsgAddPackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgAddPackage, error)
 	GetMsgRun(ctx context.Context, txHash string, chainName string) ([]*database.MsgRun, error)
+	GetTransactionsByCursor(ctx context.Context, chainName string, cursor string, limit uint64) ([]*database.Transaction, error)
 }
