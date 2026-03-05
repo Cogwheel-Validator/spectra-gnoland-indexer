@@ -89,6 +89,41 @@ type Transaction struct {
 	MsgTypes    []string  `json:"msg_types" doc:"Message types"`
 }
 
+type FullTxData struct {
+	TxHash             string
+	Timestamp          time.Time
+	BlockHeight        uint64
+	TxEvents           []Event
+	TxEventsCompressed []byte
+	CompressionOn      bool
+	GasUsed            uint64
+	GasWanted          uint64
+	Fee                Amount
+	MsgTypes           []string
+}
+
+func (f *FullTxData) ToTransaction(decode func([]byte) (*[]Event, error)) (*Transaction, error) {
+	tx := &Transaction{
+		TxHash:      f.TxHash,
+		Timestamp:   f.Timestamp,
+		BlockHeight: f.BlockHeight,
+		GasUsed:     f.GasUsed,
+		GasWanted:   f.GasWanted,
+		Fee:         f.Fee,
+		MsgTypes:    f.MsgTypes,
+	}
+	if f.CompressionOn {
+		events, err := decode(f.TxEventsCompressed)
+		if err != nil {
+			return nil, err
+		}
+		tx.TxEvents = *events
+	} else {
+		tx.TxEvents = f.TxEvents
+	}
+	return tx, nil
+}
+
 type BlockSigners struct {
 	BlockHeight uint64   `json:"block_height" doc:"Block height"`
 	Proposer    string   `json:"proposer" doc:"Proposer (addresses)"`
