@@ -115,15 +115,34 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker Indexer image
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: Dockerfile
           push: true
           platforms: linux/amd64
           tags: |
             ghcr.io/cogwheel-validator/spectra-gnoland-indexer:${{ steps.version.outputs.version }}
             ghcr.io/cogwheel-validator/spectra-gnoland-indexer:${{ steps.version.outputs.docker_tag }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+            GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
+            GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
+            GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Build and push Docker API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile-api
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/cogwheel-validator/spectra-gnoland-api:${{ steps.version.outputs.version }}
+            ghcr.io/cogwheel-validator/spectra-gnoland-api:${{ steps.version.outputs.docker_tag }}
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
             GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}

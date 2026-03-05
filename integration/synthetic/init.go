@@ -3,6 +3,7 @@ package synthetic
 import (
 	"context"
 	"log"
+	"sync"
 
 	addressCache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
@@ -31,27 +32,39 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 	log.Printf("Connected to database successfully")
 
 	// Initialize address caches (required by data processor)
-	validatorCache := addressCache.NewAddressCache(testConfig.ChainID, db, true)
-	addrCache := addressCache.NewAddressCache(testConfig.ChainID, db, false)
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	var validatorCache *addressCache.AddressCache
+	var addrCache *addressCache.AddressCache
+	go func() {
+		defer wg.Done()
+		validatorCache = addressCache.NewAddressCache(testConfig.ChainID, db, true)
+	}()
+	go func() {
+		defer wg.Done()
+		addrCache = addressCache.NewAddressCache(testConfig.ChainID, db, false)
+	}()
+	wg.Wait()
 	log.Printf("Initialized address caches")
 
 	// Initialize data processor
 	dataProc := dataProcessor.NewDataProcessor(db, addrCache, validatorCache, testConfig.ChainID)
 	log.Printf("Initialized data processor")
 
-	// Create synthetic query operator (this replaces the real RPC queries!)
+	// Create synthetic query operator
 	syntheticQueryOp := NewSyntheticQueryOperator(testConfig.ChainID, testConfig.FromHeight, testConfig.MaxHeight)
 	log.Printf("Created synthetic query operator with max height %d", testConfig.MaxHeight)
 
 	// Create a mock database height interface for the orchestrator
 	mockDbHeight := &MockDatabaseHeight{lastHeight: testConfig.FromHeight - 1}
 
-	// Create a mock gnoland rpc clien
+	// Create a mock gnoland rpc client
 	mockGnoRpc := &MockGnolandRpcClient{latestHeight: testConfig.MaxHeight}
 
 	// Create basic config for orchestrator
 	orchConfig := &config.Config{
-		MaxBlockChunkSize: 50, // Cap it to 50 for now
+		MaxBlockChunkSize:       500,
+		MaxTransactionChunkSize: 1000,
 	}
 
 	// Create orchestrator with synthetic components
@@ -69,7 +82,7 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 
 	// Run the historic process - this will use synthetic data but process it through
 	// the real data processor and store it in the real database
-	orch.HistoricProcess(testConfig.FromHeight, testConfig.ToHeight)
+	orch.HistoricProcess(testConfig.FromHeight, testConfig.ToHeight, false)
 
 	log.Printf("Synthetic integration test completed successfully!")
 	return nil

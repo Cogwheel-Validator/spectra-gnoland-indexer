@@ -1,10 +1,11 @@
 package cmd
 
 import (
-	"log"
+	"fmt"
 
 	mainOperator "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/main_operator"
 	mainTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/main_types"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -14,47 +15,52 @@ var historicCmd = &cobra.Command{
 	Long: `Runs the spectra indexer in historic mode, processing blocks from a given height to a given height.
 	The historic mode takes in starting height point and a finishing height. It should be used to 
 	sync up the database to the latest block height. 
-
+	
 	It can also be useful if you want to index blockchain partially and work with data for any kind of testing
 	or partial scan of the chain where you want to index from a certain height to a certain height.
 	`,
-	Run: func(cmd *cobra.Command, args []string) {
-		log.Println("Running in historic mode")
+	RunE: func(cmd *cobra.Command, args []string) error {
+		l := logger.Get()
+		l.Info().Msg("running in historic mode")
 
 		configPath, err := cmd.Flags().GetString("config")
 		if err != nil {
-			log.Fatalf("failed to get config path: %v", err)
+			l.Error().Err(err).Msg("failed to get config path")
+			return err
 		}
 
-		// Parse RPC flags from command
 		maxRequestsPerWindow, err := cmd.Flags().GetInt("max-req-per-window")
 		if err != nil {
-			log.Fatalf("failed to get max requests per window: %v", err)
+			l.Error().Err(err).Msg("failed to get max requests per window")
+			return err
 		}
 		rateLimitWindow, err := cmd.Flags().GetDuration("rate-limit-window")
 		if err != nil {
-			log.Fatalf("failed to get rate limit window: %v", err)
+			l.Error().Err(err).Msg("failed to get rate limit window")
+			return err
 		}
 		timeout, err := cmd.Flags().GetDuration("timeout")
 		if err != nil {
-			log.Fatalf("failed to get timeout: %v", err)
+			l.Error().Err(err).Msg("failed to get timeout")
+			return err
 		}
 		compressEvents, err := cmd.Flags().GetBool("compress-events")
 		if err != nil {
-			log.Fatalf("failed to get compress events: %v", err)
+			l.Error().Err(err).Msg("failed to get compress events")
+			return err
 		}
 
-		// Parse historic-specific flags
 		fromHeight, err := cmd.Flags().GetUint64("from-height")
 		if err != nil {
-			log.Fatalf("failed to get from height: %v", err)
+			l.Error().Err(err).Msg("failed to get from height")
+			return err
 		}
 		toHeight, err := cmd.Flags().GetUint64("to-height")
 		if err != nil {
-			log.Fatalf("failed to get to height: %v", err)
+			l.Error().Err(err).Msg("failed to get to height")
+			return err
 		}
 
-		// Build flag structs
 		rateLimitFlags := mainTypes.RpcFlags{
 			RequestsPerWindow: maxRequestsPerWindow,
 			TimeWindow:        rateLimitWindow,
@@ -63,27 +69,29 @@ var historicCmd = &cobra.Command{
 
 		runningFlags := mainTypes.RunningFlags{
 			RunningMode:        "historic",
-			SkipInitialDbCheck: false, // Not applicable for historic mode
+			SkipInitialDbCheck: false,
 			CompressEvents:     compressEvents,
 			FromHeight:         fromHeight,
 			ToHeight:           toHeight,
 		}
 
-		log.Println("Indexer started")
+		l.Info().Msg("indexer started")
+		if compressEvents {
+			l.Warn().Msg("compress events is enabled, this is experimental and it might slow down the data processing speed")
+		}
 		mainOperator.InitMainOperator(configPath, ".", rateLimitFlags, runningFlags)
+		return nil
 	},
 }
 
 func init() {
-	// Historic-specific flags
 	historicCmd.Flags().Uint64P("from-height", "f", 1, "starting block height")
 	historicCmd.Flags().Uint64P("to-height", "o", 1000, "ending block height")
 
-	// Mark required flags for historic mode
 	if err := historicCmd.MarkFlagRequired("from-height"); err != nil {
-		log.Fatalf("failed to mark from height as required: %v", err)
+		panic(fmt.Sprintf("failed to mark from-height as required: %v", err))
 	}
 	if err := historicCmd.MarkFlagRequired("to-height"); err != nil {
-		log.Fatalf("failed to mark to height as required: %v", err)
+		panic(fmt.Sprintf("failed to mark to-height as required: %v", err))
 	}
 }

@@ -1,6 +1,9 @@
 package database
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // BlockData represents the actual block data returned in the response body
 type BlockData struct {
@@ -87,6 +90,47 @@ type Transaction struct {
 	GasWanted   uint64    `json:"gas_wanted" doc:"Gas wanted"`
 	Fee         Amount    `json:"fee" doc:"Fee"`
 	MsgTypes    []string  `json:"msg_types" doc:"Message types"`
+}
+
+type FullTxData struct {
+	TxHash             string
+	Timestamp          time.Time
+	BlockHeight        uint64
+	TxEvents           []Event
+	TxEventsCompressed []byte
+	CompressionOn      bool
+	GasUsed            uint64
+	GasWanted          uint64
+	Fee                Amount
+	MsgTypes           []string
+}
+
+func (f *FullTxData) ToTransaction(decode func([]byte) (*[]Event, error)) (*Transaction, error) {
+	if decode == nil {
+		return nil, errors.New("decode function is nil")
+	}
+	tx := &Transaction{
+		TxHash:      f.TxHash,
+		Timestamp:   f.Timestamp,
+		BlockHeight: f.BlockHeight,
+		GasUsed:     f.GasUsed,
+		GasWanted:   f.GasWanted,
+		Fee:         f.Fee,
+		MsgTypes:    f.MsgTypes,
+	}
+	if f.CompressionOn {
+		events, err := decode(f.TxEventsCompressed)
+		if err != nil {
+			return nil, err
+		}
+		if events == nil {
+			return nil, errors.New("events are nil")
+		}
+		tx.TxEvents = *events
+	} else {
+		tx.TxEvents = f.TxEvents
+	}
+	return tx, nil
 }
 
 type BlockSigners struct {

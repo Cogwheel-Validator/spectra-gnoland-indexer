@@ -10,14 +10,15 @@ var (
 )
 
 var RootCmd = &cobra.Command{
-	Use:     "indexer",
-	Short:   "Spectra Gnoland Indexer",
-	Long:    "A blockchain indexer for Gnoland that processes blocks and transactions.",
-	Version: Version + " (commit: " + Commit + ")",
+	Use:          "indexer",
+	Short:        "Spectra Gnoland Indexer",
+	Long:         "A blockchain indexer for Gnoland that processes blocks and transactions.",
+	Version:      Version + " (commit: " + Commit + ")",
+	SilenceErrors: true,
+	SilenceUsage:  true,
 }
 
 func init() {
-	// Add parent commands to root
 	RootCmd.AddCommand(runCmd)
 	RootCmd.AddCommand(setupCmd)
 }

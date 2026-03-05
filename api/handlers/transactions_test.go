@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTransactionsHandler_GetLastXTransactions_Success(t *testing.T) {
+func TestTransactionsHandler_GetTransactionsByCursor_Success(t *testing.T) {
 	fixedTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	db := MockDatabase{
@@ -32,7 +32,7 @@ func TestTransactionsHandler_GetLastXTransactions_Success(t *testing.T) {
 	}
 
 	handler := handlers.NewTransactionsHandler(&db, "gnoland")
-	response, err := handler.GetLastXTransactions(context.Background(), &humatypes.TransactionGeneralListGetInput{Amount: 1})
+	response, err := handler.GetTransactionsByCursor(context.Background(), &humatypes.TransactionGeneralListByCursorGetInput{Cursor: "", Limit: 1})
 
 	require.NoError(t, err)
 	require.NotNil(t, response)
@@ -40,17 +40,17 @@ func TestTransactionsHandler_GetLastXTransactions_Success(t *testing.T) {
 	assert.Equal(t, "tx_hash_1", response.Body[0].TxHash)
 }
 
-func TestTransactionsHandler_GetLastXTransactions_Fail(t *testing.T) {
+func TestTransactionsHandler_GetTransactionsByCursor_Fail(t *testing.T) {
 	db := MockDatabase{
 		shouldError: true,
-		errorMsg:    "error getting last x transactions",
+		errorMsg:    "error getting transactions by cursor",
 	}
 	handler := handlers.NewTransactionsHandler(&db, "gnoland")
-	response, err := handler.GetLastXTransactions(context.Background(), &humatypes.TransactionGeneralListGetInput{Amount: 1})
+	response, err := handler.GetTransactionsByCursor(context.Background(), &humatypes.TransactionGeneralListByCursorGetInput{Cursor: "", Limit: 1})
 
 	assert.Error(t, err)
 	assert.Nil(t, response)
-	assert.Contains(t, err.Error(), "Last x transactions not found")
+	assert.Contains(t, err.Error(), "Transactions by cursor not found")
 }
 
 func TestTransactionsHandler_GetTransactionBasic_Success(t *testing.T) {

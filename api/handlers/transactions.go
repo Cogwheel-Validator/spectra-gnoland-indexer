@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/danielgtaylor/huma/v2"
 )
 
@@ -145,17 +144,13 @@ func (h *TransactionsHandler) GetTransactionMessage(
 	}, nil
 }
 
-// GetLastXTransactions retrieves the last X transactions
-func (h *TransactionsHandler) GetLastXTransactions(ctx context.Context, input *humatypes.TransactionGeneralListGetInput) (*humatypes.TransactionGeneralListGetOutput, error) {
-	transactions, err := h.db.GetLastXTransactions(ctx, h.chainName, input.Amount)
+// Get tx by limit and limit and cursor
+func (h *TransactionsHandler) GetTransactionsByCursor(ctx context.Context, input *humatypes.TransactionGeneralListByCursorGetInput) (*humatypes.TransactionGeneralListByCursorGetOutput, error) {
+	transactions, err := h.db.GetTransactionsByCursor(ctx, h.chainName, input.Cursor, input.Limit)
 	if err != nil {
-		return nil, huma.Error404NotFound("Last x transactions not found", err)
+		return nil, huma.Error404NotFound("Transactions by cursor not found", err)
 	}
-	response := &humatypes.TransactionGeneralListGetOutput{
-		Body: make([]database.Transaction, 0, len(transactions)),
-	}
-	for _, transaction := range transactions {
-		response.Body = append(response.Body, *transaction)
-	}
-	return response, nil
+	return &humatypes.TransactionGeneralListByCursorGetOutput{
+		Body: transactions,
+	}, nil
 }

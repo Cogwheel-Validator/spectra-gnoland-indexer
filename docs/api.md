@@ -2,8 +2,8 @@
 
 With this indexer you can use the REST API from the api directory. It is built with chi framework and huma.
 
-Out of the box you get a [Spotlight UI](https://stoplight.io/) to interact with the API on the /docs route. 
-You can also use some other API UIs but you will need to make the changes yourself. See docs about changing the UI [here](https://huma.rocks/features/api-docs/).
+Out of the box you get a [Spotlight UI](https://stoplight.io/) to interact with the API on the /docs route.
+You can also use some other API UIs but you will need to make the changes yourself. See docs about changing the [UI docs](https://huma.rocks/features/api-docs/).
 
 The huma is framework agnostic and you could modify the API to use some other framework, use another middleware
 or maybe use the stdlib http package. This API provides the most basic and necessary features for querying the database.
@@ -14,22 +14,33 @@ There are total of 5 routes available. This are the basic routes that are needed
 
 ### Blocks
 
-- /block/{height} - Get a specific block data by height
+- /blocks/{height} - Get a specific block data by height
 - /blocks/{from_height}/{to_height} - Get a range of blocks data by height range
 - /blocks/{block_height}/signers - Get all of the validators that signed that block + the proposer
+- /blocks/latest - Get the latest block data
+- /blocks - Get a list of blocks by setting the limit and using cursor.
 
 ### Transactions
 
-- /transaction/{tx_hash} - Get a specific basic transaction data by hash, this gives the basic data about the transaction like hash, timestamp, block height, gas used, gas wanted, fee and more.
-- /transaction/{tx_hash}/message - Get a specific transaction message data by hash, this gives more detailed data about type of transaction, specific data for that message type and more.
+- /transactions/{tx_hash} - Get a specific basic transaction data by hash, this gives the basic data about the transaction like hash, timestamp, block height, gas used, gas wanted, fee and more.
+- /transactions/{tx_hash}/message - Get a specific transaction message data by hash, this gives more detailed data about type of transaction, specific data for that message type and more.
+- /transactions - Get a list of transactions by setting the limit and using cursor.
 
 ### Addresses
 
 - /address/{address}/txs?from_timestamp={from_timestamp}&to_timestamp={to_timestamp} - Get all of the transactions for a given address for a certain time period
 
+### Utilities
+
+These endpoints can be queried via POST method.
+
+- /convert/base64-to-base64url - Convert a base64 encoded tx hash to a base64url encoded tx hash
+- /convert/base64url-to-base64 - Convert a base64url encoded tx hash to a base64 encoded tx hash
+
 ## Setup API
 
 To setup the API you can use the config file. The example config file is in the root under config-api.yml.example.
+
 ```yaml
 # Example config file for the API
 host: 127.0.0.1
@@ -73,6 +84,7 @@ You can make the API by running the following command from the project root:
 ```bash
 make build-api
 ```
+
 This command will build the API and it will be located in the build directory.
 
 To run the API you can use the following command:
@@ -88,4 +100,3 @@ You can also use the following command to run the API with HTTPS if you have the
 ```
 
 The docker image doesn't exist for now and it will be added in the future.
-

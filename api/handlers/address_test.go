@@ -27,12 +27,18 @@ func TestAddressHandler_GetAddressTxs_Success(t *testing.T) {
 		},
 	}
 	handler := handlers.NewAddressHandler(&db, "gnoland")
-	response, err := handler.GetAddressTxs(context.Background(), &humatypes.AddressGetInput{Address: "gno_address_1"})
+	response, err := handler.GetAddressTxs(context.Background(), &humatypes.AddressGetInput{
+		Address: "gno_address_1",
+		Limit:   10,
+		Page:    0,
+	})
 
 	require.NoError(t, err)
 	require.NotNil(t, response)
-	assert.Equal(t, 3, len(response.Body))
-	assert.Equal(t, "tx_hash_1", response.Body[0].Hash)
+	assert.Equal(t, 3, len(response.Body.AddressTxs))
+	assert.Equal(t, "tx_hash_1", response.Body.AddressTxs[0].Hash)
+	assert.Equal(t, uint64(3), response.Body.TxCount)
+	assert.Equal(t, "", response.Body.NextCursor)
 }
 
 func TestAddressHandler_GetAddressTxs_Fail(t *testing.T) {
@@ -41,7 +47,11 @@ func TestAddressHandler_GetAddressTxs_Fail(t *testing.T) {
 		errorMsg:    "error getting address transactions",
 	}
 	handler := handlers.NewAddressHandler(&db, "gnoland")
-	response, err := handler.GetAddressTxs(context.Background(), &humatypes.AddressGetInput{Address: "gno_address_1"})
+	response, err := handler.GetAddressTxs(context.Background(), &humatypes.AddressGetInput{
+		Address: "gno_address_1",
+		Limit:   10,
+		Page:    0,
+	})
 
 	assert.Error(t, err)
 	assert.Nil(t, response)

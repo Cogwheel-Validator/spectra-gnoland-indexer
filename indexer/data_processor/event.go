@@ -1,10 +1,12 @@
 package dataprocessor
 
 import (
-	"fmt"
-
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
+	dictloader "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/dict_loader"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/events_proto"
 	sqlDataTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/sql_data_types"
+	"github.com/cosmos/gogoproto/proto"
+	"github.com/klauspost/compress/zstd"
 )
 
 // EventFormat represents the format type of the returned data
@@ -14,6 +16,19 @@ const (
 	NativeFormat EventFormat = iota
 	CompressedFormat
 )
+
+var dictBytes = dictloader.LoadDict()
+var zstdDict = zstd.WithEncoderDict(dictBytes)
+var zstdLvl = zstd.WithEncoderLevel(zstd.SpeedBestCompression)
+var zstdWriter *zstd.Encoder
+
+func init() {
+	var err error
+	zstdWriter, err = zstd.NewWriter(nil, zstdDict, zstdLvl)
+	if err != nil {
+		l.Fatal().Err(err).Msg("failed to initialize zstd writer")
+	}
+}
 
 // EventResult holds the result of EventSolver with type discrimination
 type EventResult struct {
@@ -48,13 +63,6 @@ func (er *EventResult) GetCompressedData() []byte {
 	return nil
 }
 
-// TODO: when the dict training is done this will need to hold
-// 2 types of storing the data
-// 1. native postgres format
-// 2. protobuf format
-//
-// Untill the training is done and safe to use focus on the native postgres format.
-
 // EventSolver is a function that solves the event of a transaction
 // it will solve the event of a transaction and return the event
 //
@@ -70,17 +78,30 @@ func (er *EventResult) GetCompressedData() []byte {
 //   - *EventResult: contains either native events or compressed data
 //   - error: an error if the event solving fails
 func EventSolver(txResponse *rpcClient.TxResponse, useCompressed bool) (*EventResult, error) {
-	if useCompressed {
-		// TODO: Implement compressed format when protobuf training is complete
-		// This would involve:
-		// 1. Converting to protobuf format
-		// 2. Compressing with zstandard
-		// 3. Returning the compressed bytes
-		return nil, fmt.Errorf("compressed format not yet implemented")
+	events := &txResponse.Result.TxResult.ResponseBase.Events
+	evCount := len(*events)
+
+	/*
+		The reason why the program only compresses events with more than 2 elements is because of the size.
+		Even with the trained zstd dictionary in theory we could compress the data but unless it is more than 70 bytes
+		altogether in it's raw form then it will just add compression overhead.
+
+		Until the dictionary is improved and trained on a larger set of data for now it will work like this.
+	*/
+	if useCompressed && evCount >= 2 {
+		protoSerializedEv, err := serializeEvent(events)
+		if err != nil {
+			return nil, err
+		}
+		compressed := zstdWriter.EncodeAll(protoSerializedEv, nil)
+		return &EventResult{
+			Format:         CompressedFormat,
+			CompressedData: compressed,
+		}, nil
 	}
 
 	// Native format implementation
-	events := make([]sqlDataTypes.Event, 0, len(txResponse.Result.TxResult.ResponseBase.Events))
+	nativeEvents := make([]sqlDataTypes.Event, 0, len(txResponse.Result.TxResult.ResponseBase.Events))
 	for _, event := range txResponse.Result.TxResult.ResponseBase.Events {
 		attributes := make([]sqlDataTypes.Attribute, 0, len(event.Attrs))
 		for _, attribute := range event.Attrs {
@@ -89,7 +110,7 @@ func EventSolver(txResponse *rpcClient.TxResponse, useCompressed bool) (*EventRe
 				Value: attribute.Value,
 			})
 		}
-		events = append(events, sqlDataTypes.Event{
+		nativeEvents = append(nativeEvents, sqlDataTypes.Event{
 			AtType:     event.AtType,
 			Type:       event.Type,
 			Attributes: attributes,
@@ -99,6 +120,31 @@ func EventSolver(txResponse *rpcClient.TxResponse, useCompressed bool) (*EventRe
 
 	return &EventResult{
 		Format:       NativeFormat,
-		NativeEvents: events,
+		NativeEvents: nativeEvents,
 	}, nil
+}
+
+func serializeEvent(events *[]rpcClient.Event) ([]byte, error) {
+	protoTxEvents := &events_proto.TxEvents{
+		Events: make([]*events_proto.Event, 0),
+	}
+	for _, event := range *events {
+		protoAttrs := make([]*events_proto.Attribute, 0)
+		for _, attribute := range event.Attrs {
+			protoAttrs = append(protoAttrs, events_proto.NewAttributeFromString(attribute.Key, attribute.Value))
+		}
+		pkgPath := event.PkgPath
+		protoEv := &events_proto.Event{
+			AtType:     event.AtType,
+			Type:       event.Type,
+			Attributes: protoAttrs,
+			PkgPath:    &pkgPath,
+		}
+		protoTxEvents.Events = append(protoTxEvents.Events, protoEv)
+	}
+	bs, err := proto.Marshal(protoTxEvents)
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
 }

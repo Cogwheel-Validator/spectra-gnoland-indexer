@@ -10,7 +10,16 @@ import (
 // DatabaseHandler interface for the database
 type DatabaseHandler interface {
 	// Addresses
-	GetAddressTxs(ctx context.Context, address string, chainName string, fromTimestamp time.Time, toTimestamp time.Time) (*[]database.AddressTx, error)
+	GetAddressTxs(
+		ctx context.Context,
+		address string,
+		chainName string,
+		fromTimestamp *time.Time,
+		toTimestamp *time.Time,
+		limit *uint64,
+		page *uint64,
+		cursor *string,
+	) (*[]database.AddressTx, string, uint64, error)
 
 	// Blocks
 	GetBlock(ctx context.Context, height uint64, chainName string) (*database.BlockData, error)
@@ -27,4 +36,5 @@ type DatabaseHandler interface {
 	GetMsgCall(ctx context.Context, txHash string, chainName string) ([]*database.MsgCall, error)
 	GetMsgAddPackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgAddPackage, error)
 	GetMsgRun(ctx context.Context, txHash string, chainName string) ([]*database.MsgRun, error)
+	GetTransactionsByCursor(ctx context.Context, chainName string, cursor string, limit uint64) ([]*database.Transaction, error)
 }

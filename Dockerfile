@@ -1,4 +1,4 @@
-FROM golang:1.25.4-trixie AS builder
+FROM golang:1.25 AS builder
 
 WORKDIR /app
 
@@ -14,14 +14,18 @@ RUN if [ -z "$VERSION" ]; then \
     else VERSION="${GIT_BRANCH}-${GIT_COMMIT}"; \
     fi; \
     fi && \
-    go build -ldflags="-X 'github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT}' -X 'github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}'" -o indexer ./indexer
+    go build -ldflags="-s -w -X 'github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT}' -X 'github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}'" -o indexer ./indexer
 
 RUN chmod +x indexer
+RUN touch config.yml
 
-FROM debian:trixie-slim
+FROM gcr.io/distroless/base-debian13:latest
 
 WORKDIR /app
 
-COPY --from=builder /app/indexer /app/indexer
+COPY --from=builder /app/indexer .
+COPY --from=builder --chown=nonroot:nonroot /app/config.yml .
+
+USER nonroot
 
 ENTRYPOINT ["/app/indexer"]

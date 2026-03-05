@@ -160,7 +160,7 @@ var rootCmd = &cobra.Command{
 		})
 
 		// Register Block API routes
-		huma.Get(api, "/block/{height}", blocksHandler.GetBlock,
+		huma.Get(api, "/blocks/{height}", blocksHandler.GetBlock,
 			func(op *huma.Operation) {
 				op.Summary = "Get Block Height"
 				op.Description = "Retrieve block data by its height"
@@ -188,30 +188,59 @@ var rootCmd = &cobra.Command{
 
 		// Register Transaction API routes
 		huma.Get(
-			api, "/transaction/{tx_hash}", transactionsHandler.GetTransactionBasic,
+			api, "/transactions/{tx_hash}", transactionsHandler.GetTransactionBasic,
 			func(op *huma.Operation) {
 				op.Summary = "Get Transaction Basic"
 				op.Description = "Retrieve basic transaction data by its hash"
 			})
 		huma.Get(
 			api,
-			"/transaction/{tx_hash}/message",
+			"/transactions/{tx_hash}/messages",
 			transactionsHandler.GetTransactionMessage,
 			func(op *huma.Operation) {
 				op.Summary = "Get All Transaction Messages"
 				op.Description = "Retrieve all messages contained within a transaction by its hash"
 			})
-		huma.Get(api, "/transactions", transactionsHandler.GetLastXTransactions,
+		huma.Get(api, "/transactions", transactionsHandler.GetTransactionsByCursor,
 			func(op *huma.Operation) {
-				op.Summary = "Get Last X Transactions"
-				op.Description = "Retrieve the last X transactions data"
+				op.Summary = "Get Transactions"
+				op.Description = `Retrieve transactions by setting the limit and using cursor.
+				To fetch multiple transaction you can use this endpoint. Without cursor you will
+				fetch latest data. However if you need to acquire older data you can use cursor.
+				The cursor is a string in the form of timestamp|tx_hash(base64url encoded).
+				The timestamp is the timestamp of the transaction and the tx_hash is the hash of the transaction.
+				The tx_hash is base64url encoded to be able to query safely via API.
+				`
 			})
 
 		// Register Address API routes
 		huma.Get(api, "/address/{address}/txs", addressHandler.GetAddressTxs,
 			func(op *huma.Operation) {
 				op.Summary = "Get Address Transactions"
-				op.Description = "Retrieve all transactions for a given address for a certain time period"
+				op.Description = `Retrieve all transactions for a given address.
+				There are 3 ways to query the transactions:
+				
+				1. by timestamp range
+				2. by cursor
+				3. by limit and page
+
+				For the timestamp range, you can specify the from and to timestamps.
+				For the cursor, just make the first query without any parameters besides the address. 
+				The query will contain the data alongside the next cursor that can be used as a query to get the data needed.
+				For the limit and page, you can specify the limit and page to get the next set of transactions.
+				`
+			})
+
+		// Register Convert Base64 API routes
+		huma.Post(api, "/convert/base64-to-base64url", handlers.ConvertFromBase64toBase64Url,
+			func(op *huma.Operation) {
+				op.Summary = "Convert Base64 to Base64Url"
+				op.Description = "Convert a base64 encoded tx hash to a base64url encoded tx hash"
+			})
+		huma.Post(api, "/convert/base64url-to-base64", handlers.ConvertFromBase64UrlToBase64,
+			func(op *huma.Operation) {
+				op.Summary = "Convert Base64Url to Base64"
+				op.Description = "Convert a base64url encoded tx hash to a base64 encoded tx hash"
 			})
 
 		// Start server using config values

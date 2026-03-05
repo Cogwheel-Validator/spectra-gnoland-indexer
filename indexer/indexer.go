@@ -1,13 +1,43 @@
 package main
 
 import (
-	"log"
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
+	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
+	"go.opentelemetry.io/otel/log/global"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 )
 
 func main() {
-	if err := cmd.RootCmd.Execute(); err != nil {
-		log.Fatalf("failed to execute command: %v", err)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	// Only set up OTel when an endpoint is explicitly configured.
+	// Without this guard the OTLP exporter dials lazily and prints a
+	// "connection refused" error on shutdown even when no collector is running.
+	if os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" {
+		if exp, err := otlploghttp.New(ctx); err == nil {
+			provider := sdklog.NewLoggerProvider(
+				sdklog.WithProcessor(sdklog.NewBatchProcessor(exp)),
+			)
+			global.SetLoggerProvider(provider)
+			defer provider.Shutdown(ctx) //nolint:errcheck
+		}
+	}
+
+	logger.Init(logger.Config{
+		Level:       zerolog.InfoLevel,
+		ServiceName: "spectra-indexer",
+		Pretty:      true,
+	})
+
+	if err := cmd.RootCmd.ExecuteContext(ctx); err != nil {
+		logger.Get().Fatal().Err(err).Msg("failed to execute command")
 	}
 }

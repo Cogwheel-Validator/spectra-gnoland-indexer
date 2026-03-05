@@ -162,7 +162,7 @@ func TestOrchestrator_HistoricProcess_CallsAllProcessors(t *testing.T) {
 	)
 
 	// Test historic processing
-	orch.HistoricProcess(1, 5)
+	orch.HistoricProcess(1, 5, false)
 
 	// Verify orchestration: all processors should be called
 	if !mockDataProcessor.ProcessValidatorAddressesCalled {
@@ -210,7 +210,7 @@ func TestOrchestrator_HistoricProcess_SkipsProcessingWhenNoBlocks(t *testing.T) 
 	)
 
 	// Test historic processing
-	orch.HistoricProcess(1, 5)
+	orch.HistoricProcess(1, 5, false)
 
 	// Verify query was attempted
 	if mockQueryOperator.CallCount == 0 {
@@ -253,7 +253,7 @@ func TestOrchestrator_LiveProcess_RespectsContext(t *testing.T) {
 	start := time.Now()
 
 	// Test live processing - should return quickly due to context cancellation
-	orch.LiveProcess(ctx, false)
+	orch.LiveProcess(ctx, false, false)
 
 	// Should return quickly (within 1 second)
 	elapsed := time.Since(start)
@@ -291,7 +291,7 @@ func TestOrchestrator_LiveProcess_SkipDbCheck(t *testing.T) {
 	defer cancel()
 
 	// Test live processing with skip DB check - should not fail even though DB errors
-	orch.LiveProcess(ctx, true) // skipInitialDbCheck = true
+	orch.LiveProcess(ctx, true, false) // skipInitialDbCheck = true
 
 	// Test passes if we get here without panic/fatal error
 }

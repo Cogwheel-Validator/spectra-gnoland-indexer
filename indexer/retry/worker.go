@@ -1,9 +1,12 @@
 package retry
 
 import (
-	"log"
 	"time"
+
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 )
+
+var l = logger.Get()
 
 // RetryResult holds the result of a retry operation
 //
@@ -60,7 +63,11 @@ func GenericRetryQuery[T any](
 
 			// if the result is not successful, store the error
 			lastErr = err
-			log.Printf("Retry attempt %d failed: %v", i+1, err)
+			l.Error().
+				Caller().
+				Stack().
+				Err(err).
+				Msgf("Retry attempt %d failed", i+1)
 
 			// Don't sleep on the last retry attempt
 			if i < retryAmount-1 {
@@ -112,7 +119,11 @@ func RetryWithContext[T any](
 			onSuccess(result.Value)
 		} else {
 			if result.Error != nil {
-				log.Printf("Error: All retry attempts failed: %v", result.Error)
+				l.Error().
+					Caller().
+					Stack().
+					Err(result.Error).
+					Msgf("Error: All retry attempts failed")
 			}
 			onFailure(result.Error)
 		}

@@ -11,43 +11,56 @@ services:
       POSTGRES_PASSWORD: 12345678
       POSTGRES_DB: gnoland
     volumes:
-      - timescale_data:/home/postgres/pgdata
+      - spectra-data:/home/postgres/pgdata/data
     networks:
-      - gnoland
+      - spectra
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d gnoland"]
       interval: 10s
       timeout: 5s
       retries: 5
     
-  # first build the docker image
-  # all of the envs you will need to change to values
-  # as for the indexer mode the default here is live however look at deployment.md 
-  # for more information
-  #indexer:
-  #  image: gnoland-indexer:latest
-  #  container_name: indexer-gnoland
-  #  restart: always
-  #  environment:
-  #    DB_HOST: timescale-gnoland
-  #    DB_PORT: 5432
-  #    DB_USER: postgres
-  #    DB_PASSWORD: 12345678
-  #    DB_NAME: gnoland
-  #  networks:
-  #    - gnoland
-  #  depends_on:
-  #    timescaledb:
-  #      condition: service_healthy
-  #
-  #  volumes:
-  #    - ./config.yml:/app/config.yml
-  #  command: ["app/indexer", "live", "--config", "app/config.yml"]
-  
+  indexer:
+    image: ghcr.io/cogwheel-validator/spectra-gnoland-indexer:latest
+    container_name: indexer
+    restart: always
+    environment:
+      DB_HOST: timescaledb
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: 12345678
+      DB_NAME: gnoland
+    networks:
+      - spectra
+    depends_on:
+      - timescaledb
+    volumes:
+      - ./config.yml:/app/config.yml:ro,Z
+    command: ["run", "live", "--config", "/app/config.yml"]
+  api:
+    image: ghcr.io/cogwheel-validator/spectra-gnoland-api:latest
+    container_name: api
+    restart: always
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      DB_HOST: timescaledb
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: 12345678
+      DB_NAME: gnoland
+    networks:
+      - spectra
+    depends_on:
+      - timescaledb
+    volumes:
+      - ./config-api.yml:/app/config-api.yml:ro,Z
+    command: ["-c", "/app/config-api.yml"]
 
 networks:
-  gnoland:
+  spectra:
     driver: bridge
 
 volumes:
-  timescale_data:
+  spectra-data:
+    driver: local

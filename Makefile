@@ -1,4 +1,15 @@
-.PHONY: build install clean build-experimental install-experimental build-api test-race integration-test test
+.PHONY: build 
+		install 
+		clean 
+		build-experimental 
+		install-experimental 
+		build-api 
+		integration-test 
+		test 
+		vulnerability-scan 
+		snyk 
+		semgrep 
+		code-quality
 
 ########################################################
 # Build and install the indexer
@@ -37,8 +48,37 @@ build-experimental:
 test:
 	go test -v ./...
 
-test-race:
-	go test -v -race ./...
-
 integration-test:
 	cd integration && go test -v -tags=integration -timeout=20m ./...
+
+########################################################
+# Vulnerability scanning
+########################################################
+
+vulnerability-scan:
+	govulncheck ./...
+
+snyk:
+	snyk test 
+
+semgrep:
+	semgrep ci
+
+########################################################
+# Code quality
+########################################################
+
+code-quality:
+	golangci-lint run
+
+########################################################
+# Train the zstd dictionary
+########################################################
+
+.PHONY: train-zstd
+
+train-zstd:
+	@echo "Training the zstd dictionary"
+	@read -p "Enter the amount of events to collect (default: 10000): " amount; \
+	amount=$${amount:-10000}; \
+	go run compression/cmd/main.go --config training-config.yml --amount $$amount --chain-name gnoland --dict-path ./pkgs/dict_loader/events.zstd.bin

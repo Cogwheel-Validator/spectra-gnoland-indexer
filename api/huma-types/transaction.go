@@ -54,10 +54,11 @@ type TransactionMessageGetOutput struct {
 	Body map[int16]TransactionMessage
 }
 
-type TransactionGeneralListGetInput struct {
-	Amount uint64 `query:"amount" doc:"Amount of transactions to get" required:"true" min:"1" max:"100" default:"10"`
+type TransactionGeneralListByCursorGetInput struct {
+	Cursor string `query:"cursor" doc:"Cursor to get the next set of transactions in form of timestamp|tx_hash(base64url encoded)" required:"false"`
+	Limit  uint64 `query:"limit" doc:"Limit of transactions to get" required:"true" min:"1" max:"100" default:"10"`
 }
 
-type TransactionGeneralListGetOutput struct {
-	Body []database.Transaction
+type TransactionGeneralListByCursorGetOutput struct {
+	Body []*database.Transaction
 }

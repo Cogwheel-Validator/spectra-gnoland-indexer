@@ -1,0 +1,17 @@
+# Example config file for the training
+# Please note that the user and password are just an example and you should use your own values
+# However the training process will only ever be done prior to the indexer being deployed and only be
+# done once, or if you want to re-train the dictionary. Therefore it is not a big deal since you would
+# only do this in development or testing.
+user: postgres
+password: 12345678
+host: localhost
+port: 5432
+dbname: gnoland
+sslmode: disable
+pool_max_conns: 50
+pool_min_conns: 10
+pool_max_conn_lifetime: 5m
+pool_max_conn_idle_time: 5m
+pool_health_check_period: 1m
+pool_max_conn_lifetime_jitter: 1m
