@@ -4,16 +4,28 @@ import (
 	"context"
 	"encoding/base64"
 	"log"
+	"strconv"
 
 	dictloader "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/dict_loader"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/events_proto"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 	"github.com/cosmos/gogoproto/proto"
 	"github.com/klauspost/compress/zstd"
 )
 
 var dictBytes = dictloader.LoadDict()
 var zstdDict = zstd.WithDecoderDicts(dictBytes)
-var zstdReader, _ = zstd.NewReader(nil, zstdDict)
+var zstdReader *zstd.Decoder
+
+var l = logger.Get()
+
+func init() {
+	var err error
+	zstdReader, err = zstd.NewReader(nil, zstdDict)
+	if err != nil {
+		l.Fatal().Caller().Stack().Err(err).Msg("failed to initialize zstd reader")
+	}
+}
 
 // GetTransaction gets the transaction for a given transaction hash
 //
@@ -141,6 +153,11 @@ func (t *TimescaleDb) GetLastXTransactions(ctx context.Context, chainName string
 //   - chainName: the name of the chain
 //   - limit: the limit of the transactions to get
 //   - offset: the offset of the transactions to get
+//
+// Additional info:
+//
+// This part of the logic won't be officially present in the API. It's current only usage
+// is with training the zstd dictionary. You are welcome to modify this function and add it to the API.
 func (t *TimescaleDb) GetTransactionsByOffset(
 	ctx context.Context,
 	chainName string,
@@ -293,16 +310,33 @@ func decodeEvents(txEvents []byte) (*[]Event, error) {
 	for _, event := range txEventsProto.Events {
 		attributes := make([]Attribute, 0, len(event.Attributes))
 		for _, attribute := range event.Attributes {
+			var value string
+			switch v := attribute.Value.(type) {
+			case *events_proto.Attribute_StringValue:
+				value = v.StringValue
+			case *events_proto.Attribute_Int64Value:
+				value = strconv.FormatInt(v.Int64Value, 10)
+			case *events_proto.Attribute_BoolValue:
+				value = strconv.FormatBool(v.BoolValue)
+			case *events_proto.Attribute_DoubleValue:
+				value = strconv.FormatFloat(v.DoubleValue, 'g', -1, 64)
+			default:
+				value = ""
+			}
 			attributes = append(attributes, Attribute{
 				Key:   attribute.Key,
-				Value: attribute.GetStringValue(),
+				Value: value,
 			})
+		}
+		pkgPath := ""
+		if event.PkgPath != nil {
+			pkgPath = *event.PkgPath
 		}
 		events = append(events, Event{
 			AtType:     event.AtType,
 			Type:       event.Type,
 			Attributes: attributes,
-			PkgPath:    *event.PkgPath,
+			PkgPath:    pkgPath,
 		})
 	}
 	return &events, nil

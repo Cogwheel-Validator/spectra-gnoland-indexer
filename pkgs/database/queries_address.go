@@ -150,7 +150,7 @@ func (t *TimescaleDb) getAddressTxsCursorQuery(
 		FROM address_tx tx
 		WHERE tx.address = $1
 		AND tx.chain_name = $2
-		ORDER BY tx.timestamp DESC
+		ORDER BY tx.timestamp DESC, tx.tx_hash DESC
 		LIMIT $3
 		`
 		args = append(args, accountId, chainName, fetchLimit)

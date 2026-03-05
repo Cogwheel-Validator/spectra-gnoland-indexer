@@ -221,31 +221,31 @@ var createUserCmd = &cobra.Command{
 		// Parse and validate common database flags
 		params, err := parseCommonFlags(cmd, "gnoland")
 		if err != nil {
-			l.Error().Err(err).Msg("failed to parse flags")
+			l.Fatal().Err(err).Msg("failed to parse flags")
 			return err
 		}
 
 		// Get privilege flag
 		privilege, _ := cmd.Flags().GetString("privilege")
 		if privilege == "" {
-			l.Error().Msg("privilege is required")
+			l.Fatal().Msg("privilege is required")
 			return cmd.Usage()
 		} else if privilege != "reader" && privilege != "writer" {
-			l.Error().Str("privilege", privilege).Msg("invalid privilege")
+			l.Fatal().Str("privilege", privilege).Msg("invalid privilege")
 			return cmd.Usage()
 		}
 
 		// get the user name from the flags
 		userName, _ := cmd.Flags().GetString("user")
 		if userName == "" {
-			l.Error().Msg("user name is required")
+			l.Fatal().Msg("user name is required")
 			return cmd.Usage()
 		}
 
 		// Prompt for password
 		params.password, err = promptPassword()
 		if err != nil {
-			l.Error().Err(err).Msg("failed to read password")
+			l.Fatal().Err(err).Msg("failed to read password")
 			return err
 		}
 
@@ -257,14 +257,14 @@ var createUserCmd = &cobra.Command{
 		// Create a new user
 		err = dbInit.CreateUser(userName)
 		if err != nil {
-			l.Error().Err(err).Str("user", userName).Msg("failed to create user")
+			l.Fatal().Err(err).Str("user", userName).Msg("failed to create user")
 			return err
 		}
 
 		// Appoint privileges to the user
 		err = dbInit.AppointPrivileges(userName, privilege, []string{})
 		if err != nil {
-			l.Error().Err(err).Str("user", userName).Str("privilege", privilege).Msg("failed to appoint privileges")
+			l.Fatal().Err(err).Str("user", userName).Str("privilege", privilege).Msg("failed to appoint privileges")
 			return err
 		}
 

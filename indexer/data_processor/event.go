@@ -80,6 +80,14 @@ func (er *EventResult) GetCompressedData() []byte {
 func EventSolver(txResponse *rpcClient.TxResponse, useCompressed bool) (*EventResult, error) {
 	events := &txResponse.Result.TxResult.ResponseBase.Events
 	evCount := len(*events)
+
+	/*
+		The reason why the program only compresses events with more than 2 elements is because of the size.
+		Even with the trained zstd dictionary in theory we could compress the data but unless it is more than 70 bytes
+		altogether in it's raw form then it will just add compression overhead.
+
+		Until the dictionary is improved and trained on a larger set of data for now it will work like this.
+	*/
 	if useCompressed && evCount >= 2 {
 		protoSerializedEv, err := serializeEvent(events)
 		if err != nil {
@@ -125,11 +133,12 @@ func serializeEvent(events *[]rpcClient.Event) ([]byte, error) {
 		for _, attribute := range event.Attrs {
 			protoAttrs = append(protoAttrs, events_proto.NewAttributeFromString(attribute.Key, attribute.Value))
 		}
+		pkgPath := event.PkgPath
 		protoEv := &events_proto.Event{
 			AtType:     event.AtType,
 			Type:       event.Type,
 			Attributes: protoAttrs,
-			PkgPath:    &event.PkgPath,
+			PkgPath:    &pkgPath,
 		}
 		protoTxEvents.Events = append(protoTxEvents.Events, protoEv)
 	}
