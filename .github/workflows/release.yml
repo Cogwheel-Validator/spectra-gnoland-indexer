@@ -119,6 +119,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: Dockerfile
           push: true
           platforms: linux/amd64
           tags: |
@@ -136,6 +137,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: Dockerfile-api
           push: true
           platforms: linux/amd64
           tags: |
