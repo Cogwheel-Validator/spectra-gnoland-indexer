@@ -31,8 +31,8 @@ import (
 //   - error: if the transactions fail to collect
 func CollectEvents(db *database.TimescaleDb, chainName string, amount uint64) ([][]byte, error) {
 	// define the limits and offset
-	if amount > 50000 {
-		return nil, fmt.Errorf("amount cannot be greater than 50000")
+	if amount > 250000 {
+		return nil, fmt.Errorf("amount cannot be greater than 250000")
 	}
 	if amount == 0 {
 		return nil, fmt.Errorf("amount cannot be 0")
