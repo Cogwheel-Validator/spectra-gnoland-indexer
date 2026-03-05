@@ -217,7 +217,7 @@ func (t *TimescaleDb) getAddressTxsLimitPageQuery(
 	WHERE tx.address = $1
 	AND tx.chain_name = $2
 	ORDER BY tx.timestamp DESC
-	LIMIT $4 OFFSET $5
+	LIMIT $3 OFFSET $4
 	`
 	args = append(args, accountId, chainName, *limit, offset)
 

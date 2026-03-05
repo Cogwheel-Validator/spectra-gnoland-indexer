@@ -105,7 +105,17 @@ func (t *TimescaleDb) GetLastXTransactions(ctx context.Context, chainName string
 	transactions := make([]*Transaction, 0)
 	for rows.Next() {
 		transaction := &FullTxData{}
-		err := rows.Scan(&transaction.TxHash, &transaction.Timestamp, &transaction.BlockHeight, &transaction.TxEvents, &transaction.GasUsed, &transaction.GasWanted, &transaction.Fee, &transaction.MsgTypes)
+		err := rows.Scan(
+			&transaction.TxHash,
+			&transaction.Timestamp,
+			&transaction.BlockHeight,
+			&transaction.TxEvents,
+			&transaction.TxEventsCompressed,
+			&transaction.CompressionOn,
+			&transaction.GasUsed,
+			&transaction.GasWanted,
+			&transaction.Fee,
+			&transaction.MsgTypes)
 		if err != nil {
 			return nil, err
 		}
@@ -210,12 +220,12 @@ func (t *TimescaleDb) GetTransactionsByCursor(
 	tx.msg_types
 	FROM transaction_general tx
 	WHERE tx.chain_name = $1
-	AND (tx.tx_hash, tx.timestamp) < ($2, $3)
+	AND (tx.timestamp, tx.tx_hash) < ($2, $3)
 	ORDER BY tx.timestamp DESC, tx.tx_hash DESC
 	LIMIT $4
 	`
-	args := []any{chainName, decodedTxHash, timestamp, limit}
-	rows, err := t.pool.Query(ctx, query, args)
+	args := []any{chainName, timestamp, decodedTxHash, limit}
+	rows, err := t.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
