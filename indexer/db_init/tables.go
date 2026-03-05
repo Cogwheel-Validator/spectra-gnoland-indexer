@@ -586,11 +586,11 @@ func (db *DBInitializer) AppointPrivileges(
 	switch privilage {
 	case "reader":
 		for _, tableName := range tableNames {
-			sql.WriteString(fmt.Sprintf("GRANT SELECT ON TABLE %s TO %s;\n", tableName, userName))
+			fmt.Fprintf(&sql, "GRANT SELECT ON TABLE %s TO %s;\n", tableName, userName)
 		}
 	case "writer":
 		for _, tableName := range tableNames {
-			sql.WriteString(fmt.Sprintf("GRANT SELECT, INSERT, UPDATE ON TABLE %s TO %s;\n", tableName, userName))
+			fmt.Fprintf(&sql, "GRANT SELECT, INSERT, UPDATE ON TABLE %s TO %s;\n", tableName, userName)
 		}
 	default:
 		return fmt.Errorf("invalid privilage: %s", privilage)

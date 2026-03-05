@@ -19,7 +19,8 @@ const (
 
 var dictBytes = dictloader.LoadDict()
 var zstdDict = zstd.WithEncoderDict(dictBytes)
-var zstdWriter, _ = zstd.NewWriter(nil, zstdDict)
+var zstdLvl = zstd.WithEncoderLevel(zstd.SpeedBestCompression)
+var zstdWriter, _ = zstd.NewWriter(nil, zstdDict, zstdLvl)
 
 // EventResult holds the result of EventSolver with type discrimination
 type EventResult struct {

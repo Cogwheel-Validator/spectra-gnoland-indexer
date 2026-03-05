@@ -35,7 +35,7 @@ func NewOrchestrator(
 	queryOperator QueryOperator,
 ) *Orchestrator {
 	if runningMode != Live && runningMode != Historic {
-		l.Fatal().Caller().Stack().Msg("invalid running mode, please choose between live and historic")
+		panic("invalid running mode, please choose between live and historic")
 	}
 	return &Orchestrator{
 		runningMode:             runningMode,
