@@ -60,7 +60,7 @@ func parseCommonFlags(cmd *cobra.Command, defaultDbName string) (*dbParams, erro
 		params.port = 5432
 	}
 	if params.user == "" {
-		params.user = "postgres"
+		params.user = defaultDBUser
 	}
 	if params.name == "" {
 		params.name = defaultDbName

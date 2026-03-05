@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const defaultDBUser = "postgres"
+
 var allowedSslModes = []string{"disable", "require", "verify-ca", "verify-full", "allow", "prefer"}
 
 // dbParams holds common database connection parameters
