@@ -160,7 +160,7 @@ var rootCmd = &cobra.Command{
 		})
 
 		// Register Block API routes
-		huma.Get(api, "/block/{height}", blocksHandler.GetBlock,
+		huma.Get(api, "/blocks/{height}", blocksHandler.GetBlock,
 			func(op *huma.Operation) {
 				op.Summary = "Get Block Height"
 				op.Description = "Retrieve block data by its height"
@@ -188,14 +188,14 @@ var rootCmd = &cobra.Command{
 
 		// Register Transaction API routes
 		huma.Get(
-			api, "/transaction/{tx_hash}", transactionsHandler.GetTransactionBasic,
+			api, "/transactions/{tx_hash}", transactionsHandler.GetTransactionBasic,
 			func(op *huma.Operation) {
 				op.Summary = "Get Transaction Basic"
 				op.Description = "Retrieve basic transaction data by its hash"
 			})
 		huma.Get(
 			api,
-			"/transaction/{tx_hash}/message",
+			"/transactions/{tx_hash}/messages",
 			transactionsHandler.GetTransactionMessage,
 			func(op *huma.Operation) {
 				op.Summary = "Get All Transaction Messages"
