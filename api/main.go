@@ -168,7 +168,10 @@ var rootCmd = &cobra.Command{
 		huma.Get(api, "/blocks/{from_height}/{to_height}", blocksHandler.GetFromToBlocks,
 			func(op *huma.Operation) {
 				op.Summary = "Get From To Blocks"
-				op.Description = "Retrieve blocks data by its height range"
+				op.Description = `Retrieve blocks data by its height range. 
+				From height must be less than to height and the difference must be less than 100.
+				The response will contain the blocks data in the range.
+				`
 			})
 		huma.Get(api, "/blocks/{block_height}/signers", blocksHandler.GetAllBlockSigners,
 			func(op *huma.Operation) {

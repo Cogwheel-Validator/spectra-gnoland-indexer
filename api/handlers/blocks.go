@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
-	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/danielgtaylor/huma/v2"
 )
 
@@ -29,14 +28,7 @@ func (h *BlocksHandler) GetBlock(ctx context.Context, input *humatypes.BlockGetI
 	}
 
 	response := &humatypes.BlockGetOutput{
-		Body: database.BlockData{
-			Hash:      block.Hash,
-			Height:    block.Height,
-			Timestamp: block.Timestamp,
-			ChainID:   block.ChainID,
-			Txs:       block.Txs,
-			TxCount:   len(block.Txs),
-		},
+		Body: block,
 	}
 	return response, nil
 }
@@ -51,22 +43,16 @@ func (h *BlocksHandler) GetFromToBlocks(
 	if input.FromHeight > input.ToHeight {
 		return nil, huma.Error400BadRequest("From height must be less than to height", nil)
 	}
+	if input.ToHeight-input.FromHeight > 100 {
+		return nil, huma.Error400BadRequest("From height and to height difference must be less than 100", nil)
+	}
+
 	blocks, err := h.db.GetFromToBlocks(ctx, input.FromHeight, input.ToHeight, h.chainName)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf("Blocks from height %d to height %d not found", input.FromHeight, input.ToHeight), err)
 	}
 	response := &humatypes.FromToBlocksGetOutput{
-		Body: make([]database.BlockData, 0, len(blocks)),
-	}
-	for _, block := range blocks {
-		response.Body = append(response.Body, database.BlockData{
-			Hash:      block.Hash,
-			Height:    block.Height,
-			Timestamp: block.Timestamp,
-			ChainID:   block.ChainID,
-			Txs:       block.Txs,
-			TxCount:   len(block.Txs),
-		})
+		Body: blocks,
 	}
 	return response, nil
 }
@@ -81,11 +67,7 @@ func (h *BlocksHandler) GetAllBlockSigners(
 		return nil, huma.Error404NotFound("Block signers not found", err)
 	}
 	response := &humatypes.AllBlockSignersGetOutput{
-		Body: database.BlockSigners{
-			BlockHeight: blockSigners.BlockHeight,
-			Proposer:    blockSigners.Proposer,
-			SignedVals:  blockSigners.SignedVals,
-		},
+		Body: blockSigners,
 	}
 	return response, nil
 }
@@ -97,14 +79,7 @@ func (h *BlocksHandler) GetLatestBlock(ctx context.Context, _ *humatypes.LatestB
 		return nil, huma.Error404NotFound("Latest block height not found", err)
 	}
 	response := &humatypes.LatestBlockHeightGetOutput{
-		Body: database.BlockData{
-			Hash:      block.Hash,
-			Height:    block.Height,
-			Timestamp: block.Timestamp,
-			ChainID:   block.ChainID,
-			Txs:       block.Txs,
-			TxCount:   len(block.Txs),
-		},
+		Body: block,
 	}
 	return response, nil
 }
@@ -117,17 +92,7 @@ func (h *BlocksHandler) GetLastXBlocks(ctx context.Context, input *humatypes.Las
 		return nil, huma.Error404NotFound("Last x blocks not found", err)
 	}
 	response := &humatypes.LastXBlocksGetOutput{
-		Body: make([]database.BlockData, 0, len(blocks)),
-	}
-	for _, block := range blocks {
-		response.Body = append(response.Body, database.BlockData{
-			Hash:      block.Hash,
-			Height:    block.Height,
-			Timestamp: block.Timestamp,
-			ChainID:   block.ChainID,
-			Txs:       block.Txs,
-			TxCount:   len(block.Txs),
-		})
+		Body: blocks,
 	}
 	return response, nil
 }
