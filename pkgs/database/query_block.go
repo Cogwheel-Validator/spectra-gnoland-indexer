@@ -1,6 +1,10 @@
 package database
 
-import "context"
+import (
+	"context"
+
+	"golang.org/x/sync/errgroup"
+)
 
 // GetBlock gets a block from the database for a given height and chain name
 //
@@ -16,48 +20,95 @@ import "context"
 //   - *BlockData: the block data
 //   - error: if the query fails
 func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName string) (*BlockData, error) {
-	query := `
+	query1 := `
 	SELECT encode(hash, 'base64'), 
 	height, 
 	timestamp, 
-	chain_id, 
-	(SELECT array_agg(upper(encode(tx, 'base64')))
-	FROM unnest(blocks.txs) AS tx 
-	) AS txs
+	chain_id
 	FROM blocks
 	WHERE height = $1
 	AND chain_name = $2
 	`
-	row := t.pool.QueryRow(ctx, query, height, chainName)
-	var block BlockData
-	err := row.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID, &block.Txs)
-	if err != nil {
+	query2 := `
+	SELECT
+	encode(tx_hash, 'base64'),
+	block_height
+	FROM transaction_general
+	WHERE chain_name = $1
+	AND block_height = $2
+	`
+	var blocks []*BlockData
+	var txs map[uint64][]string
+
+	eg, ctx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		var err error
+		blocks, err = t.fetchBlocksData(ctx, query1, height, chainName)
+		return err
+	})
+
+	eg.Go(func() error {
+		var err error
+		txs, err = t.fetchTransactionData(ctx, query2, chainName, height)
+		return err
+	})
+
+	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-	return &block, nil
+
+	if txs[blocks[0].Height] != nil {
+		blocks[0].Txs = append(blocks[0].Txs, txs[blocks[0].Height]...)
+	}
+	return blocks[0], nil
 }
 
 func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*BlockData, error) {
-	query := `
+	query1 := `
 	SELECT encode(hash, 'base64'), 
 	height, 
 	timestamp, 
-	chain_id, 
-	(SELECT array_agg(upper(encode(tx, 'base64')))
-	FROM unnest(blocks.txs) AS tx 
-	) AS txs
+	chain_id
 	FROM blocks
 	WHERE chain_name = $1
 	ORDER BY height DESC
 	LIMIT 1
 	`
-	row := t.pool.QueryRow(ctx, query, chainName)
-	var block BlockData
-	err := row.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID, &block.Txs)
-	if err != nil {
+	query2 := `
+	SELECT
+	encode(tx_hash, 'base64'),
+	block_height
+	FROM transaction_general
+	WHERE chain_name = $1
+	ORDER BY block_height DESC
+	LIMIT 1
+	`
+	var blocks []*BlockData
+	var txs map[uint64][]string
+
+	eg, ctx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		var err error
+		blocks, err = t.fetchBlocksData(ctx, query1, chainName)
+		return err
+	})
+
+	eg.Go(func() error {
+		var err error
+		txs, err = t.fetchTransactionData(ctx, query2, chainName)
+		return err
+	})
+
+	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-	return &block, nil
+
+	if txs[blocks[0].Height] != nil {
+		blocks[0].Txs = append(blocks[0].Txs, txs[blocks[0].Height]...)
+	}
+	return blocks[0], nil
 }
 
 // GetLastXBlocks gets the last x blocks from the database for a given chain name
@@ -74,35 +125,50 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*Bl
 //   - []*BlockData: the last x blocks
 //   - error: if the query fails
 func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x uint64) ([]*BlockData, error) {
-	query := `
+	query1 := `
 	SELECT encode(hash, 'base64'), 
 	height, 
 	timestamp, 
-	chain_id, 
-	(SELECT array_agg(upper(encode(tx, 'base64')))
-	FROM unnest(blocks.txs) AS tx 
-	) AS txs
+	chain_id
 	FROM blocks
 	WHERE chain_name = $1
 	ORDER BY height DESC
 	LIMIT $2
 	`
-	rows, err := t.pool.Query(ctx, query, chainName, x)
-	if err != nil {
+	query2 := `
+	SELECT 
+	encode(tx_hash, 'base64'),
+	block_height
+	FROM transaction_general
+	WHERE chain_name = $1
+	LIMIT $2
+	`
+
+	var blocks []*BlockData
+	var txs map[uint64][]string
+
+	eg, ctx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		var err error
+		blocks, err = t.fetchBlocksData(ctx, query1, chainName, x)
+		return err
+	})
+
+	eg.Go(func() error {
+		var err error
+		txs, err = t.fetchTransactionData(ctx, query2, chainName, x)
+		return err
+	})
+
+	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	blocks := make([]*BlockData, 0)
-	for rows.Next() {
-		block := &BlockData{}
-		err := rows.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID, &block.Txs)
-		if err != nil {
-			return nil, err
+
+	for _, block := range blocks {
+		if txs[block.Height] != nil {
+			block.Txs = append(block.Txs, txs[block.Height]...)
 		}
-		blocks = append(blocks, block)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
 	}
 	return blocks, nil
 }
@@ -122,31 +188,90 @@ func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x ui
 //   - []*BlockData: the range of block data
 //   - error: if the query fails
 func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, toHeight uint64, chainName string) ([]*BlockData, error) {
-	query := `
+	query1 := `
 	SELECT encode(hash, 'base64'), 
 	height, 
 	timestamp, 
-	chain_id, 
-	(SELECT array_agg(upper(encode(tx, 'base64')))
-	FROM unnest(blocks.txs) AS tx 
-	) AS txs
+	chain_id
 	FROM blocks
 	WHERE height >= $1 AND height <= $2
 	AND chain_name = $3
 	`
-	rows, err := t.pool.Query(ctx, query, fromHeight, toHeight, chainName)
+
+	query2 := `
+	SELECT
+	encode(tx_hash, 'base64'),
+	block_height
+	FROM transaction_general
+	WHERE chain_name = $1
+	AND block_height >= $2 AND block_height <= $3
+	`
+	var blocks []*BlockData
+	var txs map[uint64][]string
+
+	eg, ctx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		var err error
+		blocks, err = t.fetchBlocksData(ctx, query1, fromHeight, toHeight, chainName)
+		return err
+	})
+
+	eg.Go(func() error {
+		var err error
+		txs, err = t.fetchTransactionData(ctx, query2, chainName, fromHeight, toHeight)
+		return err
+	})
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+
+	for _, block := range blocks {
+		if txs[block.Height] != nil {
+			block.Txs = append(block.Txs, txs[block.Height]...)
+		}
+	}
+
+	return blocks, nil
+}
+
+// fetchBlocksData fetches block data from the database and appends to the provided slice
+func (t *TimescaleDb) fetchBlocksData(ctx context.Context, query string, args ...interface{}) ([]*BlockData, error) {
+	rows, err := t.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
 	blocks := make([]*BlockData, 0)
 	for rows.Next() {
 		block := &BlockData{}
-		err := rows.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID, &block.Txs)
+		err := rows.Scan(&block.Hash, &block.Height, &block.Timestamp, &block.ChainID)
 		if err != nil {
 			return nil, err
 		}
 		blocks = append(blocks, block)
 	}
-	return blocks, nil
+	return blocks, rows.Err()
+}
+
+// fetchTransactionData fetches transaction data and maps it by block height
+func (t *TimescaleDb) fetchTransactionData(ctx context.Context, query string, args ...interface{}) (map[uint64][]string, error) {
+	rows, err := t.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	txs := make(map[uint64][]string)
+	for rows.Next() {
+		tx := &Transaction{}
+		err := rows.Scan(&tx.TxHash, &tx.BlockHeight)
+		if err != nil {
+			return nil, err
+		}
+		txs[tx.BlockHeight] = append(txs[tx.BlockHeight], tx.TxHash)
+	}
+	return txs, rows.Err()
 }

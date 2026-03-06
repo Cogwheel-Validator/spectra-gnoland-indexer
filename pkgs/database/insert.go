@@ -74,7 +74,6 @@ func (t *TimescaleDb) InsertBlocks(ctx context.Context, blocks []sql_data_types.
 			blocks[i].Height,
 			blocks[i].Timestamp,
 			blocks[i].ChainID,
-			makePgxArray(blocks[i].Txs),
 			blocks[i].ChainName}, nil
 	})
 

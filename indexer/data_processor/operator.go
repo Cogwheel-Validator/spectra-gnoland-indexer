@@ -2,7 +2,6 @@ package dataprocessor
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"log"
@@ -146,38 +145,12 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 				return
 			}
 
-			// there should be an slice of strings but it can be nil
-			// if slice exists we need to convert each slice from base64 to sha256
-			// since it is shorter and better for the database
-			var txs [][]byte
-			if block.Result.Block.Data.Txs != nil {
-				txs = make([][]byte, 0, len(*block.Result.Block.Data.Txs))
-				for _, tx := range *block.Result.Block.Data.Txs {
-					txHash, err := base64.StdEncoding.DecodeString(tx)
-					// turn to sha256 and then turn it to raw bytes to
-					// match the transaction hash
-					txHashSha256 := sha256.Sum256(txHash)
-					if err != nil {
-						l.Error().
-							Caller().
-							Stack().
-							Msgf(
-								"Failed to decode tx hash %s: %v", tx, err,
-							)
-						continue
-					}
-					txs = append(txs, txHashSha256[:])
-				}
-			}
-
-			// Use mutex only when writing to shared slice
 			mu.Lock()
 			blocksData[idx] = sqlDataTypes.Blocks{
 				Hash:      hash,
 				Height:    height,
 				Timestamp: block.Result.Block.Header.Time,
 				ChainID:   block.Result.Block.Header.ChainID,
-				Txs:       txs,
 				ChainName: d.chainName,
 			}
 			mu.Unlock()
