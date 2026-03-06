@@ -103,7 +103,6 @@ type Blocks struct {
 	Height    uint64    `db:"height" dbtype:"bigint" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainID   string    `db:"chain_id" dbtype:"TEXT" nullable:"false" primary:"false"`
-	Txs       [][]byte  `db:"txs" dbtype:"bytea[]" primary:"false" nullable:"true"` // can be a null value
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 }
 
