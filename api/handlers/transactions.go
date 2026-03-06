@@ -59,81 +59,24 @@ func (h *TransactionsHandler) GetTransactionMessage(
 	for _, msgType := range msgTypes {
 		switch msgType {
 		case "bank_msg_send":
-			data, err := h.db.GetBankSend(ctx, txHashBase64, h.chainName)
+			err := h.getBankSendResponse(ctx, msgType, txHashBase64, h.chainName, &response)
 			if err != nil {
-				return nil, huma.Error404NotFound(fmt.Sprintf("Failed to fetch %s data for transaction %s", msgType, input.TxHash), err)
-			}
-			for _, data := range data {
-				index := data.MessageCounter
-				response[index] = humatypes.TransactionMessage{
-					MessageType: msgType,
-					TxHash:      data.TxHash,
-					Timestamp:   data.Timestamp,
-					Signers:     data.Signers,
-					FromAddress: data.FromAddress,
-					ToAddress:   data.ToAddress,
-					Amount:      data.Amount,
-				}
+				return nil, err
 			}
 		case "vm_msg_call":
-			data, err := h.db.GetMsgCall(ctx, txHashBase64, h.chainName)
+			err := h.getMsgCallResponse(ctx, msgType, txHashBase64, h.chainName, &response)
 			if err != nil {
-				return nil, huma.Error404NotFound(fmt.Sprintf("Failed to fetch %s data for transaction %s", msgType, input.TxHash), err)
-			}
-			for _, data := range data {
-				index := data.MessageCounter
-				response[index] = humatypes.TransactionMessage{
-					MessageType: msgType,
-					TxHash:      data.TxHash,
-					Timestamp:   data.Timestamp,
-					Signers:     data.Signers,
-					Caller:      data.Caller,
-					Send:        data.Send,
-					PkgPath:     data.PkgPath,
-					FuncName:    data.FuncName,
-					Args:        data.Args,
-					MaxDeposit:  data.MaxDeposit,
-				}
+				return nil, err
 			}
 		case "vm_msg_add_package":
-			data, err := h.db.GetMsgAddPackage(ctx, txHashBase64, h.chainName)
+			err := h.getMsgAddPackageResponse(ctx, msgType, txHashBase64, h.chainName, &response)
 			if err != nil {
-				return nil, huma.Error404NotFound(fmt.Sprintf("Failed to fetch %s data for transaction %s", msgType, input.TxHash), err)
-			}
-			for _, data := range data {
-				index := data.MessageCounter
-				response[index] = humatypes.TransactionMessage{
-					MessageType:  msgType,
-					TxHash:       data.TxHash,
-					Timestamp:    data.Timestamp,
-					Signers:      data.Signers,
-					Creator:      data.Creator,
-					PkgPath:      data.PkgPath,
-					PkgName:      data.PkgName,
-					PkgFileNames: data.PkgFileNames,
-					Send:         data.Send,
-					MaxDeposit:   data.MaxDeposit,
-				}
+				return nil, err
 			}
 		case "vm_msg_run":
-			data, err := h.db.GetMsgRun(ctx, txHashBase64, h.chainName)
+			err := h.getMsgRunResponse(ctx, msgType, txHashBase64, h.chainName, &response)
 			if err != nil {
-				return nil, huma.Error404NotFound(fmt.Sprintf("Failed to fetch %s data for transaction %s", msgType, input.TxHash), err)
-			}
-			for _, data := range data {
-				index := data.MessageCounter
-				response[index] = humatypes.TransactionMessage{
-					MessageType:  msgType,
-					TxHash:       data.TxHash,
-					Timestamp:    data.Timestamp,
-					Signers:      data.Signers,
-					Caller:       data.Caller,
-					PkgPath:      data.PkgPath,
-					PkgName:      data.PkgName,
-					PkgFileNames: data.PkgFileNames,
-					Send:         data.Send,
-					MaxDeposit:   data.MaxDeposit,
-				}
+				return nil, err
 			}
 		default:
 			return nil, huma.Error400BadRequest("Transaction message type not found", nil)
@@ -153,4 +96,121 @@ func (h *TransactionsHandler) GetTransactionsByCursor(ctx context.Context, input
 	return &humatypes.TransactionGeneralListByCursorGetOutput{
 		Body: transactions,
 	}, nil
+}
+
+// Helper method that collects msg call data from the database and adds it to the response
+func (h *TransactionsHandler) getMsgCallResponse(
+	ctx context.Context,
+	msgType string,
+	txHash string,
+	chainName string,
+	response *map[int16]humatypes.TransactionMessage,
+) error {
+	data, err := h.db.GetMsgCall(ctx, txHash, chainName)
+	if err != nil {
+		return huma.Error400BadRequest(fmt.Sprintf("Failed to fetch %s data for transaction %s", "vm_msg_call", txHash), err)
+	}
+	for _, d := range data {
+		index := d.MessageCounter
+		(*response)[index] = humatypes.TransactionMessage{
+			MessageType: msgType,
+			TxHash:      d.TxHash,
+			Timestamp:   d.Timestamp,
+			Signers:     d.Signers,
+			Caller:      d.Caller,
+			Send:        d.Send,
+			PkgPath:     d.PkgPath,
+			FuncName:    d.FuncName,
+			Args:        d.Args,
+			MaxDeposit:  d.MaxDeposit,
+		}
+	}
+	return nil
+}
+
+// Helper method that collects add package data from the database and adds it to the response
+func (h *TransactionsHandler) getMsgAddPackageResponse(
+	ctx context.Context,
+	msgType string,
+	txHash string,
+	chainName string,
+	response *map[int16]humatypes.TransactionMessage,
+) error {
+	data, err := h.db.GetMsgAddPackage(ctx, txHash, chainName)
+	if err != nil {
+		return huma.Error400BadRequest(fmt.Sprintf("Failed to fetch %s data for transaction %s", "vm_msg_add_package", txHash), err)
+	}
+	for _, d := range data {
+		index := d.MessageCounter
+		(*response)[index] = humatypes.TransactionMessage{
+			MessageType:  msgType,
+			TxHash:       d.TxHash,
+			Timestamp:    d.Timestamp,
+			Signers:      d.Signers,
+			Creator:      d.Creator,
+			PkgPath:      d.PkgPath,
+			PkgName:      d.PkgName,
+			PkgFileNames: d.PkgFileNames,
+			Send:         d.Send,
+			MaxDeposit:   d.MaxDeposit,
+		}
+	}
+	return nil
+}
+
+// Helper method that collects msg run data from the database and adds it to the response
+func (h *TransactionsHandler) getMsgRunResponse(
+	ctx context.Context,
+	msgType string,
+	txHash string,
+	chainName string,
+	response *map[int16]humatypes.TransactionMessage,
+) error {
+	data, err := h.db.GetMsgRun(ctx, txHash, chainName)
+	if err != nil {
+		return huma.Error400BadRequest(fmt.Sprintf("Failed to fetch %s data for transaction %s", "vm_msg_run", txHash), err)
+	}
+	for _, d := range data {
+		index := d.MessageCounter
+		(*response)[index] = humatypes.TransactionMessage{
+			MessageType:  msgType,
+			TxHash:       d.TxHash,
+			Timestamp:    d.Timestamp,
+			Signers:      d.Signers,
+			Caller:       d.Caller,
+			PkgPath:      d.PkgPath,
+			PkgName:      d.PkgName,
+			PkgFileNames: d.PkgFileNames,
+			Send:         d.Send,
+			MaxDeposit:   d.MaxDeposit,
+		}
+	}
+	return nil
+}
+
+// Helper method that collects bank send data from the database and adds it to the response
+func (h *TransactionsHandler) getBankSendResponse(
+	ctx context.Context,
+	msgType string,
+	txHash string,
+	chainName string,
+	response *map[int16]humatypes.TransactionMessage,
+) error {
+	data, err := h.db.GetBankSend(ctx, txHash, chainName)
+	if err != nil {
+		return huma.Error400BadRequest(fmt.Sprintf("Failed to fetch %s data for transaction %s", "bank_msg_send", txHash), err)
+	}
+	for _, d := range data {
+		index := d.MessageCounter
+		(*response)[index] = humatypes.TransactionMessage{
+			MessageType: msgType,
+			TxHash:      d.TxHash,
+			Timestamp:   d.Timestamp,
+			Signers:     d.Signers,
+			FromAddress: d.FromAddress,
+			ToAddress:   d.ToAddress,
+			Amount:      d.Amount,
+		}
+	}
+	return nil
 }
