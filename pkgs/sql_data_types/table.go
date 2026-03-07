@@ -573,3 +573,24 @@ func (ak ApiKey) TableColumns() []string {
 	}
 	return columns
 }
+
+func AllTableNames() []string {
+	tables := []DBTable{
+		GnoAddress{},
+		GnoValidatorAddress{},
+		Blocks{},
+		ValidatorBlockSigning{},
+		AddressTx{},
+		TransactionGeneral{},
+		MsgSend{},
+		MsgCall{},
+		MsgAddPackage{},
+		MsgRun{},
+		ApiKey{},
+	}
+	names := make([]string, len(tables))
+	for i, t := range tables {
+		names[i] = t.TableName()
+	}
+	return names
+}

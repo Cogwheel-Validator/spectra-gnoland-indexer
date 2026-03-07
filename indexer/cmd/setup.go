@@ -247,8 +247,8 @@ var createUserCmd = &cobra.Command{
 		if privilege == "" {
 			l.Fatal().Msg("privilege is required")
 			return cmd.Usage()
-		} else if privilege != "reader" && privilege != "writer" {
-			l.Fatal().Str("privilege", privilege).Msg("invalid privilege")
+		} else if privilege != "reader" && privilege != "writer" && privilege != "keymgr" {
+			l.Fatal().Str("privilege", privilege).Msg("invalid privilege, must be reader, writer, or keymgr")
 			return cmd.Usage()
 		}
 
@@ -279,7 +279,7 @@ var createUserCmd = &cobra.Command{
 		}
 
 		// Appoint privileges to the user
-		err = dbInit.AppointPrivileges(userName, privilege, []string{})
+		err = dbInit.AppointPrivileges(userName, privilege, sql_data_types.AllTableNames())
 		if err != nil {
 			l.Fatal().Err(err).Str("user", userName).Str("privilege", privilege).Msg("failed to appoint privileges")
 			return err
