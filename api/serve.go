@@ -125,7 +125,23 @@ func runServe(cmd *cobra.Command, args []string) {
 	rl := ratelimit.NewRateLimiter(valkeyClient, ks, ipRPM, 1*time.Minute)
 	router.Use(rl.Middleware)
 
-	api := humachi.New(router, huma.DefaultConfig("Spectra Gnoland Indexer API", Version))
+	humaConfig := huma.DefaultConfig("Spectra Gnoland Indexer API", Version)
+	humaConfig.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
+		"apiKey": {
+			Type: "apiKey",
+			Name: "X-API-Key",
+			In:   "header",
+			Description: `API key for authenticated access with a higher rate limit. Pass your key in the X-API-Key header.
+			You can query the APi without the API key but the stricter rate limit will be applied.`,
+		},
+	}
+	// Apply the scheme globally but make it optional (empty map = anonymous access allowed).
+	humaConfig.Security = []map[string][]string{
+		{"apiKey": {}},
+		{},
+	}
+
+	api := humachi.New(router, humaConfig)
 
 	openApi := api.OpenAPI()
 	openApi.Info = &huma.Info{
@@ -244,7 +260,6 @@ func runServe(cmd *cobra.Command, args []string) {
 		})
 
 	addr := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
-	log.Printf("Starting server on %s", addr)
 
 	if certFilePath != "" && keyFilePath != "" {
 		log.Printf("Starting server on %s with HTTPS", addr)
