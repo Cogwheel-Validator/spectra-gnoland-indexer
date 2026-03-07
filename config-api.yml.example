@@ -8,5 +8,11 @@ cors_allowed_headers:
   - "Origin"
   - "Content-Type"
   - "Accept"
+  - "X-API-Key"
 cors_max_age: 600
 chain_name: gnoland
+
+# Rate limiting: requests per minute for unauthenticated (IP-based) access
+ip_rpm_limit: 30
+# How often to refresh the API key cache from PostgreSQL
+key_refresh_interval: 5m
