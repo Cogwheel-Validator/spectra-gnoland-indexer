@@ -12,6 +12,13 @@ type KeyParams struct {
 	Hash     [32]byte
 }
 
+type ApiKeyListItem struct {
+	Prefix   string
+	Name     string
+	RpmLimit int
+	IsActive bool
+}
+
 func (t *TimescaleDb) InsertApiKey(
 	ctx context.Context, params KeyParams) error {
 	result, err := t.pool.Exec(ctx, `
@@ -49,6 +56,81 @@ func (t *TimescaleDb) GetAllApiKeys(ctx context.Context) ([][32]byte, error) {
 		apiKeys = append(apiKeys, hash)
 	}
 	return apiKeys, nil
+}
+
+func (t *TimescaleDb) GetAllApiKeysWithLimits(ctx context.Context) (map[[32]byte]int, error) {
+	rows, err := t.pool.Query(ctx, `
+		SELECT hash, rpm_limit
+		FROM api_keys
+		WHERE is_active = true
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	keys := make(map[[32]byte]int)
+	for rows.Next() {
+		var hash [32]byte
+		var rpmLimit int
+		if err := rows.Scan(&hash, &rpmLimit); err != nil {
+			return nil, err
+		}
+		keys[hash] = rpmLimit
+	}
+	return keys, rows.Err()
+}
+
+func (t *TimescaleDb) ListApiKeys(ctx context.Context) ([]ApiKeyListItem, error) {
+	rows, err := t.pool.Query(ctx, `
+		SELECT prefix, name, rpm_limit, is_active
+		FROM api_keys
+		ORDER BY name
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []ApiKeyListItem
+	for rows.Next() {
+		var item ApiKeyListItem
+		if err := rows.Scan(&item.Prefix, &item.Name, &item.RpmLimit, &item.IsActive); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (t *TimescaleDb) DisableKeyByName(ctx context.Context, name string) error {
+	result, err := t.pool.Exec(ctx, `
+		UPDATE api_keys
+		SET is_active = false
+		WHERE name = $1
+		`, name)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("no key found with name %q", name)
+	}
+	return nil
+}
+
+func (t *TimescaleDb) EnableKeyByName(ctx context.Context, name string) error {
+	result, err := t.pool.Exec(ctx, `
+		UPDATE api_keys
+		SET is_active = true
+		WHERE name = $1
+		`, name)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("no key found with name %q", name)
+	}
+	return nil
 }
 
 func (t *TimescaleDb) DisableKey(ctx context.Context, hash [32]byte) error {
