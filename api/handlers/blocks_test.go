@@ -77,7 +77,7 @@ func TestBlocksHandler_GetAllBlockSigners_Success(t *testing.T) {
 	response, err := handler.GetAllBlockSigners(context.Background(), &humatypes.AllBlockSignersGetInput{BlockHeight: 42})
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
-	require.Equal(t, database.BlockSigners{BlockHeight: 42, Proposer: "abc123", SignedVals: []string{"val1", "val2"}}, response.Body)
+	require.Equal(t, database.BlockSigners{BlockHeight: 42, Proposer: "abc123", SignedVals: []string{"val1", "val2"}}, *response.Body)
 }
 
 func TestBlocksHandler_GetAllBlockSigners_Fail(t *testing.T) {
@@ -101,7 +101,7 @@ func TestBlocksHandler_GetLatestBlockHeight_Success(t *testing.T) {
 	response, err := handler.GetLatestBlock(context.Background(), &humatypes.LatestBlockHeightGetInput{})
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
-	require.Equal(t, database.BlockData{Height: 42, Hash: "abc123"}, response.Body)
+	require.Equal(t, database.BlockData{Height: 42, Hash: "abc123"}, *response.Body)
 }
 
 func TestBlocksHandler_GetLatestBlockHeight_Fail(t *testing.T) {
