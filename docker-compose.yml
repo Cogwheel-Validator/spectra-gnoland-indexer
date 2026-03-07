@@ -49,13 +49,30 @@ services:
       DB_USER: postgres
       DB_PASSWORD: 12345678
       DB_NAME: gnoland
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
     networks:
       - spectra
     depends_on:
       - timescaledb
+      - valkey
     volumes:
       - ./config-api.yml:/app/config-api.yml:ro,Z
     command: ["-c", "/app/config-api.yml"]
+
+  valkey:
+    image: valkey/valkey:alpine
+    container_name: valkey
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - spectra
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli ping | grep PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
 networks:
   spectra:
