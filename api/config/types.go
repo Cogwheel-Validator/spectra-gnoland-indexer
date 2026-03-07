@@ -12,6 +12,9 @@ type ApiConfig struct {
 	CorsAllowedHeaders []string `yaml:"cors_allowed_headers"`
 	CorsMaxAge         int      `yaml:"cors_max_age"`
 	ChainName          string   `yaml:"chain_name"`
+	// Rate limiting
+	IpRpmLimit         int           `yaml:"ip_rpm_limit"`
+	KeyRefreshInterval time.Duration `yaml:"key_refresh_interval"`
 }
 
 type ApiEnv struct {
