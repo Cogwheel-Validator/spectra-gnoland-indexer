@@ -24,7 +24,7 @@ func (t *TimescaleDb) InsertApiKey(
 	result, err := t.pool.Exec(ctx, `
 		INSERT INTO api_keys (prefix, hash, name, rpm_limit)
 		VALUES ($1, $2, $3, $4)
-		`, params.Prefix, params.Hash, params.Name, params.RpmLimit)
+		`, params.Prefix, params.Hash[:], params.Name, params.RpmLimit)
 	if err != nil {
 		return err
 	}
@@ -48,11 +48,13 @@ func (t *TimescaleDb) GetAllApiKeys(ctx context.Context) ([][32]byte, error) {
 
 	apiKeys := make([][32]byte, 0)
 	for rows.Next() {
-		var hash [32]byte
-		err := rows.Scan(&hash)
+		var hashSlice []byte
+		err := rows.Scan(&hashSlice)
 		if err != nil {
 			return nil, err
 		}
+		var hash [32]byte
+		copy(hash[:], hashSlice)
 		apiKeys = append(apiKeys, hash)
 	}
 	return apiKeys, nil
@@ -71,11 +73,13 @@ func (t *TimescaleDb) GetAllApiKeysWithLimits(ctx context.Context) (map[[32]byte
 
 	keys := make(map[[32]byte]int)
 	for rows.Next() {
-		var hash [32]byte
+		var hashSlice []byte
 		var rpmLimit int
-		if err := rows.Scan(&hash, &rpmLimit); err != nil {
+		if err := rows.Scan(&hashSlice, &rpmLimit); err != nil {
 			return nil, err
 		}
+		var hash [32]byte
+		copy(hash[:], hashSlice)
 		keys[hash] = rpmLimit
 	}
 	return keys, rows.Err()
@@ -138,7 +142,7 @@ func (t *TimescaleDb) DisableKey(ctx context.Context, hash [32]byte) error {
 		UPDATE api_keys
 		SET is_active = false
 		WHERE hash = $1
-		`, hash)
+		`, hash[:])
 	if err != nil {
 		return err
 	}
@@ -170,7 +174,7 @@ func (t *TimescaleDb) AdjustRpmLimit(
 		UPDATE api_keys
 		SET rpm_limit = $1
 		WHERE hash = $2
-		`, rpmLimit, hash)
+		`, rpmLimit, hash[:])
 	if err != nil {
 		return err
 	}
