@@ -49,7 +49,7 @@ type SpecialType struct {
 // - error: if the function fails
 func GetTableInfo(structType interface{}, tableName string) (*TableInfo, error) {
 	t := reflect.TypeOf(structType)
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -375,7 +375,7 @@ func (db *DBInitializer) CreateTableFromStruct(structType interface{}, tableName
 // GetSpecialTypeInfo extracts database type information from a struct using reflection
 func GetSpecialTypeInfo(structType interface{}, typeName string) (*SpecialType, error) {
 	t := reflect.TypeOf(structType)
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 

@@ -28,3 +28,8 @@ type ApiEnv struct {
 	ApiDbPoolHealthCheckPeriod     time.Duration `env:"API_DB_POOL_HEALTH_CHECK_PERIOD" envDefault:"1m"`
 	ApiDbPoolMaxConnLifetimeJitter time.Duration `env:"API_DB_POOL_MAX_CONN_LIFETIME_JITTER" envDefault:"1m"`
 }
+
+type ValkeyEnv struct {
+	Host string `env:"VALKEY_HOST" envDefault:"localhost"`
+	Port int    `env:"VALKEY_PORT" envDefault:"6379"`
+}

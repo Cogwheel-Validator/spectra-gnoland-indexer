@@ -65,150 +65,167 @@ var createDbCmd = &cobra.Command{
 	Long: `Create a new database named gnoland for the indexer. It goes\n
 	through a lot of steps to create the database and insert the tables and data.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		l := logger.Get()
-		l.Info().Msg("initiating database setup for the indexer")
-
-		// Parse and validate common database flags
-		params, err := parseCommonFlags(cmd, "postgres")
-		if err != nil {
-			l.Error().Err(err).Msg("failed to parse flags")
-			return err
-		}
-
-		// get the new database name from the flags
-		newDbName, _ := cmd.Flags().GetString("new-db-name")
-		if newDbName == "" {
-			newDbName = "gnoland"
-		}
-
-		// get the chain name from the flags
-		chainName, _ := cmd.Flags().GetString("chain-name")
-		if chainName == "" {
-			chainName = "gnoland"
-		}
-
-		// Prompt for password
-		params.password, err = promptPassword()
-		if err != nil {
-			l.Error().Err(err).Msg("failed to read password")
-			return err
-		}
-
-		// Create database config
-		dbConfig := params.createDatabaseConfig()
-
-		// create a new database connection
-		db := database.NewTimescaleDbSetup(dbConfig)
-
-		// create a new database named "gnoland"
-		// but check if the current database is "gnoland"
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		currentDb, err := db.CheckCurrentDatabaseName(ctx)
-		if err != nil {
-			l.Error().Err(err).Msg("failed to check current database name")
-			return err
-		}
-		l.Info().Str("db", currentDb).Msg("logged into database")
-
-		// if the current database is not "gnoland", create a new database named "gnoland"
-		// and insert all of the tables and data from the "gnoland" database
-		if currentDb != newDbName {
-			l.Info().Str("db", newDbName).Msg("creating new database")
-			err = database.CreateDatabase(db, newDbName)
-			if err != nil {
-				l.Error().Err(err).Msg("failed to create database")
-				return err
-			}
-
-			l.Info().Str("db", newDbName).Msg("switching to new database")
-			err = database.SwitchDatabase(db, dbConfig, newDbName)
-			if err != nil {
-				l.Error().Err(err).Msg("failed to switch database")
-				return err
-			}
-
-			// insert all of the tables and data from the new database
-			// First create special types (custom postgres types that tables depend on)
-			// and type enums
-			specialTypes := []sql_data_types.DBSpecialType{
-				sql_data_types.Amount{},
-				sql_data_types.Attribute{}, // this needs to be inserted prior to event type
-				sql_data_types.Event{},
-			}
-			typeEnums := []string{
-				chainName,
-			}
-
-			// Initialize database initializer
-			dbInit := dbinit.NewDBInitializer(db.GetPool())
-
-			// Create special types first (they need to exist before tables that use them)
-			l.Info().Str("chain", chainName).Msg("inserting special types")
-			for _, specialType := range specialTypes {
-				err = dbInit.CreateSpecialTypeFromStruct(specialType, specialType.TypeName())
-				if err != nil {
-					l.Error().Err(err).Str("type", specialType.TypeName()).Msg("failed to create special type")
-					return err
-				}
-			}
-
-			// Create type enums
-			l.Info().Str("chain", chainName).Msg("inserting type enums")
-			err = dbInit.CreateChainTypeEnum(typeEnums)
-			if err != nil {
-				l.Error().Err(err).Strs("enums", typeEnums).Msg("failed to create type enum")
-				return err
-			}
-
-			// Create regular tables (non-time-series tables)
-			l.Info().Str("chain", chainName).Msg("inserting regular tables")
-			regularTables := []sql_data_types.DBTable{
-				sql_data_types.GnoAddress{},
-				sql_data_types.GnoValidatorAddress{},
-			}
-
-			for _, dataType := range regularTables {
-				err = dbInit.CreateTableFromStruct(dataType, dataType.TableName())
-				if err != nil {
-					l.Error().Err(err).Str("table", dataType.TableName()).Msg("failed to create table")
-					return err
-				}
-			}
-
-			// Create hypertables (time-series tables with timestamp columns)
-			l.Info().Str("chain", chainName).Msg("inserting hypertables")
-			hypertables := []struct {
-				table           sql_data_types.DBTable
-				partitionColumn string
-				chunkInterval   string
-			}{
-				{sql_data_types.Blocks{}, "timestamp", "1 week"},
-				{sql_data_types.ValidatorBlockSigning{}, "timestamp", "1 week"},
-				{sql_data_types.AddressTx{}, "timestamp", "1 week"},
-				{sql_data_types.TransactionGeneral{}, "timestamp", "1 week"},
-				{sql_data_types.MsgSend{}, "timestamp", "1 week"},
-				{sql_data_types.MsgCall{}, "timestamp", "1 week"},
-				{sql_data_types.MsgAddPackage{}, "timestamp", "1 week"},
-				{sql_data_types.MsgRun{}, "timestamp", "1 week"},
-			}
-
-			for _, ht := range hypertables {
-				err = dbInit.CreateHypertableFromStruct(ht.table, ht.table.TableName(), ht.partitionColumn, ht.chunkInterval)
-				if err != nil {
-					l.Error().Err(err).Str("table", ht.table.TableName()).Msg("failed to create hypertable")
-					return err
-				}
-			}
-			l.Info().Str("chain", chainName).Msg("successfully created all hypertables")
-		} else {
-			l.Info().Str("db", currentDb).Msg("database already exists, skipping creation")
-			// TODO else if the current database is "gnoland" then we need to check if the tables exist
-			// and if they don't exist then we need to create them
-			// also any kind of future updates to the database should be done here
-		}
-		return nil
+		return createDatabaseSetup(cmd)
 	},
+}
+
+func createDatabaseSetup(cmd *cobra.Command) error {
+	l := logger.Get()
+	l.Info().Msg("initiating database setup for the indexer")
+
+	params, err := parseCommonFlags(cmd, "postgres")
+	if err != nil {
+		l.Error().Err(err).Msg("failed to parse flags")
+		return err
+	}
+
+	newDbName := getFlagStringWithDefault(cmd, "new-db-name", "gnoland")
+	chainName := getFlagStringWithDefault(cmd, "chain-name", "gnoland")
+
+	params.password, err = promptPassword()
+	if err != nil {
+		l.Error().Err(err).Msg("failed to read password")
+		return err
+	}
+
+	dbConfig := params.createDatabaseConfig()
+	db := database.NewTimescaleDbSetup(dbConfig)
+
+	currentDb, err := checkCurrentDatabase(db)
+	if err != nil {
+		return err
+	}
+	l.Info().Str("db", currentDb).Msg("logged into database")
+
+	if currentDb != newDbName {
+		return initializeNewDatabase(db, dbConfig, newDbName, chainName)
+	}
+
+	l.Info().Str("db", currentDb).Msg("database already exists, skipping creation")
+	return nil
+}
+
+func getFlagStringWithDefault(cmd *cobra.Command, flagName, defaultValue string) string {
+	value, _ := cmd.Flags().GetString(flagName)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+func checkCurrentDatabase(db *database.TimescaleDb) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return db.CheckCurrentDatabaseName(ctx)
+}
+
+func initializeNewDatabase(db *database.TimescaleDb, dbConfig database.DatabasePoolConfig, newDbName, chainName string) error {
+	l := logger.Get()
+
+	l.Info().Str("db", newDbName).Msg("creating new database")
+	if err := database.CreateDatabase(db, newDbName); err != nil {
+		l.Error().Err(err).Msg("failed to create database")
+		return err
+	}
+
+	l.Info().Str("db", newDbName).Msg("switching to new database")
+	if err := database.SwitchDatabase(db, dbConfig, newDbName); err != nil {
+		l.Error().Err(err).Msg("failed to switch database")
+		return err
+	}
+
+	dbInit := dbinit.NewDBInitializer(db.GetPool())
+
+	if err := createDatabaseTypes(dbInit, chainName); err != nil {
+		return err
+	}
+
+	if err := createRegularTables(dbInit, chainName); err != nil {
+		return err
+	}
+
+	if err := createHypertables(dbInit, chainName); err != nil {
+		return err
+	}
+
+	l.Info().Str("chain", chainName).Msg("successfully created all hypertables")
+	return nil
+}
+
+func createDatabaseTypes(dbInit *dbinit.DBInitializer, chainName string) error {
+	l := logger.Get()
+
+	specialTypes := []sql_data_types.DBSpecialType{
+		sql_data_types.Amount{},
+		sql_data_types.Attribute{},
+		sql_data_types.Event{},
+	}
+
+	l.Info().Str("chain", chainName).Msg("inserting special types")
+	for _, specialType := range specialTypes {
+		if err := dbInit.CreateSpecialTypeFromStruct(specialType, specialType.TypeName()); err != nil {
+			l.Error().Err(err).Str("type", specialType.TypeName()).Msg("failed to create special type")
+			return err
+		}
+	}
+
+	typeEnums := []string{chainName}
+	l.Info().Str("chain", chainName).Msg("inserting type enums")
+	if err := dbInit.CreateChainTypeEnum(typeEnums); err != nil {
+		l.Error().Err(err).Strs("enums", typeEnums).Msg("failed to create type enum")
+		return err
+	}
+
+	return nil
+}
+
+func createRegularTables(dbInit *dbinit.DBInitializer, chainName string) error {
+	l := logger.Get()
+
+	regularTables := []sql_data_types.DBTable{
+		sql_data_types.GnoAddress{},
+		sql_data_types.GnoValidatorAddress{},
+		sql_data_types.ApiKey{},
+	}
+
+	l.Info().Str("chain", chainName).Msg("inserting regular tables")
+	for _, dataType := range regularTables {
+		if err := dbInit.CreateTableFromStruct(dataType, dataType.TableName()); err != nil {
+			l.Error().Err(err).Str("table", dataType.TableName()).Msg("failed to create table")
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
+	l := logger.Get()
+
+	hypertables := []struct {
+		table           sql_data_types.DBTable
+		partitionColumn string
+		chunkInterval   string
+	}{
+		{sql_data_types.Blocks{}, "timestamp", "1 week"},
+		{sql_data_types.ValidatorBlockSigning{}, "timestamp", "1 week"},
+		{sql_data_types.AddressTx{}, "timestamp", "1 week"},
+		{sql_data_types.TransactionGeneral{}, "timestamp", "1 week"},
+		{sql_data_types.MsgSend{}, "timestamp", "1 week"},
+		{sql_data_types.MsgCall{}, "timestamp", "1 week"},
+		{sql_data_types.MsgAddPackage{}, "timestamp", "1 week"},
+		{sql_data_types.MsgRun{}, "timestamp", "1 week"},
+	}
+
+	l.Info().Str("chain", chainName).Msg("inserting hypertables")
+	for _, ht := range hypertables {
+		if err := dbInit.CreateHypertableFromStruct(ht.table, ht.table.TableName(), ht.partitionColumn, ht.chunkInterval); err != nil {
+			l.Error().Err(err).Str("table", ht.table.TableName()).Msg("failed to create hypertable")
+			return err
+		}
+	}
+
+	return nil
 }
 
 var createUserCmd = &cobra.Command{

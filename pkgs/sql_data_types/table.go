@@ -546,3 +546,30 @@ type DBTable interface {
 type GnoMessage interface {
 	TableColumns() []string
 }
+
+type ApiKey struct {
+	Id       string   `db:"id" dbtype:"UUID DEFAULT gen_random_uuid()" primary:"true" nullable:"false"`
+	Prefix   string   `db:"prefix" dbtype:"VARCHAR(10)" nullable:"false" primary:"false" unique:"false"`
+	Hash     [32]byte `db:"hash" dbtype:"BYTEA" nullable:"false" primary:"false" unique:"false"`
+	Name     string   `db:"name" dbtype:"TEXT" nullable:"false" primary:"false" unique:"true"`
+	RpmLimit int      `db:"rpm_limit" dbtype:"INT" nullable:"false" primary:"false"`
+	IsActive bool     `db:"is_active" dbtype:"BOOLEAN DEFAULT TRUE" nullable:"false" primary:"false"`
+}
+
+func (ak ApiKey) TableName() string {
+	return "api_keys"
+}
+
+func (ak ApiKey) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(ak, ak.TableName())
+}
+
+func (ak ApiKey) TableColumns() []string {
+	columns := make([]string, 0)
+	fields := reflect.TypeOf(ak)
+	for i := range fields.NumField() {
+		field := fields.Field(i)
+		columns = append(columns, field.Tag.Get("db"))
+	}
+	return columns
+}
