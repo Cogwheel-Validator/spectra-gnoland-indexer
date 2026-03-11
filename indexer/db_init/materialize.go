@@ -41,11 +41,14 @@ type LateralJoiner interface {
 }
 
 // GenerateContinuousAggregateSQL builds the CREATE MATERIALIZED VIEW … WITH
-// (timescaledb.continuous) SQL for the given aggregate definition.
+// (timescaledb.continuous, tsdb.partition_column='<partitionColumn>', tsdb.chunk_interval='<chunkInterval>')
+// SQL for the given aggregate definition.
 //
 // GROUP BY uses 1-based ordinal positions derived from the column order so the
 // generated SQL is unambiguous regardless of whether a name shadows a built-in.
-func GenerateContinuousAggregateSQL(agg ContinuousAggregateDefinition) string {
+func GenerateContinuousAggregateSQL(
+	agg ContinuousAggregateDefinition,
+) string {
 	cols := agg.TableColumns()
 	fns := agg.TableFunctions()
 	groupByCols := agg.GroupBy()
@@ -111,7 +114,9 @@ func GenerateContinuousAggregateSQL(agg ContinuousAggregateDefinition) string {
 
 // CreateContinuousAggregate executes the CREATE MATERIALIZED VIEW statement for the
 // given aggregate definition. Errors are logged but not fatal.
-func (dbi *DBInitializer) CreateContinuousAggregate(agg ContinuousAggregateDefinition) error {
+func (dbi *DBInitializer) CreateContinuousAggregate(
+	agg ContinuousAggregateDefinition,
+) error {
 	sql := GenerateContinuousAggregateSQL(agg)
 	_, err := dbi.pool.Exec(context.Background(), sql)
 	if err != nil {
@@ -128,7 +133,10 @@ func (dbi *DBInitializer) CreateContinuousAggregate(agg ContinuousAggregateDefin
 // AlterContinuousAggregateColumnstore enables TimescaleDB columnstore compression on
 // a continuous aggregate view, ordering by time_bucket DESC and segmenting by the
 // provided columns.
-func (dbi *DBInitializer) AlterContinuousAggregateColumnstore(viewName string, segmentByCols []string) error {
+func (dbi *DBInitializer) AlterContinuousAggregateColumnstore(
+	viewName string,
+	segmentByCols []string,
+) error {
 	segmentBy := strings.Join(segmentByCols, ", ")
 	sql := fmt.Sprintf(
 		`ALTER MATERIALIZED VIEW %s SET (
@@ -145,6 +153,53 @@ func (dbi *DBInitializer) AlterContinuousAggregateColumnstore(viewName string, s
 			Stack().
 			Str("view", viewName).
 			Msgf("failed to alter continuous aggregate columnstore: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// AddColumnstoreInterval adds a columnstore interval to a continuous aggregate view
+// used after the continuous aggregation policy has been set.
+func (dbi *DBInitializer) AddColumnstoreInterval(
+	viewName string,
+	chunkInterval string,
+) error {
+	sql := fmt.Sprintf(
+		`CALL add_columnstore_policy('%s', INTERVAL '%s')`,
+		viewName, chunkInterval,
+	)
+	_, err := dbi.pool.Exec(context.Background(), sql)
+	if err != nil {
+		l.Error().
+			Caller().
+			Stack().
+			Str("view", viewName).
+			Msgf("failed to add columnstore policy: %v", err)
+		return err
+	}
+	return nil
+}
+
+// RefreshContinuousAggregate triggers an immediate full refresh of a continuous
+// aggregate from the beginning of the underlying hypertable up to now.
+//
+// This requires the caller to be the owner of the view or a superuser (e.g. the
+// postgres account used by "setup create-db"). The writer application user does not
+// have sufficient privileges and should never need to call this directly — the
+// background refresh policy handles incremental updates automatically.
+//
+// Use this after a large historical backfill when you want immediate results rather
+// than waiting for the scheduled job to work through the invalidation queue.
+func (dbi *DBInitializer) RefreshContinuousAggregate(viewName string) error {
+	sql := fmt.Sprintf("CALL refresh_continuous_aggregate('%s', NULL, NOW())", viewName)
+	_, err := dbi.pool.Exec(context.Background(), sql)
+	if err != nil {
+		l.Error().
+			Caller().
+			Stack().
+			Str("view", viewName).
+			Msgf("failed to refresh continuous aggregate: %v", err)
 		return err
 	}
 	return nil
