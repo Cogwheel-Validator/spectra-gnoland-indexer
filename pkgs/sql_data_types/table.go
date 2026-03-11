@@ -146,3 +146,19 @@ func AllTableNames() []string {
 	}
 	return names
 }
+
+func AllAggrTableNames() []string {
+	tables := []DBTable{
+		TxCount{},
+		FeeVolume{},
+		DailyActiveAccounts{},
+		TransactionCount{},
+		ValidatorDailySigning{},
+		DailyBlockCount{},
+	}
+	names := make([]string, len(tables))
+	for i, t := range tables {
+		names[i] = t.TableName()
+	}
+	return names
+}
