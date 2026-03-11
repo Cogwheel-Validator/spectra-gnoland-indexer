@@ -36,6 +36,7 @@ func init() {
 	setupCmd.AddCommand(createDbCmd)
 	setupCmd.AddCommand(createUserCmd)
 	setupCmd.AddCommand(createConfigCmd)
+	setupCmd.AddCommand(refreshAggregatesCmd)
 
 	// Common flags for both database setup commands
 	for _, cmd := range []*cobra.Command{createDbCmd, createUserCmd} {
@@ -45,6 +46,13 @@ func init() {
 		cmd.Flags().StringP("db-name", "d", "", "The database name, default is postgres")
 		cmd.Flags().StringP("ssl-mode", "s", "", "The SSL mode for the database connection, default is disable")
 	}
+
+	// refresh-aggregates flags (same connection flags as create-db)
+	refreshAggregatesCmd.Flags().StringP("db-host", "b", "", "The database host, default is localhost")
+	refreshAggregatesCmd.Flags().IntP("db-port", "p", 0, "The database port, default is 5432")
+	refreshAggregatesCmd.Flags().StringP("db-user", "u", "", "The database user, default is postgres")
+	refreshAggregatesCmd.Flags().StringP("db-name", "d", "", "The database name to refresh, default is gnoland")
+	refreshAggregatesCmd.Flags().StringP("ssl-mode", "s", "", "The SSL mode for the database connection, default is disable")
 
 	// create-user specific flags
 	createUserCmd.Flags().StringP("privilege", "r", "", "The privilege level for the user (reader or writer)")
@@ -238,13 +246,14 @@ func createContinuousAggregates(dbInit *dbinit.DBInitializer, chainName string) 
 	views := []struct {
 		agg           dbinit.ContinuousAggregateDefinition
 		segmentByCols []string
+		chunkInterval string
 	}{
-		{sql_data_types.TxCount{}, []string{"chain_name"}},
-		{sql_data_types.FeeVolume{}, []string{"chain_name", "denom"}},
-		{sql_data_types.DailyActiveAccounts{}, []string{"chain_name"}},
-		{sql_data_types.TransactionCount{}, []string{"chain_name"}},
-		{sql_data_types.ValidatorDailySigning{}, []string{"chain_name", "validator_id"}},
-		{sql_data_types.DailyBlockCount{}, []string{"chain_name"}},
+		{sql_data_types.TxCount{}, []string{"chain_name"}, "1 month"},
+		{sql_data_types.FeeVolume{}, []string{"chain_name", "denom"}, "1 month"},
+		{sql_data_types.DailyActiveAccounts{}, []string{"chain_name"}, "1 month"},
+		{sql_data_types.TransactionCount{}, []string{"chain_name"}, "1 month"},
+		{sql_data_types.ValidatorDailySigning{}, []string{"chain_name", "validator_id"}, "1 month"},
+		{sql_data_types.DailyBlockCount{}, []string{"chain_name"}, "1 month"},
 	}
 
 	l.Info().Str("chain", chainName).Msg("creating continuous aggregate views")
@@ -266,10 +275,89 @@ func createContinuousAggregates(dbInit *dbinit.DBInitializer, chainName string) 
 			l.Error().Err(err).Str("view", viewName).Msg("failed to add continuous aggregate policy")
 			return err
 		}
+
+		if err := dbInit.AddColumnstoreInterval(viewName, v.chunkInterval); err != nil {
+			l.Error().Err(err).Str("view", viewName).Msg("failed to add columnstore interval")
+			return err
+		}
 	}
 
 	l.Info().Str("chain", chainName).Msg("successfully created all continuous aggregate views")
 	return nil
+}
+
+// refreshAggregatesCmd forces an immediate full refresh of every continuous aggregate
+// view, materialising all data from the beginning of the underlying hypertable up to
+// now.
+//
+// IMPORTANT: This command must be run with a database account that owns the continuous
+// aggregate views or has superuser privileges (e.g. the postgres account used during
+// "setup create-db"). The application writer user does not have sufficient permissions
+// to call refresh_continuous_aggregate. See the TimescaleDB documentation on continuous
+// aggregate ownership for details.
+//
+// When to use this:
+//
+//   - After a large historical backfill when you want results immediately rather than
+//     waiting for the background refresh policy to work through the invalidation queue.
+//   - After restoring a database dump that contains raw hypertable data but no
+//     pre-materialised aggregate rows.
+//
+// Under normal live operation this command is not required; the scheduled refresh
+// policy (registered by "setup create-db") handles incremental updates automatically.
+var refreshAggregatesCmd = &cobra.Command{
+	Use:   "refresh-aggregates",
+	Short: "Force a full refresh of all continuous aggregate views",
+	Long: `Force an immediate full refresh of every continuous aggregate view.
+
+This materialises all data from the start of the underlying hypertables up to
+now, bypassing the scheduled refresh window.
+
+IMPORTANT: You must connect with a superuser or an account that owns the
+continuous aggregate views (e.g. the postgres account). The application writer
+user does not have the required privileges.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		l := logger.Get()
+
+		params, err := parseCommonFlags(cmd, "gnoland")
+		if err != nil {
+			l.Error().Err(err).Msg("failed to parse flags")
+			return err
+		}
+
+		params.password, err = promptPassword()
+		if err != nil {
+			l.Error().Err(err).Msg("failed to read password")
+			return err
+		}
+
+		dbConfig := params.createDatabaseConfig()
+		db := database.NewTimescaleDbSetup(dbConfig)
+		dbInit := dbinit.NewDBInitializer(db.GetPool())
+
+		views := []dbinit.ContinuousAggregateDefinition{
+			sql_data_types.TxCount{},
+			sql_data_types.FeeVolume{},
+			sql_data_types.DailyActiveAccounts{},
+			sql_data_types.TransactionCount{},
+			sql_data_types.ValidatorDailySigning{},
+			sql_data_types.DailyBlockCount{},
+		}
+
+		l.Info().Msg("refreshing all continuous aggregate views")
+		for _, v := range views {
+			viewName := v.TableName()
+			l.Info().Str("view", viewName).Msg("refreshing view")
+			if err := dbInit.RefreshContinuousAggregate(viewName); err != nil {
+				l.Error().Err(err).Str("view", viewName).Msg("failed to refresh view")
+				return err
+			}
+			l.Info().Str("view", viewName).Msg("view refreshed")
+		}
+
+		l.Info().Msg("all continuous aggregate views refreshed successfully")
+		return nil
+	},
 }
 
 var createUserCmd = &cobra.Command{
