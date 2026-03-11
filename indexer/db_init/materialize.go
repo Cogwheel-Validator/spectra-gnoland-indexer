@@ -151,15 +151,24 @@ func (dbi *DBInitializer) AlterContinuousAggregateColumnstore(viewName string, s
 }
 
 // AddContinuousAggregatePolicy registers a TimescaleDB refresh policy for the given
-// continuous aggregate. The interval strings must be in the format "N seconds".
+// continuous aggregate. Interval strings must be in "N seconds" format.
+// Pass an empty string for startOffset to use NULL (no lower bound), which causes the
+// scheduler to materialize all historical data — the correct behaviour for an indexer
+// that backfills old blocks.
 func (dbi *DBInitializer) AddContinuousAggregatePolicy(viewName, startOffset, endOffset, scheduleInterval string) error {
+	var startExpr string
+	if startOffset == "" {
+		startExpr = "NULL"
+	} else {
+		startExpr = fmt.Sprintf("INTERVAL '%s'", startOffset)
+	}
 	sql := fmt.Sprintf(
 		`SELECT add_continuous_aggregate_policy('%s',
-	start_offset => INTERVAL '%s',
+	start_offset => %s,
 	end_offset   => INTERVAL '%s',
 	schedule_interval => INTERVAL '%s'
 )`,
-		viewName, startOffset, endOffset, scheduleInterval,
+		viewName, startExpr, endOffset, scheduleInterval,
 	)
 	_, err := dbi.pool.Exec(context.Background(), sql)
 	if err != nil {

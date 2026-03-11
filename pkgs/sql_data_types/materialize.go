@@ -57,10 +57,6 @@ func (tc TxCount) AggregatePolicy(
 	endOffset *time.Duration,
 	interval *time.Duration,
 ) (string, string, string, string) {
-	if startOffset == nil {
-		d := 24 * time.Hour * 7
-		startOffset = &d
-	}
 	if endOffset == nil {
 		d := 15 * time.Second
 		endOffset = &d
@@ -69,7 +65,10 @@ func (tc TxCount) AggregatePolicy(
 		d := 15 * time.Second
 		interval = &d
 	}
-	formattedStartOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	formattedStartOffset := ""
+	if startOffset != nil {
+		formattedStartOffset = fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	}
 	formattedEndOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(endOffset.Seconds()), 10))
 	formattedInterval := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(interval.Seconds()), 10))
 	return tc.TableName(), formattedStartOffset, formattedEndOffset, formattedInterval
@@ -111,10 +110,6 @@ func (dfv FeeVolume) AggregatePolicy(
 	endOffset *time.Duration,
 	interval *time.Duration,
 ) (string, string, string, string) {
-	if startOffset == nil {
-		d := 24 * time.Hour * 7
-		startOffset = &d
-	}
 	if endOffset == nil {
 		d := 15 * time.Second
 		endOffset = &d
@@ -123,11 +118,12 @@ func (dfv FeeVolume) AggregatePolicy(
 		d := 15 * time.Second
 		interval = &d
 	}
-
-	formattedStartOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	formattedStartOffset := ""
+	if startOffset != nil {
+		formattedStartOffset = fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	}
 	formattedEndOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(endOffset.Seconds()), 10))
 	formattedInterval := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(interval.Seconds()), 10))
-
 	return dfv.TableName(), formattedStartOffset, formattedEndOffset, formattedInterval
 }
 
@@ -166,10 +162,6 @@ func (dac DailyActiveAccounts) AggregatePolicy(
 	endOffset *time.Duration,
 	interval *time.Duration,
 ) (string, string, string, string) {
-	if startOffset == nil {
-		d := 24 * time.Hour * 180
-		startOffset = &d
-	}
 	if endOffset == nil {
 		d := time.Hour
 		endOffset = &d
@@ -178,7 +170,10 @@ func (dac DailyActiveAccounts) AggregatePolicy(
 		d := 30 * time.Minute
 		interval = &d
 	}
-	formattedStartOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	formattedStartOffset := ""
+	if startOffset != nil {
+		formattedStartOffset = fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	}
 	formattedEndOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(endOffset.Seconds()), 10))
 	formattedInterval := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(interval.Seconds()), 10))
 	return dac.TableName(), formattedStartOffset, formattedEndOffset, formattedInterval
@@ -219,10 +214,6 @@ func (ttc TransactionCount) AggregatePolicy(
 	endOffset *time.Duration,
 	interval *time.Duration,
 ) (string, string, string, string) {
-	if startOffset == nil {
-		d := 24 * time.Hour * 7
-		startOffset = &d
-	}
 	if endOffset == nil {
 		d := 15 * time.Second
 		endOffset = &d
@@ -231,7 +222,10 @@ func (ttc TransactionCount) AggregatePolicy(
 		d := 15 * time.Second
 		interval = &d
 	}
-	formattedStartOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	formattedStartOffset := ""
+	if startOffset != nil {
+		formattedStartOffset = fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	}
 	formattedEndOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(endOffset.Seconds()), 10))
 	formattedInterval := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(interval.Seconds()), 10))
 	return ttc.TableName(), formattedStartOffset, formattedEndOffset, formattedInterval
@@ -285,10 +279,6 @@ func (vds ValidatorDailySigning) AggregatePolicy(
 	endOffset *time.Duration,
 	interval *time.Duration,
 ) (string, string, string, string) {
-	if startOffset == nil {
-		d := 24 * time.Hour * 14
-		startOffset = &d
-	}
 	if endOffset == nil {
 		d := 15 * time.Second
 		endOffset = &d
@@ -297,7 +287,10 @@ func (vds ValidatorDailySigning) AggregatePolicy(
 		d := 15 * time.Second
 		interval = &d
 	}
-	formattedStartOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	formattedStartOffset := ""
+	if startOffset != nil {
+		formattedStartOffset = fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	}
 	formattedEndOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(endOffset.Seconds()), 10))
 	formattedInterval := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(interval.Seconds()), 10))
 	return vds.TableName(), formattedStartOffset, formattedEndOffset, formattedInterval
@@ -338,10 +331,6 @@ func (dbc DailyBlockCount) AggregatePolicy(
 	endOffset *time.Duration,
 	interval *time.Duration,
 ) (string, string, string, string) {
-	if startOffset == nil {
-		d := 24 * time.Hour * 14
-		startOffset = &d
-	}
 	if endOffset == nil {
 		d := 15 * time.Second
 		endOffset = &d
@@ -350,7 +339,10 @@ func (dbc DailyBlockCount) AggregatePolicy(
 		d := 15 * time.Second
 		interval = &d
 	}
-	formattedStartOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	formattedStartOffset := ""
+	if startOffset != nil {
+		formattedStartOffset = fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
+	}
 	formattedEndOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(endOffset.Seconds()), 10))
 	formattedInterval := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(interval.Seconds()), 10))
 	return dbc.TableName(), formattedStartOffset, formattedEndOffset, formattedInterval
