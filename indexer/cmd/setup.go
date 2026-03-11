@@ -148,7 +148,11 @@ func initializeNewDatabase(db *database.TimescaleDb, dbConfig database.DatabaseP
 		return err
 	}
 
-	l.Info().Str("chain", chainName).Msg("successfully created all hypertables")
+	if err := createContinuousAggregates(dbInit, chainName); err != nil {
+		return err
+	}
+
+	l.Info().Str("chain", chainName).Msg("successfully created all hypertables and continuous aggregates")
 	return nil
 }
 
@@ -225,6 +229,46 @@ func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 		}
 	}
 
+	return nil
+}
+
+func createContinuousAggregates(dbInit *dbinit.DBInitializer, chainName string) error {
+	l := logger.Get()
+
+	views := []struct {
+		agg           dbinit.ContinuousAggregateDefinition
+		segmentByCols []string
+	}{
+		{sql_data_types.TxCount{}, []string{"chain_name"}},
+		{sql_data_types.FeeVolume{}, []string{"chain_name", "denom"}},
+		{sql_data_types.DailyActiveAccounts{}, []string{"chain_name"}},
+		{sql_data_types.TransactionCount{}, []string{"chain_name"}},
+		{sql_data_types.ValidatorDailySigning{}, []string{"chain_name", "validator_id"}},
+		{sql_data_types.DailyBlockCount{}, []string{"chain_name"}},
+	}
+
+	l.Info().Str("chain", chainName).Msg("creating continuous aggregate views")
+	for _, v := range views {
+		viewName := v.agg.TableName()
+
+		if err := dbInit.CreateContinuousAggregate(v.agg); err != nil {
+			l.Error().Err(err).Str("view", viewName).Msg("failed to create continuous aggregate")
+			return err
+		}
+
+		if err := dbInit.AlterContinuousAggregateColumnstore(viewName, v.segmentByCols); err != nil {
+			l.Error().Err(err).Str("view", viewName).Msg("failed to enable columnstore on continuous aggregate")
+			return err
+		}
+
+		_, startOffset, endOffset, scheduleInterval := v.agg.AggregatePolicy(nil, nil, nil)
+		if err := dbInit.AddContinuousAggregatePolicy(viewName, startOffset, endOffset, scheduleInterval); err != nil {
+			l.Error().Err(err).Str("view", viewName).Msg("failed to add continuous aggregate policy")
+			return err
+		}
+	}
+
+	l.Info().Str("chain", chainName).Msg("successfully created all continuous aggregate views")
 	return nil
 }
 

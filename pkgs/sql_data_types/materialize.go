@@ -138,7 +138,7 @@ type DailyActiveAccounts struct {
 }
 
 func (dac DailyActiveAccounts) TableName() string {
-	return "fee_volume"
+	return "daily_active_accounts"
 }
 
 func (dac DailyActiveAccounts) GetTableInfo() (*dbinit.TableInfo, error) {
@@ -269,8 +269,8 @@ func (vds ValidatorDailySigning) GroupBy() []string {
 }
 
 func (vds ValidatorDailySigning) FromTableAlias() string { return "vbs" }
-func (vds ValidatorDailySigning) LateralJoins() []LateralJoinDef {
-	return []LateralJoinDef{
+func (vds ValidatorDailySigning) LateralJoins() []dbinit.LateralJoinDef {
+	return []dbinit.LateralJoinDef{
 		{
 			Kind:       "CROSS JOIN LATERAL",
 			Expression: "unnest(vbs.signed_vals)",
@@ -304,7 +304,7 @@ func (vds ValidatorDailySigning) AggregatePolicy(
 }
 
 type DailyBlockCount struct {
-	TimeBucket time.Time `mt:"time_bucket" fn:"time_bucket('1 day', block_height)" gb:"0"`
+	TimeBucket time.Time `mt:"time_bucket" fn:"time_bucket('1 day', timestamp)" gb:"0"`
 	ChainName  string    `mt:"chain_name" gb:"1"`
 	BlockCount int64     `mt:"block_count" fn:"count(*)"`
 }
@@ -354,13 +354,6 @@ func (dbc DailyBlockCount) AggregatePolicy(
 	formattedEndOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(endOffset.Seconds()), 10))
 	formattedInterval := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(interval.Seconds()), 10))
 	return dbc.TableName(), formattedStartOffset, formattedEndOffset, formattedInterval
-}
-
-type LateralJoinDef struct {
-	Kind       string   // "CROSS JOIN LATERAL" | "LEFT JOIN LATERAL"
-	Expression string   // e.g. "unnest(vbs.signed_vals)"
-	Alias      string   // e.g. "v_id"
-	Columns    []string // e.g. ["validator_id"]
 }
 
 func aggColumns(v any) []string {
