@@ -410,8 +410,13 @@ var createUserCmd = &cobra.Command{
 			return err
 		}
 
+		var tableNames []string = sql_data_types.AllTableNames()
+		if privilege == "reader" {
+			tableNames = append(tableNames, sql_data_types.AllAggrTableNames()...)
+		}
+
 		// Appoint privileges to the user
-		err = dbInit.AppointPrivileges(userName, privilege, sql_data_types.AllTableNames())
+		err = dbInit.AppointPrivileges(userName, privilege, tableNames)
 		if err != nil {
 			l.Fatal().Err(err).Str("user", userName).Str("privilege", privilege).Msg("failed to appoint privileges")
 			return err
@@ -426,7 +431,7 @@ var createConfigCmd = &cobra.Command{
 	Use:   "create-config",
 	Short: "Generate a config with default values.",
 	Long: `Generate a config with default values. It will make a config file with default values. 
-	You can add --overwrite to overwrite the existing config file. And you can use --config to specifly the path`,
+	You can add --overwrite to overwrite the existing config file. And you can use --config to specify the path`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.Get()
 
