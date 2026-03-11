@@ -73,9 +73,9 @@ func (init *DBInitializer) AlterCompressionSegments(tables map[string][]string) 
 		sql := fmt.Sprintf(
 			`
 			ALTER TABLE %s SET (
-				timescaledb.compress = TRUE,
-				timescaledb.compress_segmentby = %s
-				timescaledb.compress_orderby = 'timestamp DESC'
+				timescaledb.enable_columnstore = TRUE,
+				timescaledb.segmentby = %s
+				timescaledb.orderby = 'timestamp DESC'
 			)
 			`, tableName, columnsString)
 		_, err := init.pool.Exec(context.Background(), sql)
