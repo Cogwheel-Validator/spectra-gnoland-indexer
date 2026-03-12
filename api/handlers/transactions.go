@@ -11,11 +11,11 @@ import (
 )
 
 type TransactionsHandler struct {
-	db        DatabaseHandler
+	db        TransactionDbHandler
 	chainName string
 }
 
-func NewTransactionsHandler(db DatabaseHandler, chainName string) *TransactionsHandler {
+func NewTransactionsHandler(db TransactionDbHandler, chainName string) *TransactionsHandler {
 	return &TransactionsHandler{db: db, chainName: chainName}
 }
 

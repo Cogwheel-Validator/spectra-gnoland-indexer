@@ -10,12 +10,12 @@ import (
 
 // BlocksHandler handles block-related API requests
 type BlocksHandler struct {
-	db        DatabaseHandler
+	db        BlockDbHandler
 	chainName string
 }
 
 // NewBlocksHandler creates a new blocks handler
-func NewBlocksHandler(db DatabaseHandler, chainName string) *BlocksHandler {
+func NewBlocksHandler(db BlockDbHandler, chainName string) *BlocksHandler {
 	return &BlocksHandler{db: db, chainName: chainName}
 }
 
