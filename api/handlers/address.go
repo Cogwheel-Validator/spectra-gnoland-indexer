@@ -9,11 +9,11 @@ import (
 )
 
 type AddressHandler struct {
-	db        DatabaseHandler
+	db        AddressDbHandler
 	chainName string
 }
 
-func NewAddressHandler(db DatabaseHandler, chainName string) *AddressHandler {
+func NewAddressHandler(db AddressDbHandler, chainName string) *AddressHandler {
 	return &AddressHandler{db: db, chainName: chainName}
 }
 

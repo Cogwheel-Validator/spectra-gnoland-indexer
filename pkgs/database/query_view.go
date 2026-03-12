@@ -144,7 +144,7 @@ func (t *TimescaleDb) GetTotalTxCount24h(
 	return txCount24h, nil
 }
 
-func (t *TimescaleDb) GetTotalTxCountTimeRangeByDays(
+func (t *TimescaleDb) GetTotalTxCountByDate(
 	ctx context.Context,
 	chainName string,
 	date1 time.Time,
@@ -184,7 +184,7 @@ func (t *TimescaleDb) GetTotalTxCountTimeRangeByDays(
 	return txCountTimeRanges, nil
 }
 
-func (t *TimescaleDb) GetTotalTxCountTimeRangeByHours(
+func (t *TimescaleDb) GetTotalTxCountByHour(
 	ctx context.Context,
 	chainName string,
 	date1 time.Time,
@@ -222,7 +222,7 @@ func (t *TimescaleDb) GetTotalTxCountTimeRangeByHours(
 	return txCountTimeRanges, nil
 }
 
-func (t *TimescaleDb) GetVolumeTimeRangeByDays(
+func (t *TimescaleDb) GetVolumeByDate(
 	ctx context.Context,
 	chainName string,
 	date1 time.Time,
@@ -264,7 +264,7 @@ func (t *TimescaleDb) GetVolumeTimeRangeByDays(
 	return feeVolumeTimeRanges, nil
 }
 
-func (t *TimescaleDb) GetVolumeTimeRangeByHours(
+func (t *TimescaleDb) GetVolumeByHour(
 	ctx context.Context,
 	chainName string,
 	date1 time.Time,
@@ -352,7 +352,7 @@ func (t *TimescaleDb) GetValidatorSigning24h(
 	return &validatorSigning, nil
 }
 
-func (t *TimescaleDb) GetValidatorSigningTimeRangeByHours(
+func (t *TimescaleDb) GetValidatorSigningByHour(
 	ctx context.Context,
 	chainName string,
 	validatorAddress string,

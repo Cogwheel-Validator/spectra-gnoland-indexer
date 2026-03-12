@@ -191,3 +191,60 @@ func (m *MockDatabase) GetTransactionsByCursor(ctx context.Context, chainName st
 	}
 	return transactions, nil
 }
+
+func (m *MockDatabase) GetTotalTxCount24h(ctx context.Context, chainName string) (int64, error) {
+	if m.shouldError {
+		return 0, fmt.Errorf("%s", m.errorMsg)
+	}
+	return int64(len(m.transactions)), nil
+}
+
+func (m *MockDatabase) GetTotalTxCountByDate(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) ([]*database.TxCountTimeRange, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("%s", m.errorMsg)
+	}
+	return []*database.TxCountTimeRange{}, nil
+}
+
+func (m *MockDatabase) GetTotalTxCountByHour(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) ([]*database.TxCountTimeRange, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("%s", m.errorMsg)
+	}
+	return []*database.TxCountTimeRange{}, nil
+}
+
+func (m *MockDatabase) GetVolumeByDate(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) (database.VolumeByDenom, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("%s", m.errorMsg)
+	}
+	return database.VolumeByDenom{}, nil
+}
+
+func (m *MockDatabase) GetVolumeByHour(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) (database.VolumeByDenom, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("%s", m.errorMsg)
+	}
+	return database.VolumeByDenom{}, nil
+}
+
+func (m *MockDatabase) GetBlockCount24h(ctx context.Context, chainName string) (int64, error) {
+	if m.shouldError {
+		return 0, fmt.Errorf("%s", m.errorMsg)
+	}
+	return int64(len(m.blocks)), nil
+}
+
+func (m *MockDatabase) GetBlockCountByDate(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) ([]*database.BlockCountByDate, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("%s", m.errorMsg)
+	}
+	return []*database.BlockCountByDate{}, nil
+}
+
+func (m *MockDatabase) GetDailyActiveAccount(ctx context.Context, chainName string, date1 time.Time, date2 time.Time) ([]*database.DailyActiveAccount, error) {
+	if m.shouldError {
+		return nil, fmt.Errorf("%s", m.errorMsg)
+	}
+	return []*database.DailyActiveAccount{}, nil
+}
+
