@@ -10,35 +10,35 @@ import (
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 )
 
-type TxCount struct {
+type TxCounter struct {
 	TimeBucket time.Time `mt:"time_bucket" fn:"time_bucket('1 hour', timestamp)" gb:"0"`
 	ChainName  string    `mt:"chain_name" gb:"1"`
 	Count      int64     `mt:"transaction_count" fn:"count(*)"`
 }
 
-func (tc TxCount) TableName() string {
-	return "tx_count"
+func (tc TxCounter) TableName() string {
+	return "tx_counter"
 }
 
-func (tc TxCount) GetTableInfo() (*dbinit.TableInfo, error) {
+func (tc TxCounter) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(tc, tc.TableName())
 }
 
-func (tc TxCount) TableColumns() []string {
+func (tc TxCounter) TableColumns() []string {
 	return aggColumns(tc)
 }
 
-func (tc TxCount) TableFunctions() []string {
+func (tc TxCounter) TableFunctions() []string {
 	return aggFunctions(tc)
 }
 
-func (tc TxCount) GroupBy() []string {
+func (tc TxCounter) GroupBy() []string {
 	return aggGroupBy(tc)
 }
 
 // Timescaledb continuos aggregation requires source table to be specified
 // this is the source table for the continuous aggregation
-func (tc TxCount) FromTable() string {
+func (tc TxCounter) FromTable() string {
 	return "transaction_general"
 }
 
@@ -52,7 +52,7 @@ func (tc TxCount) FromTable() string {
 //   - startOffset: the start offset for the aggregation
 //   - endOffset: the end offset for the aggregation
 //   - interval: the interval for the aggregation
-func (tc TxCount) AggregatePolicy(
+func (tc TxCounter) AggregatePolicy(
 	startOffset *time.Duration,
 	endOffset *time.Duration,
 	interval *time.Duration,
@@ -179,91 +179,39 @@ func (dac DailyActiveAccounts) AggregatePolicy(
 	return dac.TableName(), formattedStartOffset, formattedEndOffset, formattedInterval
 }
 
-type TransactionCount struct {
-	TimeBucket time.Time `mt:"time_bucket" fn:"time_bucket('1 hour', timestamp)" gb:"0"`
-	ChainName  string    `mt:"chain_name" gb:"1"`
-	Count      int64     `mt:"transaction_count" fn:"count(*)"`
-}
-
-func (ttc TransactionCount) TableName() string {
-	return "transaction_count"
-}
-
-func (ttc TransactionCount) GetTableInfo() (*dbinit.TableInfo, error) {
-	return dbinit.GetTableInfo(ttc, ttc.TableName())
-}
-
-func (ttc TransactionCount) TableColumns() []string {
-	return aggColumns(ttc)
-}
-
-func (ttc TransactionCount) TableFunctions() []string {
-	return aggFunctions(ttc)
-}
-
-func (ttc TransactionCount) GroupBy() []string {
-	return aggGroupBy(ttc)
-}
-
-func (ttc TransactionCount) FromTable() string {
-	return "transaction_general"
-}
-
-func (ttc TransactionCount) AggregatePolicy(
-	startOffset *time.Duration,
-	endOffset *time.Duration,
-	interval *time.Duration,
-) (string, string, string, string) {
-	if endOffset == nil {
-		d := 15 * time.Second
-		endOffset = &d
-	}
-	if interval == nil {
-		d := 15 * time.Second
-		interval = &d
-	}
-	formattedStartOffset := ""
-	if startOffset != nil {
-		formattedStartOffset = fmt.Sprintf("%s seconds", strconv.FormatInt(int64(startOffset.Seconds()), 10))
-	}
-	formattedEndOffset := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(endOffset.Seconds()), 10))
-	formattedInterval := fmt.Sprintf("%s seconds", strconv.FormatInt(int64(interval.Seconds()), 10))
-	return ttc.TableName(), formattedStartOffset, formattedEndOffset, formattedInterval
-}
-
-type ValidatorDailySigning struct {
-	TimeBucket  time.Time `mt:"time_bucket" fn:"time_bucket('1 day', vbs.timestamp)" gb:"0"`
+type ValidatorSigningCounter struct {
+	TimeBucket  time.Time `mt:"time_bucket" fn:"time_bucket('1 hour', vbs.timestamp)" gb:"0"`
 	ChainName   string    `mt:"chain_name" gb:"1"`
 	ValidatorId int32     `mt:"validator_id" gb:"2"`
 	BlockSigned int64     `mt:"blocks_signed" fn:"count(*)"`
 }
 
-func (vds ValidatorDailySigning) TableName() string {
-	return "validator_daily_signing"
+func (vds ValidatorSigningCounter) TableName() string {
+	return "validator_signing_counter"
 }
 
-func (vds ValidatorDailySigning) FromTable() string {
+func (vds ValidatorSigningCounter) FromTable() string {
 	return "validator_block_signing"
 }
 
-func (vds ValidatorDailySigning) GetTableInfo() (*dbinit.TableInfo, error) {
+func (vds ValidatorSigningCounter) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(vds, vds.TableName())
 }
 
-func (vds ValidatorDailySigning) TableColumns() []string {
+func (vds ValidatorSigningCounter) TableColumns() []string {
 	return aggColumns(vds)
 }
 
-func (vds ValidatorDailySigning) TableFunctions() []string {
+func (vds ValidatorSigningCounter) TableFunctions() []string {
 	return aggFunctions(vds)
 }
 
-func (vds ValidatorDailySigning) GroupBy() []string {
+func (vds ValidatorSigningCounter) GroupBy() []string {
 	return aggGroupBy(vds)
 }
 
-func (vds ValidatorDailySigning) FromTableAlias() string { return "vbs" }
-func (vds ValidatorDailySigning) LateralJoins() []dbinit.LateralJoinDef {
+func (vds ValidatorSigningCounter) FromTableAlias() string { return "vbs" }
+func (vds ValidatorSigningCounter) LateralJoins() []dbinit.LateralJoinDef {
 	return []dbinit.LateralJoinDef{
 		{
 			Kind:       "CROSS JOIN LATERAL",
@@ -274,7 +222,7 @@ func (vds ValidatorDailySigning) LateralJoins() []dbinit.LateralJoinDef {
 	}
 }
 
-func (vds ValidatorDailySigning) AggregatePolicy(
+func (vds ValidatorSigningCounter) AggregatePolicy(
 	startOffset *time.Duration,
 	endOffset *time.Duration,
 	interval *time.Duration,
@@ -296,37 +244,37 @@ func (vds ValidatorDailySigning) AggregatePolicy(
 	return vds.TableName(), formattedStartOffset, formattedEndOffset, formattedInterval
 }
 
-type DailyBlockCount struct {
-	TimeBucket time.Time `mt:"time_bucket" fn:"time_bucket('1 day', timestamp)" gb:"0"`
+type BlockCounter struct {
+	TimeBucket time.Time `mt:"time_bucket" fn:"time_bucket('1 hour', timestamp)" gb:"0"`
 	ChainName  string    `mt:"chain_name" gb:"1"`
 	BlockCount int64     `mt:"block_count" fn:"count(*)"`
 }
 
-func (dbc DailyBlockCount) TableName() string {
-	return "daily_block_count"
+func (dbc BlockCounter) TableName() string {
+	return "block_counter"
 }
 
-func (dbc DailyBlockCount) GetTableInfo() (*dbinit.TableInfo, error) {
+func (dbc BlockCounter) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(dbc, dbc.TableName())
 }
 
-func (dbc DailyBlockCount) TableColumns() []string {
+func (dbc BlockCounter) TableColumns() []string {
 	return aggColumns(dbc)
 }
 
-func (dbc DailyBlockCount) TableFunctions() []string {
+func (dbc BlockCounter) TableFunctions() []string {
 	return aggFunctions(dbc)
 }
 
-func (dbc DailyBlockCount) GroupBy() []string {
+func (dbc BlockCounter) GroupBy() []string {
 	return aggGroupBy(dbc)
 }
 
-func (dbc DailyBlockCount) FromTable() string {
+func (dbc BlockCounter) FromTable() string {
 	return "blocks"
 }
 
-func (dbc DailyBlockCount) AggregatePolicy(
+func (dbc BlockCounter) AggregatePolicy(
 	startOffset *time.Duration,
 	endOffset *time.Duration,
 	interval *time.Duration,
