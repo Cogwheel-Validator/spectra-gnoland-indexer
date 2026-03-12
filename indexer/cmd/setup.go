@@ -248,12 +248,11 @@ func createContinuousAggregates(dbInit *dbinit.DBInitializer, chainName string) 
 		segmentByCols []string
 		chunkInterval string
 	}{
-		{sql_data_types.TxCount{}, []string{"chain_name"}, "1 month"},
+		{sql_data_types.TxCounter{}, []string{"chain_name"}, "1 month"},
 		{sql_data_types.FeeVolume{}, []string{"chain_name", "denom"}, "1 month"},
 		{sql_data_types.DailyActiveAccounts{}, []string{"chain_name"}, "1 month"},
-		{sql_data_types.TransactionCount{}, []string{"chain_name"}, "1 month"},
-		{sql_data_types.ValidatorDailySigning{}, []string{"chain_name", "validator_id"}, "1 month"},
-		{sql_data_types.DailyBlockCount{}, []string{"chain_name"}, "1 month"},
+		{sql_data_types.ValidatorSigningCounter{}, []string{"chain_name", "validator_id"}, "1 month"},
+		{sql_data_types.BlockCounter{}, []string{"chain_name"}, "1 month"},
 	}
 
 	l.Info().Str("chain", chainName).Msg("creating continuous aggregate views")
@@ -336,12 +335,11 @@ user does not have the required privileges.`,
 		dbInit := dbinit.NewDBInitializer(db.GetPool())
 
 		views := []dbinit.ContinuousAggregateDefinition{
-			sql_data_types.TxCount{},
+			sql_data_types.TxCounter{},
 			sql_data_types.FeeVolume{},
 			sql_data_types.DailyActiveAccounts{},
-			sql_data_types.TransactionCount{},
-			sql_data_types.ValidatorDailySigning{},
-			sql_data_types.DailyBlockCount{},
+			sql_data_types.ValidatorSigningCounter{},
+			sql_data_types.BlockCounter{},
 		}
 
 		l.Info().Msg("refreshing all continuous aggregate views")

@@ -149,12 +149,11 @@ func AllTableNames() []string {
 
 func AllAggrTableNames() []string {
 	tables := []DBTable{
-		TxCount{},
+		TxCounter{},
 		FeeVolume{},
 		DailyActiveAccounts{},
-		TransactionCount{},
-		ValidatorDailySigning{},
-		DailyBlockCount{},
+		ValidatorSigningCounter{},
+		BlockCounter{},
 	}
 	names := make([]string, len(tables))
 	for i, t := range tables {
