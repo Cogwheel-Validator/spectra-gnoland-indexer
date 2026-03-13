@@ -12,6 +12,7 @@ import (
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/handlers"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/keystore"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/ratelimit"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/routes"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/valkey"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/danielgtaylor/huma/v2"
@@ -165,6 +166,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	blocksHandler := handlers.NewBlocksHandler(db, conf.ChainName)
 	transactionsHandler := handlers.NewTransactionsHandler(db, conf.ChainName)
 	addressHandler := handlers.NewAddressHandler(db, conf.ChainName)
+	validatorsHandler := handlers.NewValidatorsHandler(db, conf.ChainName)
 
 	router.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/x-icon")
@@ -176,88 +178,11 @@ func runServe(cmd *cobra.Command, args []string) {
 		}
 	})
 
-	huma.Get(api, "/blocks/{height}", blocksHandler.GetBlock,
-		func(op *huma.Operation) {
-			op.Summary = "Get Block Height"
-			op.Description = "Retrieve block data by its height"
-		})
-	huma.Get(api, "/blocks/{from_height}/{to_height}", blocksHandler.GetFromToBlocks,
-		func(op *huma.Operation) {
-			op.Summary = "Get From To Blocks"
-			op.Description = `Retrieve blocks data by its height range. 
-			From height must be less than to height and the difference must be less than 100.
-			The response will contain the blocks data in the range.
-			`
-		})
-	huma.Get(api, "/blocks/{block_height}/signers", blocksHandler.GetAllBlockSigners,
-		func(op *huma.Operation) {
-			op.Summary = "Get All Block Signers"
-			op.Description = "Retrieve all validators that signed a block by its height"
-		})
-	huma.Get(api, "/blocks/latest", blocksHandler.GetLatestBlock,
-		func(op *huma.Operation) {
-			op.Summary = "Get Latest Block"
-			op.Description = "Retrieve the latest block data"
-		})
-	huma.Get(api, "/blocks", blocksHandler.GetLastXBlocks,
-		func(op *huma.Operation) {
-			op.Summary = "Get Last X Blocks"
-			op.Description = "Retrieve the last X blocks data"
-		})
-
-	huma.Get(
-		api, "/transactions/{tx_hash}", transactionsHandler.GetTransactionBasic,
-		func(op *huma.Operation) {
-			op.Summary = "Get Transaction Basic"
-			op.Description = "Retrieve basic transaction data by its hash"
-		})
-	huma.Get(
-		api,
-		"/transactions/{tx_hash}/messages",
-		transactionsHandler.GetTransactionMessage,
-		func(op *huma.Operation) {
-			op.Summary = "Get All Transaction Messages"
-			op.Description = "Retrieve all messages contained within a transaction by its hash"
-		})
-	huma.Get(api, "/transactions", transactionsHandler.GetTransactionsByCursor,
-		func(op *huma.Operation) {
-			op.Summary = "Get Transactions"
-			op.Description = `Retrieve transactions by setting the limit and using cursor.
-			To fetch multiple transaction you can use this endpoint. Without cursor you will
-			fetch latest data. However if you need to acquire older data you can use cursor.
-			The cursor is a string in the form of timestamp|tx_hash(base64url encoded).
-			The timestamp is the timestamp of the transaction and the tx_hash is the hash of the transaction.
-			The tx_hash is base64url encoded to be able to query safely via API.
-			`
-		})
-
-	huma.Get(api, "/address/{address}/txs", addressHandler.GetAddressTxs,
-		func(op *huma.Operation) {
-			op.Summary = "Get Address Transactions"
-			op.Description = `Retrieve all transactions for a given address.
-			There are 3 ways to query the transactions:
-			
-			1. by timestamp range
-			2. by cursor
-			3. by limit and page
-
-			For the timestamp range, you can specify the from and to timestamps.
-			For the cursor, just make the first query without any parameters besides the address. 
-			The query will contain the data alongside the next cursor that can be used as a query to get the data needed.
-			For the limit and page, you can specify the limit and page to get the next set of transactions.
-			`
-		})
-
-	huma.Post(api, "/convert/base64-to-base64url", handlers.ConvertFromBase64toBase64Url,
-		func(op *huma.Operation) {
-			op.Summary = "Convert Base64 to Base64Url"
-			op.Description = "Convert a base64 encoded tx hash to a base64url encoded tx hash"
-		})
-	huma.Post(api, "/convert/base64url-to-base64", handlers.ConvertFromBase64UrlToBase64,
-		func(op *huma.Operation) {
-			op.Summary = "Convert Base64Url to Base64"
-			op.Description = "Convert a base64url encoded tx hash to a base64 encoded tx hash"
-		})
+	routes.RegisterBlocksRoutes(api, blocksHandler)
+	routes.RegisterTransactionsRoutes(api, transactionsHandler)
+	routes.RegisterAddressesRoutes(api, addressHandler)
+	routes.RegisterValidatorsRoutes(api, validatorsHandler)
+	routes.RegisterUtilsRoutes(api)
 
 	addr := fmt.Sprintf("%s:%d", conf.Host, conf.Port)
 
