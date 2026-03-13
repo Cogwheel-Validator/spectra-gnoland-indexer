@@ -132,17 +132,17 @@ func (h *TransactionsHandler) GetTotalTxCountByDate(
 	input *humatypes.TxCountByDateGetInput,
 ) (*humatypes.TxCountByDateGetOutput, error) {
 	// validate input
-	if !input.StartDate.Before(input.EndDate) {
+	if !input.StartTimestamp.Before(input.EndTimestamp) {
 		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
 	}
-	if input.EndDate.Sub(input.StartDate) > 24*time.Hour*30 {
+	if input.EndTimestamp.Sub(input.StartTimestamp) > 24*time.Hour*30 {
 		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
 	}
 
-	counts, err := h.db.GetTotalTxCountByDate(ctx, h.chainName, input.StartDate, input.EndDate)
+	counts, err := h.db.GetTotalTxCountByDate(ctx, h.chainName, input.StartTimestamp, input.EndTimestamp)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf(
-			"Transaction count from %s to %s not found", input.StartDate, input.EndDate), err)
+			"Transaction count from %s to %s not found", input.StartTimestamp, input.EndTimestamp), err)
 	}
 	return &humatypes.TxCountByDateGetOutput{Body: counts}, nil
 }
@@ -170,17 +170,17 @@ func (h *TransactionsHandler) GetTotalTxCountByHour(
 
 // GetVolumeByDate returns the transaction volume grouped by denom per day within the given date range
 func (h *TransactionsHandler) GetVolumeByDate(ctx context.Context, input *humatypes.VolumeByDateGetInput) (*humatypes.VolumeByDateGetOutput, error) {
-	if !input.StartDate.Before(input.EndDate) {
+	if !input.StartTimestamp.Before(input.EndTimestamp) {
 		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
 	}
-	if input.EndDate.Sub(input.StartDate) > 24*time.Hour*30 {
+	if input.EndTimestamp.Sub(input.StartTimestamp) > 24*time.Hour*30 {
 		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
 	}
 
-	volume, err := h.db.GetVolumeByDate(ctx, h.chainName, input.StartDate, input.EndDate)
+	volume, err := h.db.GetVolumeByDate(ctx, h.chainName, input.StartTimestamp, input.EndTimestamp)
 	if err != nil {
 		return nil, huma.Error404NotFound(fmt.Sprintf(
-			"Volume from %s to %s not found", input.StartDate, input.EndDate), err)
+			"Volume from %s to %s not found", input.StartTimestamp, input.EndTimestamp), err)
 	}
 	return &humatypes.VolumeByDateGetOutput{Body: volume}, nil
 }

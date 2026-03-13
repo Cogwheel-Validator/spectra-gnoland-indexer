@@ -26,8 +26,8 @@ type AddressTxsBody struct {
 }
 
 type DailyActiveAccountGetInput struct {
-	StartDate time.Time `query:"start_date" doc:"Start date (inclusive)" format:"date" required:"true"`
-	EndDate   time.Time `query:"end_date" doc:"End date (inclusive)" format:"date" required:"true"`
+	StartDate time.Time `query:"start_timestamp" doc:"Start date (inclusive)" format:"date-time" required:"true"`
+	EndDate   time.Time `query:"end_timestamp" doc:"End date (inclusive)" format:"date-time" required:"true"`
 }
 
 type DailyActiveAccountGetOutput struct {
