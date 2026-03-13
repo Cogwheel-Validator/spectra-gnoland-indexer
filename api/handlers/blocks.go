@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	humatypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/huma-types"
 	"github.com/danielgtaylor/huma/v2"
@@ -95,4 +96,36 @@ func (h *BlocksHandler) GetLastXBlocks(ctx context.Context, input *humatypes.Las
 		Body: blocks,
 	}
 	return response, nil
+}
+
+// GetBlockCount24h returns the total number of blocks produced in the last 24 hours
+func (h *BlocksHandler) GetBlockCount24h(
+	ctx context.Context,
+	_ *humatypes.BlockCount24hGetInput,
+) (*humatypes.BlockCount24hGetOutput, error) {
+	count, err := h.db.GetBlockCount24h(ctx, h.chainName)
+	if err != nil {
+		return nil, huma.Error404NotFound("Block count for last 24h not found", err)
+	}
+	return &humatypes.BlockCount24hGetOutput{Body: count}, nil
+}
+
+// GetBlockCountByDate returns the block count per day within the given date range
+func (h *BlocksHandler) GetBlockCountByDate(
+	ctx context.Context,
+	input *humatypes.BlockCountByDateGetInput,
+) (*humatypes.BlockCountByDateGetOutput, error) {
+	if !input.StartDate.Before(input.EndDate) {
+		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
+	}
+	if input.EndDate.Sub(input.StartDate) > 24*time.Hour*30 {
+		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
+	}
+
+	counts, err := h.db.GetBlockCountByDate(ctx, h.chainName, input.StartDate, input.EndDate)
+	if err != nil {
+		return nil, huma.Error404NotFound(
+			fmt.Sprintf("Block count from %s to %s not found", input.StartDate, input.EndDate), err)
+	}
+	return &humatypes.BlockCountByDateGetOutput{Body: counts}, nil
 }

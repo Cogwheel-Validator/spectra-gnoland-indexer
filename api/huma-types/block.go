@@ -1,6 +1,8 @@
 package humatypes
 
 import (
+	"time"
+
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 )
 
@@ -44,4 +46,19 @@ type LastXBlocksGetInput struct {
 
 type LastXBlocksGetOutput struct {
 	Body []*database.BlockData
+}
+
+type BlockCount24hGetInput struct{}
+
+type BlockCount24hGetOutput struct {
+	Body int64
+}
+
+type BlockCountByDateGetInput struct {
+	StartDate time.Time `query:"start_date" doc:"Start date (inclusive)" format:"date" required:"true"`
+	EndDate   time.Time `query:"end_date" doc:"End date (inclusive)" format:"date" required:"true"`
+}
+
+type BlockCountByDateGetOutput struct {
+	Body []*database.BlockCountByDate
 }
