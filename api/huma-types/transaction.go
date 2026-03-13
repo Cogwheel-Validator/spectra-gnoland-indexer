@@ -78,8 +78,8 @@ type TotalTxCount24hGetOutput struct {
 }
 
 type TxCountByDateGetInput struct {
-	StartDate time.Time `query:"start_date" doc:"Start date (inclusive)" format:"date" required:"true"`
-	EndDate   time.Time `query:"end_date" doc:"End date (inclusive)" format:"date" required:"true"`
+	StartTimestamp time.Time `query:"start_timestamp" doc:"Start date (inclusive)" format:"date-time" required:"true"`
+	EndTimestamp   time.Time `query:"end_timestamp" doc:"End date (inclusive)" format:"date-time" required:"true"`
 }
 
 type TxCountByDateGetOutput struct {
@@ -96,8 +96,8 @@ type TxCountByHourGetOutput struct {
 }
 
 type VolumeByDateGetInput struct {
-	StartDate time.Time `query:"start_date" doc:"Start date (inclusive)" format:"date" required:"true"`
-	EndDate   time.Time `query:"end_date" doc:"End date (inclusive)" format:"date" required:"true"`
+	StartTimestamp time.Time `query:"start_timestamp" doc:"Start date (inclusive)" format:"date-time" required:"true"`
+	EndTimestamp   time.Time `query:"end_timestamp" doc:"End date (inclusive)" format:"date-time" required:"true"`
 }
 
 type VolumeByDateGetOutput struct {

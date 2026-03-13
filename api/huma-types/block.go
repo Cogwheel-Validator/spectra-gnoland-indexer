@@ -55,8 +55,8 @@ type BlockCount24hGetOutput struct {
 }
 
 type BlockCountByDateGetInput struct {
-	StartDate time.Time `query:"start_date" doc:"Start date (inclusive)" format:"date" required:"true"`
-	EndDate   time.Time `query:"end_date" doc:"End date (inclusive)" format:"date" required:"true"`
+	StartTimestamp time.Time `query:"start_timestamp" doc:"Start date (inclusive)" format:"date-time" required:"true"`
+	EndTimestamp   time.Time `query:"end_timestamp" doc:"End date (inclusive)" format:"date-time" required:"true"`
 }
 
 type BlockCountByDateGetOutput struct {
