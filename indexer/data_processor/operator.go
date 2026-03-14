@@ -67,25 +67,7 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 
 	// Process blocks concurrently to extract addresses
 	for _, block := range blocks {
-		go func(block *rpcClient.BlockResponse) {
-			defer wg.Done()
-
-			// Process precommits
-			precommits := block.Result.Block.LastCommit.Precommits
-			for _, precommit := range precommits {
-				if precommit != nil {
-					mu.Lock()
-					addressesMap[precommit.ValidatorAddress] = struct{}{}
-					mu.Unlock()
-				}
-			}
-
-			// Process proposer
-			proposer := block.Result.Block.Header.ProposerAddress
-			mu.Lock()
-			addressesMap[proposer] = struct{}{}
-			mu.Unlock()
-		}(block)
+		go processPrecommits(&mu, &addressesMap, &wg, block)
 	}
 
 	wg.Wait()

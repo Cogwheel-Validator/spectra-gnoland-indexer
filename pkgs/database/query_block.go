@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"fmt"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -57,10 +58,14 @@ func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName str
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
+	if len(blocks) == 0 {
+		return nil, fmt.Errorf("block not found at height %d", height)
+	}
 
 	if txs[blocks[0].Height] != nil {
 		blocks[0].Txs = append(blocks[0].Txs, txs[blocks[0].Height]...)
 	}
+	blocks[0].TxCounter = len(blocks[0].Txs)
 	return blocks[0], nil
 }
 
@@ -81,8 +86,7 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*Bl
 	block_height
 	FROM transaction_general
 	WHERE chain_name = $1
-	ORDER BY block_height DESC
-	LIMIT 1
+	AND block_height = (SELECT MAX(height) FROM blocks WHERE chain_name = $1)  
 	`
 	var blocks []*BlockData
 	var txs map[uint64][]string
@@ -104,10 +108,14 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*Bl
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
+	if len(blocks) == 0 {
+		return nil, fmt.Errorf("no blocks found for chain %q", chainName)
+	}
 
 	if txs[blocks[0].Height] != nil {
 		blocks[0].Txs = append(blocks[0].Txs, txs[blocks[0].Height]...)
 	}
+	blocks[0].TxCounter = len(blocks[0].Txs)
 	return blocks[0], nil
 }
 
@@ -141,7 +149,9 @@ func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x ui
 	block_height
 	FROM transaction_general
 	WHERE chain_name = $1
-	LIMIT $2
+	AND block_height <= (SELECT MAX(height) FROM blocks WHERE chain_name = $1) 
+	AND block_height >= (SELECT MAX(height) FROM blocks WHERE chain_name = $1) - $2
+	ORDER BY block_height DESC
 	`
 
 	var blocks []*BlockData
@@ -169,6 +179,7 @@ func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x ui
 		if txs[block.Height] != nil {
 			block.Txs = append(block.Txs, txs[block.Height]...)
 		}
+		block.TxCounter = len(block.Txs)
 	}
 	return blocks, nil
 }
@@ -231,6 +242,7 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 		if txs[block.Height] != nil {
 			block.Txs = append(block.Txs, txs[block.Height]...)
 		}
+		block.TxCounter = len(block.Txs)
 	}
 
 	return blocks, nil

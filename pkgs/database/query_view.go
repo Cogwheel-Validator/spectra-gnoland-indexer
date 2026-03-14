@@ -305,8 +305,8 @@ func (t *TimescaleDb) GetVolumeByHour(
 
 func (t *TimescaleDb) GetValidatorSigning24h(
 	ctx context.Context,
-	chainName string,
 	validatorAddress string,
+	chainName string,
 ) (*ValidatorSigning, error) {
 	// check if validator address exists and get it's id
 	query1 := `
@@ -314,8 +314,9 @@ func (t *TimescaleDb) GetValidatorSigning24h(
 	id
 	FROM gno_validators
 	WHERE address = $1
+	AND chain_name = $2
 	`
-	row1 := t.pool.QueryRow(ctx, query1, validatorAddress)
+	row1 := t.pool.QueryRow(ctx, query1, validatorAddress, chainName)
 	var validatorId int32
 	err := row1.Scan(&validatorId)
 	if err != nil {
@@ -354,12 +355,27 @@ func (t *TimescaleDb) GetValidatorSigning24h(
 
 func (t *TimescaleDb) GetValidatorSigningByHour(
 	ctx context.Context,
-	chainName string,
 	validatorAddress string,
+	chainName string,
 	date1 time.Time,
 	date2 time.Time,
 ) ([]*ValidatorSigning, error) {
-	query := `
+	// check if validator address exists and get it's id
+	query1 := `
+	SELECT
+	id
+	FROM gno_validators
+	WHERE address = $1
+	AND chain_name = $2
+	`
+	row1 := t.pool.QueryRow(ctx, query1, validatorAddress, chainName)
+	var validatorId int32
+	err := row1.Scan(&validatorId)
+	if err != nil {
+		return nil, fmt.Errorf("validator seems to not exist: %w", err)
+	}
+
+	query2 := `
 	SELECT
 	time_bucket_gapfill('1 hour', time_bucket) as time,
 	coalesce(sum(vsc.blocks_signed), 0) as blocks_signed,
@@ -376,7 +392,7 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 	GROUP BY time_bucket('1 hour', time_bucket)
 	ORDER BY time DESC
 	`
-	rows, err := t.pool.Query(ctx, query, chainName, validatorAddress, date1, date2)
+	rows, err := t.pool.Query(ctx, query2, chainName, validatorId, date1, date2)
 	if err != nil {
 		return nil, err
 	}

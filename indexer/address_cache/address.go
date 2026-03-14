@@ -129,7 +129,7 @@ func (a *AddressCache) insertWithRetry(
 
 	for i := range retryAttempts {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		cancel()
 
 		err := a.db.InsertAddresses(ctx, addresses, chainName, insertValidators)
 		if err == nil {
@@ -147,7 +147,7 @@ func (a *AddressCache) insertWithRetry(
 func (a *AddressCache) insertOneByOne(addresses []string, chainName string, insertValidators bool) {
 	for _, addr := range addresses {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		cancel()
 
 		if err := a.db.InsertAddresses(ctx, []string{addr}, chainName, insertValidators); err != nil {
 			l.Error().Caller().Stack().Err(err).Msgf("error inserting address: %s", addr)
