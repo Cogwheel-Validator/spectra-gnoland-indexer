@@ -108,38 +108,44 @@ func runServe(cmd *cobra.Command, args []string) {
 	}
 	ks.StartPeriodicRefresh(refreshInterval)
 
-	valkeyEnv, err := config.LoadValkeyEnvironment(&config.DefaultEnvFileReader{}, ".")
-	if err != nil {
-		log.Fatalf("failed to load valkey environment: %v", err)
-	}
+	if conf.DisableRateLimit {
+		log.Printf("rate limiting disabled — skipping Valkey initialisation")
+	} else {
+		valkeyEnv, err := config.LoadValkeyEnvironment(&config.DefaultEnvFileReader{}, ".")
+		if err != nil {
+			log.Fatalf("failed to load valkey environment: %v", err)
+		}
 
-	valkeyClient, err := valkey.NewValkeyClient(valkeyEnv.Host, valkeyEnv.Port)
-	if err != nil {
-		log.Fatalf("failed to create valkey client: %v", err)
-	}
+		valkeyClient, err := valkey.NewValkeyClient(valkeyEnv.Host, valkeyEnv.Port)
+		if err != nil {
+			log.Fatalf("failed to create valkey client: %v", err)
+		}
 
-	ipRPM := conf.IpRpmLimit
-	if ipRPM == 0 {
-		ipRPM = 30
-	}
+		ipRPM := conf.IpRpmLimit
+		if ipRPM == 0 {
+			ipRPM = 30
+		}
 
-	rl := ratelimit.NewRateLimiter(valkeyClient, ks, ipRPM, 1*time.Minute, conf.TrustedProxies)
-	router.Use(rl.Middleware)
+		rl := ratelimit.NewRateLimiter(valkeyClient, ks, ipRPM, 1*time.Minute, conf.TrustedProxies)
+		router.Use(rl.Middleware)
+	}
 
 	humaConfig := huma.DefaultConfig("Spectra Gnoland Indexer API", Version)
-	humaConfig.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
-		"apiKey": {
-			Type: "apiKey",
-			Name: "X-API-Key",
-			In:   "header",
-			Description: `API key for authenticated access with a higher rate limit. Pass your key in the X-API-Key header.
-			You can query the APi without the API key but the stricter rate limit will be applied.`,
-		},
-	}
-	// Apply the scheme globally but make it optional (empty map = anonymous access allowed).
-	humaConfig.Security = []map[string][]string{
-		{"apiKey": {}},
-		{},
+	if !conf.DisableRateLimit {
+		humaConfig.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
+			"apiKey": {
+				Type: "apiKey",
+				Name: "X-API-Key",
+				In:   "header",
+				Description: `API key for authenticated access with a higher rate limit. Pass your key in the X-API-Key header.
+				You can query the APi without the API key but the stricter rate limit will be applied.`,
+			},
+		}
+		// Apply the scheme globally but make it optional (empty map = anonymous access allowed).
+		humaConfig.Security = []map[string][]string{
+			{"apiKey": {}},
+			{},
+		}
 	}
 
 	api := humachi.New(router, humaConfig)

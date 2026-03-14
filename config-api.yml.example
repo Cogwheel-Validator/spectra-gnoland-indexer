@@ -4,6 +4,9 @@ cors_allowed_origins:
   - "*"
 cors_allowed_methods:
   - "GET"
+  - "HEAD"
+  - "POST"
+  - "OPTIONS"
 cors_allowed_headers:
   - "Origin"
   - "Content-Type"
@@ -11,6 +14,13 @@ cors_allowed_headers:
   - "X-API-Key"
 cors_max_age: 600
 chain_name: gnoland
+# List of CIDR blocks whose X-Forwarded-For / X-Real-Ip headers are trusted for real-IP resolution.
+trusted_proxies:
+  - "127.0.0.1/32"
+  - "192.168.1.1/32"
+  - "10.0.0.1/32"
+# Disable if you plan to run it with dedicated API Gateway or if you are just testing/developing.
+disable_rate_limit: false
 
 # Rate limiting: requests per minute for unauthenticated (IP-based) access
 ip_rpm_limit: 30

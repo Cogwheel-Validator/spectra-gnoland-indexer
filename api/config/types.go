@@ -13,6 +13,11 @@ type ApiConfig struct {
 	CorsMaxAge         int      `yaml:"cors_max_age"`
 	ChainName          string   `yaml:"chain_name"`
 	// Rate limiting
+	// Set DisableRateLimit to true when an upstream API gateway (Kong, AWS API
+	// Gateway, Cloudflare, etc.) already handles rate limiting and you do not
+	// want to run a Valkey instance. When true, IpRpmLimit, KeyRefreshInterval,
+	// and TrustedProxies are ignored and the Valkey client is never initialised.
+	DisableRateLimit   bool          `yaml:"disable_rate_limit"`
 	IpRpmLimit         int           `yaml:"ip_rpm_limit"`
 	KeyRefreshInterval time.Duration `yaml:"key_refresh_interval"`
 	// TrustedProxies is the list of CIDR blocks whose X-Forwarded-For / X-Real-Ip
