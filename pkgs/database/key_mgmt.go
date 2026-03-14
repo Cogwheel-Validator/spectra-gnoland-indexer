@@ -157,7 +157,7 @@ func (t *TimescaleDb) EnableKey(ctx context.Context, hash [32]byte) error {
 		UPDATE api_keys
 		SET is_active = true
 		WHERE hash = $1
-		`, hash)
+		`, hash[:])
 	if err != nil {
 		return err
 	}
