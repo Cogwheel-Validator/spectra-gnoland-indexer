@@ -15,6 +15,10 @@ type ApiConfig struct {
 	// Rate limiting
 	IpRpmLimit         int           `yaml:"ip_rpm_limit"`
 	KeyRefreshInterval time.Duration `yaml:"key_refresh_interval"`
+	// TrustedProxies is the list of CIDR blocks whose X-Forwarded-For / X-Real-Ip
+	// headers are trusted for real-IP resolution. Leave empty to always use
+	// RemoteAddr (safe default for direct-exposure deployments).
+	TrustedProxies []string `yaml:"trusted_proxies"`
 }
 
 type ApiEnv struct {

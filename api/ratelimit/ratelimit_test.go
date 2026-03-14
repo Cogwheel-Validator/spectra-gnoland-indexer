@@ -61,7 +61,7 @@ func TestMiddleware_IPBased_AllowsAndSetsHeaders(t *testing.T) {
 	ks := &fakeKeyStore{limits: map[[32]byte]int{}}
 	ipLimit := 3
 	window := 30 * time.Second
-	rl := NewRateLimiter(vk, ks, ipLimit, window)
+	rl := NewRateLimiter(vk, ks, ipLimit, window, nil)
 
 	mw := rl.Middleware(okHandler())
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -87,7 +87,7 @@ func TestMiddleware_IPBased_AllowsAndSetsHeaders(t *testing.T) {
 func TestMiddleware_InvalidAPIKey_Unauthorized(t *testing.T) {
 	vk := newFakeValkey()
 	ks := &fakeKeyStore{limits: map[[32]byte]int{}}
-	rl := NewRateLimiter(vk, ks, 10, time.Minute)
+	rl := NewRateLimiter(vk, ks, 10, time.Minute, nil)
 
 	mw := rl.Middleware(okHandler())
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -106,7 +106,7 @@ func TestMiddleware_ValidAPIKey_UsesKeyLimitAndHeaders(t *testing.T) {
 	key := "my-api-key"
 	h := sha256.Sum256([]byte(key))
 	ks := &fakeKeyStore{limits: map[[32]byte]int{h: 5}}
-	rl := NewRateLimiter(vk, ks, 1, time.Minute)
+	rl := NewRateLimiter(vk, ks, 1, time.Minute, nil)
 
 	mw := rl.Middleware(okHandler())
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -138,7 +138,7 @@ func TestMiddleware_ValidAPIKey_UsesKeyLimitAndHeaders(t *testing.T) {
 func TestMiddleware_TooManyRequests_SetsRetryAfterAnd429(t *testing.T) {
 	vk := newFakeValkey()
 	ks := &fakeKeyStore{limits: map[[32]byte]int{}}
-	rl := NewRateLimiter(vk, ks, 2, 45*time.Second)
+	rl := NewRateLimiter(vk, ks, 2, 45*time.Second, nil)
 	mw := rl.Middleware(okHandler())
 
 	// 1st request -> ok, remaining 1
@@ -167,7 +167,7 @@ func TestMiddleware_FailOpenOnValkeyError(t *testing.T) {
 	vk := newFakeValkey()
 	vk.errOnIncr = assert.AnError
 	ks := &fakeKeyStore{limits: map[[32]byte]int{}}
-	rl := NewRateLimiter(vk, ks, 1, time.Minute)
+	rl := NewRateLimiter(vk, ks, 1, time.Minute, nil)
 	mw := rl.Middleware(okHandler())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -180,33 +180,65 @@ func TestMiddleware_FailOpenOnValkeyError(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
 
-func TestRealIP_HeaderPriorityAndFallbacks(t *testing.T) {
+func TestRealIP_UntrustedProxy_HeadersIgnored(t *testing.T) {
 	vk := newFakeValkey()
 	ks := &fakeKeyStore{limits: map[[32]byte]int{}}
-	rl := NewRateLimiter(vk, ks, 10, time.Minute)
+	// No trusted proxies configured — forwarded headers must be ignored.
+	rl := NewRateLimiter(vk, ks, 10, time.Minute, nil)
 	mw := rl.Middleware(okHandler())
 
-	// X-Forwarded-For first value wins
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("X-Forwarded-For", "10.0.0.1, 10.0.0.2")
+	req.RemoteAddr = "203.0.113.5:1234"
+	req.Header.Set("X-Forwarded-For", "1.2.3.4")
+	req.Header.Set("X-Real-Ip", "5.6.7.8")
 	rec := httptest.NewRecorder()
 	mw.ServeHTTP(rec, req)
-	_, ok := vk.counts["rl:ip:10.0.0.1"]
-	assert.True(t, ok)
 
-	// If only X-Real-Ip is set, use it
+	// Must use RemoteAddr, not the spoofed headers.
+	_, spoofed1 := vk.counts["rl:ip:1.2.3.4"]
+	_, spoofed2 := vk.counts["rl:ip:5.6.7.8"]
+	assert.False(t, spoofed1, "X-Forwarded-For must not be trusted from untrusted RemoteAddr")
+	assert.False(t, spoofed2, "X-Real-Ip must not be trusted from untrusted RemoteAddr")
+	_, ok := vk.counts["rl:ip:203.0.113.5"]
+	assert.True(t, ok, "RemoteAddr should be used as the rate-limit key")
+}
+
+func TestRealIP_TrustedProxy_XFFUsed(t *testing.T) {
+	vk := newFakeValkey()
+	ks := &fakeKeyStore{limits: map[[32]byte]int{}}
+	// 10.0.0.0/8 is trusted (internal load balancer subnet).
+	rl := NewRateLimiter(vk, ks, 10, time.Minute, []string{"10.0.0.0/8"})
+	mw := rl.Middleware(okHandler())
+
+	// X-Forwarded-For first value wins when request arrives from trusted proxy.
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "10.0.1.1:443"
+	req.Header.Set("X-Forwarded-For", "203.0.113.99, 10.0.1.1")
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+	_, ok := vk.counts["rl:ip:203.0.113.99"]
+	assert.True(t, ok, "first XFF value should be used as rate-limit key for trusted proxy")
+
+	// X-Real-Ip is used when XFF is absent.
 	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
-	req2.Header.Set("X-Real-Ip", "172.16.0.9")
+	req2.RemoteAddr = "10.0.1.2:443"
+	req2.Header.Set("X-Real-Ip", "198.51.100.7")
 	rec2 := httptest.NewRecorder()
 	mw.ServeHTTP(rec2, req2)
-	_, ok = vk.counts["rl:ip:172.16.0.9"]
-	assert.True(t, ok)
+	_, ok2 := vk.counts["rl:ip:198.51.100.7"]
+	assert.True(t, ok2, "X-Real-Ip should be used as rate-limit key for trusted proxy")
+}
 
-	// Otherwise fall back to RemoteAddr host
-	req3 := httptest.NewRequest(http.MethodGet, "/", nil)
-	req3.RemoteAddr = "203.0.113.77:9090"
-	rec3 := httptest.NewRecorder()
-	mw.ServeHTTP(rec3, req3)
-	_, ok = vk.counts["rl:ip:203.0.113.77"]
-	assert.True(t, ok)
+func TestRealIP_FallbackToRemoteAddr(t *testing.T) {
+	vk := newFakeValkey()
+	ks := &fakeKeyStore{limits: map[[32]byte]int{}}
+	rl := NewRateLimiter(vk, ks, 10, time.Minute, nil)
+	mw := rl.Middleware(okHandler())
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "203.0.113.77:9090"
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+	_, ok := vk.counts["rl:ip:203.0.113.77"]
+	assert.True(t, ok, "RemoteAddr host should be used when no forwarded headers are present")
 }

@@ -123,7 +123,7 @@ func runServe(cmd *cobra.Command, args []string) {
 		ipRPM = 30
 	}
 
-	rl := ratelimit.NewRateLimiter(valkeyClient, ks, ipRPM, 1*time.Minute)
+	rl := ratelimit.NewRateLimiter(valkeyClient, ks, ipRPM, 1*time.Minute, conf.TrustedProxies)
 	router.Use(rl.Middleware)
 
 	humaConfig := huma.DefaultConfig("Spectra Gnoland Indexer API", Version)
