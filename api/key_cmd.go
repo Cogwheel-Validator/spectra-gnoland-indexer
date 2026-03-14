@@ -87,7 +87,9 @@ func parseKeyDbFlags(cmd *cobra.Command) (*keyDbParams, error) {
 	}
 	if params.port == 0 {
 		if v := os.Getenv("KEY_DB_PORT"); v != "" {
-			fmt.Sscanf(v, "%d", &params.port)
+			if _, err := fmt.Sscanf(v, "%d", &params.port); err != nil {
+				return nil, fmt.Errorf("failed to scan port: %w", err)
+			}
 		}
 	}
 	if params.user == "" {

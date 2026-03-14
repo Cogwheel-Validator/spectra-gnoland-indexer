@@ -25,10 +25,11 @@ type KeyStoreLike interface {
 }
 
 type RateLimiter struct {
-	valkey   ValkeyLike
-	keyStore KeyStoreLike
-	ipRPM    int
-	window   time.Duration
+	valkey         ValkeyLike
+	keyStore       KeyStoreLike
+	ipRPM          int
+	window         time.Duration
+	trustedProxies []*net.IPNet
 }
 
 func NewRateLimiter(
@@ -36,12 +37,31 @@ func NewRateLimiter(
 	ks KeyStoreLike,
 	ipRPM int,
 	window time.Duration,
+	trustedProxyCIDRs []string,
 ) *RateLimiter {
+	var nets []*net.IPNet
+	for _, cidr := range trustedProxyCIDRs {
+		// Accept bare IPs by normalising them to a /32 or /128 CIDR.
+		if !strings.Contains(cidr, "/") {
+			if strings.Contains(cidr, ":") {
+				cidr += "/128"
+			} else {
+				cidr += "/32"
+			}
+		}
+		_, ipNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			log.Printf("ratelimit: ignoring invalid trusted proxy CIDR %q: %v", cidr, err)
+			continue
+		}
+		nets = append(nets, ipNet)
+	}
 	return &RateLimiter{
-		valkey:   vk,
-		keyStore: ks,
-		ipRPM:    ipRPM,
-		window:   window,
+		valkey:         vk,
+		keyStore:       ks,
+		ipRPM:          ipRPM,
+		window:         window,
+		trustedProxies: nets,
 	}
 }
 
@@ -62,7 +82,7 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			identifier = "key:" + hex.EncodeToString(hash[:8])
 			limit = rpmLimit
 		} else {
-			ip := realIP(r)
+			ip := rl.realIP(r)
 			identifier = "ip:" + ip
 			limit = rl.ipRPM
 		}
@@ -95,19 +115,39 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-func realIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if i := strings.IndexByte(xff, ','); i > 0 {
-			return strings.TrimSpace(xff[:i])
-		}
-		return strings.TrimSpace(xff)
-	}
-	if xrip := r.Header.Get("X-Real-Ip"); xrip != "" {
-		return strings.TrimSpace(xrip)
-	}
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+// realIP returns the best-effort client IP for the request.
+// Forwarded headers (X-Forwarded-For, X-Real-Ip) are only trusted when
+// RemoteAddr belongs to a configured trusted proxy CIDR; otherwise RemoteAddr
+// is used directly to prevent header-spoofing bypasses.
+func (rl *RateLimiter) realIP(r *http.Request) string {
+	remoteHost, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		remoteHost = r.RemoteAddr
 	}
-	return ip
+
+	if len(rl.trustedProxies) > 0 {
+		remoteIP := net.ParseIP(remoteHost)
+		if remoteIP != nil && rl.isTrustedProxy(remoteIP) {
+			if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+				if i := strings.IndexByte(xff, ','); i > 0 {
+					return strings.TrimSpace(xff[:i])
+				}
+				return strings.TrimSpace(xff)
+			}
+			if xrip := r.Header.Get("X-Real-Ip"); xrip != "" {
+				return strings.TrimSpace(xrip)
+			}
+		}
+	}
+
+	return remoteHost
+}
+
+func (rl *RateLimiter) isTrustedProxy(ip net.IP) bool {
+	for _, network := range rl.trustedProxies {
+		if network.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
