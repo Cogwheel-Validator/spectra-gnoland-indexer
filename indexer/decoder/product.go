@@ -95,6 +95,16 @@ func (dm *DecodedMsg) GetFee() dataTypes.Amount {
 	return dm.BasicData.Fee
 }
 
+// GetTotalMsgCount returns the total message count of the decoded message
+//
+// Returns:
+//   - int: the total message count of the decoded message
+//
+// The method will not throw an error if the total message count is not found, it will just return 0
+func (dm *DecodedMsg) GetTotalMsgCount() int {
+	return dm.BasicData.TotalMsgCount
+}
+
 // CollectAllAddresses extracts all unique addresses from the decoded message
 // This includes signers and all addresses from individual messages
 func (dm *DecodedMsg) CollectAllAddresses() []string {
