@@ -194,3 +194,7 @@ func SwitchDatabase(db *TimescaleDb, config DatabasePoolConfig, dbname string) e
 func (db *TimescaleDb) GetPool() *pgxpool.Pool {
 	return db.pool
 }
+
+func (db *TimescaleDb) Close() {
+	db.pool.Close()
+}

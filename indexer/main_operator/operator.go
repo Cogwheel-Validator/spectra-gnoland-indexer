@@ -249,7 +249,7 @@ func (mc *MajorConstructors) cleanup() error {
 	// Close database connection pool
 	if mc.db != nil {
 		l.Info().Msg("Closing database connection pool...")
-		mc.db.GetPool().Close()
+		mc.db.Close()
 		l.Info().Msg("Database connection pool closed successfully")
 	}
 
