@@ -86,3 +86,17 @@ func LoadEnvironment(reader EnvFileReader, path string) (*ApiEnv, error) {
 
 	return &environment, nil
 }
+
+func LoadValkeyEnvironment(reader EnvFileReader, path string) (*ValkeyEnv, error) {
+	err := reader.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	environment := ValkeyEnv{}
+	if err := env.Parse(&environment); err != nil {
+		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
+	}
+
+	return &environment, nil
+}

@@ -73,10 +73,10 @@ func (init *DBInitializer) AlterCompressionSegments(tables map[string][]string) 
 		sql := fmt.Sprintf(
 			`
 			ALTER TABLE %s SET (
-				timescaledb.compress = TRUE,
-				timescaledb.compress_segmentby = %s
-				timescaledb.compress_orderby = 'timestamp DESC'
-			)
+				timescaledb.enable_columnstore,
+				timescaledb.segmentby = %s,
+				timescaledb.orderby = 'timestamp DESC'
+			);
 			`, tableName, columnsString)
 		_, err := init.pool.Exec(context.Background(), sql)
 		if err != nil {
@@ -90,22 +90,22 @@ func (init *DBInitializer) AlterCompressionSegments(tables map[string][]string) 
 	}
 }
 
-// AddCompressionPolicy is a method that adds the compression policy for the given tables
+// AddCompressionPolicy is a method that adds the columnstore policy for the given tables.
 //
 // This function will only start this process however the whole process will run through the 3 steps
 // This is third step in the process
 // Parameters:
-// - tableNames: a slice of table names to add the compression policy to
+// - tableNames: a slice of table names to add the columnstore policy to
 //
 // Returns:
 // - nil: if the program has a problem it will call log.Fatalf which will exit the program
 //
-// TThis function specifies the compression policy
-func (init *DBInitializer) AddCompressionPolicy(tableNames []string) {
+// TThis function specifies the columnstore policy
+func (init *DBInitializer) AddColumnstorePolicy(tableNames []string) {
 	for _, tableName := range tableNames {
 		sql := fmt.Sprintf(
 			`
-			SELECT add_compression_policy('%s', INTERVAL '1 week');
+			CALL add_columnstore_policy('%s', INTERVAL '1 week');
 			`, tableName)
 		_, err := init.pool.Exec(context.Background(), sql)
 		if err != nil {
@@ -113,7 +113,7 @@ func (init *DBInitializer) AddCompressionPolicy(tableNames []string) {
 				Caller().
 				Stack().
 				Msgf(
-					"failed to add compression policy for table %s: %v", tableName, err,
+					"failed to add columnstore policy for table %s: %v", tableName, err,
 				)
 		}
 	}

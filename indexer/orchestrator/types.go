@@ -13,8 +13,8 @@ import (
 type DataProcessor interface {
 	ProcessValidatorAddresses(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64)
 	ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64)
-	ProcessTransactions(transactions []dataprocessor.TrasnactionsData, compressEvents bool, fromHeight uint64, toHeight uint64)
-	ProcessMessages(transactions []dataprocessor.TrasnactionsData, fromHeight uint64, toHeight uint64) error
+	ProcessTransactions(transactions []dataprocessor.TransactionsData, compressEvents bool, fromHeight uint64, toHeight uint64)
+	ProcessMessages(transactions []dataprocessor.TransactionsData, fromHeight uint64, toHeight uint64) error
 	ProcessValidatorSignings(commits []*rpcClient.CommitResponse, fromHeight uint64, toHeight uint64)
 }
 

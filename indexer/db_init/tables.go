@@ -49,7 +49,7 @@ type SpecialType struct {
 // - error: if the function fails
 func GetTableInfo(structType interface{}, tableName string) (*TableInfo, error) {
 	t := reflect.TypeOf(structType)
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -375,7 +375,7 @@ func (db *DBInitializer) CreateTableFromStruct(structType interface{}, tableName
 // GetSpecialTypeInfo extracts database type information from a struct using reflection
 func GetSpecialTypeInfo(structType interface{}, typeName string) (*SpecialType, error) {
 	t := reflect.TypeOf(structType)
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 
@@ -573,17 +573,12 @@ func (db *DBInitializer) CreateUser(userName string) error {
 
 func (db *DBInitializer) AppointPrivileges(
 	userName string,
-	privilage string,
+	privilege string,
 	tableNames []string,
 ) error {
-	// kill if the privilage is not valid
-	if privilage != "reader" && privilage != "writer" {
-		return fmt.Errorf("invalid privilage: %s", privilage)
-	}
-
 	var sql strings.Builder
 
-	switch privilage {
+	switch privilege {
 	case "reader":
 		for _, tableName := range tableNames {
 			fmt.Fprintf(&sql, "GRANT SELECT ON TABLE %s TO %s;\n", tableName, userName)
@@ -592,8 +587,10 @@ func (db *DBInitializer) AppointPrivileges(
 		for _, tableName := range tableNames {
 			fmt.Fprintf(&sql, "GRANT SELECT, INSERT, UPDATE ON TABLE %s TO %s;\n", tableName, userName)
 		}
+	case "keymgr":
+		fmt.Fprintf(&sql, "GRANT SELECT, INSERT, UPDATE ON TABLE api_keys TO %s;\n", userName)
 	default:
-		return fmt.Errorf("invalid privilage: %s", privilage)
+		return fmt.Errorf("invalid privilege: %s", privilege)
 	}
 
 	_, err := db.pool.Exec(context.Background(), sql.String())

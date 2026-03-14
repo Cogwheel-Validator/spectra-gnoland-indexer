@@ -2,10 +2,13 @@ package addresscache
 
 import (
 	"context"
-	"log"
 	"maps"
 	"time"
+
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 )
+
+var l = logger.Get()
 
 // NewAddressCache is a constructor for the AddressCache struct
 // it will load the addresses from the database into the cache
@@ -22,28 +25,14 @@ import (
 //
 // If something is wrong it will throw a fatal error and close the program
 func NewAddressCache(chainName string, db DatabaseForAddresses, loadVal bool) *AddressCache {
-	if loadVal {
-		// if true load the validator addresses
-		addresses, maxIndex, err := loadAddresses(chainName, loadVal, db)
-		if err != nil {
-			log.Fatalf("failed to load addresses: %v", err)
-		}
-		return &AddressCache{
-			address:      addresses,
-			db:           db,
-			highestIndex: maxIndex,
-		}
-	} else {
-		// if false load the regular addresses
-		addresses, maxIndex, err := loadAddresses(chainName, loadVal, db)
-		if err != nil {
-			log.Fatalf("failed to load addresses: %v", err)
-		}
-		return &AddressCache{
-			address:      addresses,
-			db:           db,
-			highestIndex: maxIndex,
-		}
+	addresses, maxIndex, err := loadAddresses(chainName, loadVal, db)
+	if err != nil {
+		l.Fatal().Caller().Stack().Err(err).Msg("failed to load addresses")
+	}
+	return &AddressCache{
+		address:      addresses,
+		db:           db,
+		highestIndex: maxIndex,
 	}
 }
 
@@ -69,19 +58,6 @@ func (a *AddressCache) addAddresses(newAddresses map[string]int32) {
 // If the address is recorded in the db but not in the cache, it will add it to the cache
 // If the address is in the cache, it will skip it
 //
-// Given that this logic was ported from the cosmos indexer (written in python)
-// but given that the Gnoland as chain it self is in a early stage of development
-// and the indexer is not yet fully optimized for the Gnoland chain.
-// Some of the logic might be redundant and could be simplified but is kept for making sure
-// that the addresses are handled correctly.
-//
-// TODO:
-//   - simplify the logic
-//   - optimize the code to be more Go like
-//   - add more tests
-//   - add more documentation
-//   - add more logging
-//
 // Parameters:
 //   - address: the addresses to solve
 //   - chainName: the chain name
@@ -98,78 +74,100 @@ func (a *AddressCache) AddressSolver(
 	retryAttempts uint8,
 	oneByOne *bool,
 ) {
-	// first check if the address are in the cache
-	var newAddresses []string
-	for _, addr := range address {
-		if _, ok := a.address[addr]; !ok {
-			newAddresses = append(newAddresses, addr)
-		}
-	}
+	newAddresses := a.findUncached(address)
 	if len(newAddresses) == 0 {
-		// if there are no new addresses, we can return immediately
 		return
 	}
-	// chech if there is already recorded addresses in the db
+
 	// technically this should be handled by LoadAddresses but let's make one more check
-	// probably not needed but just in case
+	addressToAdd := a.syncExistingFromDB(newAddresses, chainName, insertValidators)
+
+	a.insertWithRetry(addressToAdd, chainName, insertValidators, retryAttempts, oneByOne)
+	a.fetchAndCacheInserted(addressToAdd, chainName, insertValidators)
+}
+
+// findUncached returns the subset of addresses not present in the cache.
+func (a *AddressCache) findUncached(addresses []string) []string {
+	var missing []string
+	for _, addr := range addresses {
+		if _, ok := a.address[addr]; !ok {
+			missing = append(missing, addr)
+		}
+	}
+	return missing
+}
+
+// syncExistingFromDB queries the database for addresses that are already recorded
+// but missing from the cache, adds them to the cache, and returns whichever
+// addresses still need to be inserted.
+func (a *AddressCache) syncExistingFromDB(addresses []string, chainName string, insertValidators bool) []string {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	existingAddresses, err := a.db.FindExistingAccounts(ctx, address, chainName, insertValidators)
-	cancel()
+	defer cancel()
+
+	existing, err := a.db.FindExistingAccounts(ctx, addresses, chainName, insertValidators)
 	if err != nil {
+		return nil
+	}
+	a.addAddresses(existing)
+
+	return a.findUncached(addresses)
+}
+
+// insertWithRetry attempts to insert addresses into the database, retrying up to
+// retryAttempts times. On the final attempt, if oneByOne is set, it falls back to
+// inserting each address individually so partial progress is preserved.
+func (a *AddressCache) insertWithRetry(
+	addresses []string,
+	chainName string,
+	insertValidators bool,
+	retryAttempts uint8,
+	oneByOne *bool,
+) {
+	if len(addresses) == 0 {
 		return
 	}
 
-	// if there are existing addresses, we need to add them to the cache
-	a.addAddresses(existingAddresses)
-
-	// one last check to see if there are any addresses that are not in the cache
-	addressToAdd := make([]string, 0)
-	for _, addr := range newAddresses {
-		if _, ok := a.address[addr]; !ok {
-			addressToAdd = append(addressToAdd, addr)
-		}
-	}
-
-	if len(addressToAdd) > 1 {
-		for i := range retryAttempts {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			loopErr := a.db.InsertAddresses(ctx, addressToAdd, chainName, insertValidators)
-			cancel()
-
-			if loopErr != nil {
-				// in the events the oneByOne is true the program will try to insert the addresses one by one
-				// as a final resort with this some might be inserted but some might not
-				if oneByOne != nil && *oneByOne && i == retryAttempts-1 {
-					for _, addr := range addressToAdd {
-						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-						loopErr := a.db.InsertAddresses(ctx, []string{addr}, chainName, insertValidators)
-						cancel()
-						if loopErr != nil {
-							// this is a final resort, so we can log the error for debugging purposes
-							log.Println("Error inserting address:", addr, "error:", loopErr)
-						}
-					}
-				}
-				continue
-			}
-			break
-		}
-	} else if len(addressToAdd) == 1 {
-		// if there is only one address to insert, we can do it directly
+	for i := range retryAttempts {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		loopErr := a.db.InsertAddresses(ctx, []string{addressToAdd[0]}, chainName, insertValidators)
 		cancel()
-		if loopErr != nil {
+
+		err := a.db.InsertAddresses(ctx, addresses, chainName, insertValidators)
+		if err == nil {
 			return
 		}
+
+		if oneByOne != nil && *oneByOne && i == retryAttempts-1 {
+			a.insertOneByOne(addresses, chainName, insertValidators)
+		}
 	}
-	// at the end of the function we should add the addresses to the cache
-	// we need to make a query of the added addresses to get the ids along with the addresses
-	ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
-	newAddrMap, err := a.db.FindExistingAccounts(ctx, addressToAdd, chainName, insertValidators)
-	cancel()
+}
+
+// insertOneByOne inserts addresses one at a time as a last resort, logging any
+// individual failures without aborting the remaining inserts.
+func (a *AddressCache) insertOneByOne(addresses []string, chainName string, insertValidators bool) {
+	for _, addr := range addresses {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		cancel()
+
+		if err := a.db.InsertAddresses(ctx, []string{addr}, chainName, insertValidators); err != nil {
+			l.Error().Caller().Stack().Err(err).Msgf("error inserting address: %s", addr)
+		}
+	}
+}
+
+// fetchAndCacheInserted queries the database for the IDs of newly inserted
+// addresses and adds them to the cache.
+func (a *AddressCache) fetchAndCacheInserted(addresses []string, chainName string, insertValidators bool) {
+	if len(addresses) == 0 {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	newAddrMap, err := a.db.FindExistingAccounts(ctx, addresses, chainName, insertValidators)
 	if err != nil {
-		log.Println("Error finding existing accounts:", err)
+		l.Error().Caller().Stack().Err(err).Msg("error finding existing accounts")
 		return
 	}
 	a.addAddresses(newAddrMap)

@@ -7,7 +7,7 @@ import (
 )
 
 type AddressGetInput struct {
-	Address       string    `path:"address" doc:"Gno address you want to query" required:"true"`
+	Address       string    `path:"address" doc:"Gno address you want to query" required:"true" minLength:"40" maxLength:"40"`
 	FromTimestamp time.Time `query:"from_timestamp" doc:"From timestamp (inclusive)" format:"date-time"`
 	ToTimestamp   time.Time `query:"to_timestamp" doc:"To timestamp (inclusive)" format:"date-time"`
 	Limit         uint64    `query:"limit" doc:"Limit of transactions to return" min:"1" max:"100" default:"10"`
@@ -23,4 +23,13 @@ type AddressTxsBody struct {
 	AddressTxs []database.AddressTx `json:"address_txs" doc:"Data about address transactions"`
 	TxCount    uint64               `json:"tx_count" doc:"Total number of transactions"`
 	NextCursor string               `json:"next_cursor" doc:"Next cursor that can be used in the query"`
+}
+
+type DailyActiveAccountGetInput struct {
+	StartDate time.Time `query:"start_timestamp" doc:"Start date (inclusive)" format:"date-time" required:"true"`
+	EndDate   time.Time `query:"end_timestamp" doc:"End date (inclusive)" format:"date-time" required:"true"`
+}
+
+type DailyActiveAccountGetOutput struct {
+	Body []*database.DailyActiveAccount
 }

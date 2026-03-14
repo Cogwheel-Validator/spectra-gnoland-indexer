@@ -9,12 +9,31 @@ import (
 )
 
 type AddressHandler struct {
-	db        DatabaseHandler
+	db        AddressDbHandler
 	chainName string
 }
 
-func NewAddressHandler(db DatabaseHandler, chainName string) *AddressHandler {
+func NewAddressHandler(db AddressDbHandler, chainName string) *AddressHandler {
 	return &AddressHandler{db: db, chainName: chainName}
+}
+
+func (h *AddressHandler) GetDailyActiveAccount(
+	ctx context.Context,
+	input *humatypes.DailyActiveAccountGetInput,
+) (*humatypes.DailyActiveAccountGetOutput, error) {
+	// validate input
+	if !input.StartDate.Before(input.EndDate) {
+		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
+	}
+	if input.EndDate.Sub(input.StartDate) > 24*time.Hour*30 {
+		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
+	}
+
+	data, err := h.db.GetDailyActiveAccount(ctx, h.chainName, input.StartDate, input.EndDate)
+	if err != nil {
+		return nil, huma.Error404NotFound("Daily active account data not found", err)
+	}
+	return &humatypes.DailyActiveAccountGetOutput{Body: data}, nil
 }
 
 func (h *AddressHandler) GetAddressTxs(

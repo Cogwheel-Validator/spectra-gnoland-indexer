@@ -62,3 +62,53 @@ type TransactionGeneralListByCursorGetInput struct {
 type TransactionGeneralListByCursorGetOutput struct {
 	Body []*database.Transaction
 }
+
+type LastXTransactionsGetInput struct {
+	Amount uint64 `query:"amount" doc:"Amount of transactions to get" required:"true" min:"1" max:"100" default:"10"`
+}
+
+type LastXTransactionsGetOutput struct {
+	Body []*database.Transaction
+}
+
+type TotalTxCount24hGetInput struct{}
+
+type TotalTxCount24hGetOutput struct {
+	Body int64
+}
+
+type TxCountByDateGetInput struct {
+	StartTimestamp time.Time `query:"start_timestamp" doc:"Start date (inclusive)" format:"date-time" required:"true"`
+	EndTimestamp   time.Time `query:"end_timestamp" doc:"End date (inclusive)" format:"date-time" required:"true"`
+}
+
+type TxCountByDateGetOutput struct {
+	Body []*database.TxCountTimeRange
+}
+
+type TxCountByHourGetInput struct {
+	StartTimestamp time.Time `query:"start_timestamp" doc:"Start datetime (inclusive)" format:"date-time" required:"true"`
+	EndTimestamp   time.Time `query:"end_timestamp" doc:"End datetime (inclusive)" format:"date-time" required:"true"`
+}
+
+type TxCountByHourGetOutput struct {
+	Body []*database.TxCountTimeRange
+}
+
+type VolumeByDateGetInput struct {
+	StartTimestamp time.Time `query:"start_timestamp" doc:"Start date (inclusive)" format:"date-time" required:"true"`
+	EndTimestamp   time.Time `query:"end_timestamp" doc:"End date (inclusive)" format:"date-time" required:"true"`
+}
+
+type VolumeByDateGetOutput struct {
+	Body database.VolumeByDenom
+}
+
+type VolumeByHourGetInput struct {
+	StartTimestamp time.Time `query:"start_timestamp" doc:"Start datetime (inclusive)" format:"date-time" required:"true"`
+	EndTimestamp   time.Time `query:"end_timestamp" doc:"End datetime (inclusive)" format:"date-time" required:"true"`
+}
+
+type VolumeByHourGetOutput struct {
+	Body database.VolumeByDenom
+}

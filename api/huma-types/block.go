@@ -1,6 +1,8 @@
 package humatypes
 
 import (
+	"time"
+
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 )
 
@@ -16,11 +18,11 @@ type FromToBlocksGetInput struct {
 
 // BlockGetOutput represents the response structure for a single block
 type BlockGetOutput struct {
-	Body database.BlockData
+	Body *database.BlockData
 }
 
 type FromToBlocksGetOutput struct {
-	Body []database.BlockData
+	Body []*database.BlockData
 }
 
 type AllBlockSignersGetInput struct {
@@ -28,14 +30,14 @@ type AllBlockSignersGetInput struct {
 }
 
 type AllBlockSignersGetOutput struct {
-	Body database.BlockSigners
+	Body *database.BlockSigners
 }
 
 // LatestBlockHeightGetInput represents the empty input for getting the latest block height
 type LatestBlockHeightGetInput struct{}
 
 type LatestBlockHeightGetOutput struct {
-	Body database.BlockData
+	Body *database.BlockData
 }
 
 type LastXBlocksGetInput struct {
@@ -43,5 +45,20 @@ type LastXBlocksGetInput struct {
 }
 
 type LastXBlocksGetOutput struct {
-	Body []database.BlockData
+	Body []*database.BlockData
+}
+
+type BlockCount24hGetInput struct{}
+
+type BlockCount24hGetOutput struct {
+	Body int64
+}
+
+type BlockCountByDateGetInput struct {
+	StartTimestamp time.Time `query:"start_timestamp" doc:"Start date (inclusive)" format:"date-time" required:"true"`
+	EndTimestamp   time.Time `query:"end_timestamp" doc:"End date (inclusive)" format:"date-time" required:"true"`
+}
+
+type BlockCountByDateGetOutput struct {
+	Body []*database.BlockCountByDate
 }

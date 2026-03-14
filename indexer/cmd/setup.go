@@ -36,6 +36,7 @@ func init() {
 	setupCmd.AddCommand(createDbCmd)
 	setupCmd.AddCommand(createUserCmd)
 	setupCmd.AddCommand(createConfigCmd)
+	setupCmd.AddCommand(refreshAggregatesCmd)
 
 	// Common flags for both database setup commands
 	for _, cmd := range []*cobra.Command{createDbCmd, createUserCmd} {
@@ -45,6 +46,13 @@ func init() {
 		cmd.Flags().StringP("db-name", "d", "", "The database name, default is postgres")
 		cmd.Flags().StringP("ssl-mode", "s", "", "The SSL mode for the database connection, default is disable")
 	}
+
+	// refresh-aggregates flags (same connection flags as create-db)
+	refreshAggregatesCmd.Flags().StringP("db-host", "b", "", "The database host, default is localhost")
+	refreshAggregatesCmd.Flags().IntP("db-port", "p", 0, "The database port, default is 5432")
+	refreshAggregatesCmd.Flags().StringP("db-user", "u", "", "The database user, default is postgres")
+	refreshAggregatesCmd.Flags().StringP("db-name", "d", "", "The database name to refresh, default is gnoland")
+	refreshAggregatesCmd.Flags().StringP("ssl-mode", "s", "", "The SSL mode for the database connection, default is disable")
 
 	// create-user specific flags
 	createUserCmd.Flags().StringP("privilege", "r", "", "The privilege level for the user (reader or writer)")
@@ -65,148 +73,287 @@ var createDbCmd = &cobra.Command{
 	Long: `Create a new database named gnoland for the indexer. It goes\n
 	through a lot of steps to create the database and insert the tables and data.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		l := logger.Get()
-		l.Info().Msg("initiating database setup for the indexer")
+		return createDatabaseSetup(cmd)
+	},
+}
 
-		// Parse and validate common database flags
-		params, err := parseCommonFlags(cmd, "postgres")
+func createDatabaseSetup(cmd *cobra.Command) error {
+	l := logger.Get()
+	l.Info().Msg("initiating database setup for the indexer")
+
+	params, err := parseCommonFlags(cmd, "postgres")
+	if err != nil {
+		l.Error().Err(err).Msg("failed to parse flags")
+		return err
+	}
+
+	newDbName := getFlagStringWithDefault(cmd, "new-db-name", "gnoland")
+	chainName := getFlagStringWithDefault(cmd, "chain-name", "gnoland")
+
+	params.password, err = promptPassword()
+	if err != nil {
+		l.Error().Err(err).Msg("failed to read password")
+		return err
+	}
+
+	dbConfig := params.createDatabaseConfig()
+	db := database.NewTimescaleDbSetup(dbConfig)
+
+	currentDb, err := checkCurrentDatabase(db)
+	if err != nil {
+		return err
+	}
+	l.Info().Str("db", currentDb).Msg("logged into database")
+
+	if currentDb != newDbName {
+		return initializeNewDatabase(db, dbConfig, newDbName, chainName)
+	}
+
+	l.Info().Str("db", currentDb).Msg("database already exists, skipping creation")
+	return nil
+}
+
+func getFlagStringWithDefault(cmd *cobra.Command, flagName, defaultValue string) string {
+	value, _ := cmd.Flags().GetString(flagName)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
+func checkCurrentDatabase(db *database.TimescaleDb) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return db.CheckCurrentDatabaseName(ctx)
+}
+
+func initializeNewDatabase(db *database.TimescaleDb, dbConfig database.DatabasePoolConfig, newDbName, chainName string) error {
+	l := logger.Get()
+
+	l.Info().Str("db", newDbName).Msg("creating new database")
+	if err := database.CreateDatabase(db, newDbName); err != nil {
+		l.Error().Err(err).Msg("failed to create database")
+		return err
+	}
+
+	l.Info().Str("db", newDbName).Msg("switching to new database")
+	if err := database.SwitchDatabase(db, dbConfig, newDbName); err != nil {
+		l.Error().Err(err).Msg("failed to switch database")
+		return err
+	}
+
+	dbInit := dbinit.NewDBInitializer(db.GetPool())
+
+	if err := createDatabaseTypes(dbInit, chainName); err != nil {
+		return err
+	}
+
+	if err := createRegularTables(dbInit, chainName); err != nil {
+		return err
+	}
+
+	if err := createHypertables(dbInit, chainName); err != nil {
+		return err
+	}
+
+	if err := createContinuousAggregates(dbInit, chainName); err != nil {
+		return err
+	}
+
+	l.Info().Str("chain", chainName).Msg("successfully created all hypertables and continuous aggregates")
+	return nil
+}
+
+func createDatabaseTypes(dbInit *dbinit.DBInitializer, chainName string) error {
+	l := logger.Get()
+
+	specialTypes := []sql_data_types.DBSpecialType{
+		sql_data_types.Amount{},
+		sql_data_types.Attribute{},
+		sql_data_types.Event{},
+	}
+
+	l.Info().Str("chain", chainName).Msg("inserting special types")
+	for _, specialType := range specialTypes {
+		if err := dbInit.CreateSpecialTypeFromStruct(specialType, specialType.TypeName()); err != nil {
+			l.Error().Err(err).Str("type", specialType.TypeName()).Msg("failed to create special type")
+			return err
+		}
+	}
+
+	typeEnums := []string{chainName}
+	l.Info().Str("chain", chainName).Msg("inserting type enums")
+	if err := dbInit.CreateChainTypeEnum(typeEnums); err != nil {
+		l.Error().Err(err).Strs("enums", typeEnums).Msg("failed to create type enum")
+		return err
+	}
+
+	return nil
+}
+
+func createRegularTables(dbInit *dbinit.DBInitializer, chainName string) error {
+	l := logger.Get()
+
+	regularTables := []sql_data_types.DBTable{
+		sql_data_types.GnoAddress{},
+		sql_data_types.GnoValidatorAddress{},
+		sql_data_types.ApiKey{},
+	}
+
+	l.Info().Str("chain", chainName).Msg("inserting regular tables")
+	for _, dataType := range regularTables {
+		if err := dbInit.CreateTableFromStruct(dataType, dataType.TableName()); err != nil {
+			l.Error().Err(err).Str("table", dataType.TableName()).Msg("failed to create table")
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
+	l := logger.Get()
+
+	hypertables := []struct {
+		table           sql_data_types.DBTable
+		partitionColumn string
+		chunkInterval   string
+	}{
+		{sql_data_types.Blocks{}, "timestamp", "1 week"},
+		{sql_data_types.ValidatorBlockSigning{}, "timestamp", "1 week"},
+		{sql_data_types.AddressTx{}, "timestamp", "1 week"},
+		{sql_data_types.TransactionGeneral{}, "timestamp", "1 week"},
+		{sql_data_types.MsgSend{}, "timestamp", "1 week"},
+		{sql_data_types.MsgCall{}, "timestamp", "1 week"},
+		{sql_data_types.MsgAddPackage{}, "timestamp", "1 week"},
+		{sql_data_types.MsgRun{}, "timestamp", "1 week"},
+	}
+
+	l.Info().Str("chain", chainName).Msg("inserting hypertables")
+	for _, ht := range hypertables {
+		if err := dbInit.CreateHypertableFromStruct(ht.table, ht.table.TableName(), ht.partitionColumn, ht.chunkInterval); err != nil {
+			l.Error().Err(err).Str("table", ht.table.TableName()).Msg("failed to create hypertable")
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createContinuousAggregates(dbInit *dbinit.DBInitializer, chainName string) error {
+	l := logger.Get()
+
+	views := []struct {
+		agg           dbinit.ContinuousAggregateDefinition
+		segmentByCols []string
+		chunkInterval string
+	}{
+		{sql_data_types.TxCounter{}, []string{"chain_name"}, "1 month"},
+		{sql_data_types.FeeVolume{}, []string{"chain_name", "denom"}, "1 month"},
+		{sql_data_types.DailyActiveAccounts{}, []string{"chain_name"}, "1 month"},
+		{sql_data_types.ValidatorSigningCounter{}, []string{"chain_name", "validator_id"}, "1 month"},
+		{sql_data_types.BlockCounter{}, []string{"chain_name"}, "1 month"},
+	}
+
+	l.Info().Str("chain", chainName).Msg("creating continuous aggregate views")
+	for _, v := range views {
+		viewName := v.agg.TableName()
+
+		if err := dbInit.CreateContinuousAggregate(v.agg); err != nil {
+			l.Error().Err(err).Str("view", viewName).Msg("failed to create continuous aggregate")
+			return err
+		}
+
+		if err := dbInit.AlterContinuousAggregateColumnstore(viewName, v.segmentByCols); err != nil {
+			l.Error().Err(err).Str("view", viewName).Msg("failed to enable columnstore on continuous aggregate")
+			return err
+		}
+
+		_, startOffset, endOffset, scheduleInterval := v.agg.AggregatePolicy(nil, nil, nil)
+		if err := dbInit.AddContinuousAggregatePolicy(viewName, startOffset, endOffset, scheduleInterval); err != nil {
+			l.Error().Err(err).Str("view", viewName).Msg("failed to add continuous aggregate policy")
+			return err
+		}
+
+		if err := dbInit.AddColumnstoreInterval(viewName, v.chunkInterval); err != nil {
+			l.Error().Err(err).Str("view", viewName).Msg("failed to add columnstore interval")
+			return err
+		}
+	}
+
+	l.Info().Str("chain", chainName).Msg("successfully created all continuous aggregate views")
+	return nil
+}
+
+// refreshAggregatesCmd forces an immediate full refresh of every continuous aggregate
+// view, materialising all data from the beginning of the underlying hypertable up to
+// now.
+//
+// IMPORTANT: This command must be run with a database account that owns the continuous
+// aggregate views or has superuser privileges (e.g. the postgres account used during
+// "setup create-db"). The application writer user does not have sufficient permissions
+// to call refresh_continuous_aggregate. See the TimescaleDB documentation on continuous
+// aggregate ownership for details.
+//
+// When to use this:
+//
+//   - After a large historical backfill when you want results immediately rather than
+//     waiting for the background refresh policy to work through the invalidation queue.
+//   - After restoring a database dump that contains raw hypertable data but no
+//     pre-materialised aggregate rows.
+//
+// Under normal live operation this command is not required; the scheduled refresh
+// policy (registered by "setup create-db") handles incremental updates automatically.
+var refreshAggregatesCmd = &cobra.Command{
+	Use:   "refresh-aggregates",
+	Short: "Force a full refresh of all continuous aggregate views",
+	Long: `Force an immediate full refresh of every continuous aggregate view.
+
+This materialises all data from the start of the underlying hypertables up to
+now, bypassing the scheduled refresh window.
+
+IMPORTANT: You must connect with a superuser or an account that owns the
+continuous aggregate views (e.g. the postgres account). The application writer
+user does not have the required privileges.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		l := logger.Get()
+
+		params, err := parseCommonFlags(cmd, "gnoland")
 		if err != nil {
 			l.Error().Err(err).Msg("failed to parse flags")
 			return err
 		}
 
-		// get the new database name from the flags
-		newDbName, _ := cmd.Flags().GetString("new-db-name")
-		if newDbName == "" {
-			newDbName = "gnoland"
-		}
-
-		// get the chain name from the flags
-		chainName, _ := cmd.Flags().GetString("chain-name")
-		if chainName == "" {
-			chainName = "gnoland"
-		}
-
-		// Prompt for password
 		params.password, err = promptPassword()
 		if err != nil {
 			l.Error().Err(err).Msg("failed to read password")
 			return err
 		}
 
-		// Create database config
 		dbConfig := params.createDatabaseConfig()
-
-		// create a new database connection
 		db := database.NewTimescaleDbSetup(dbConfig)
+		dbInit := dbinit.NewDBInitializer(db.GetPool())
 
-		// create a new database named "gnoland"
-		// but check if the current database is "gnoland"
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		currentDb, err := db.CheckCurrentDatabaseName(ctx)
-		if err != nil {
-			l.Error().Err(err).Msg("failed to check current database name")
-			return err
+		views := []dbinit.ContinuousAggregateDefinition{
+			sql_data_types.TxCounter{},
+			sql_data_types.FeeVolume{},
+			sql_data_types.DailyActiveAccounts{},
+			sql_data_types.ValidatorSigningCounter{},
+			sql_data_types.BlockCounter{},
 		}
-		l.Info().Str("db", currentDb).Msg("logged into database")
 
-		// if the current database is not "gnoland", create a new database named "gnoland"
-		// and insert all of the tables and data from the "gnoland" database
-		if currentDb != newDbName {
-			l.Info().Str("db", newDbName).Msg("creating new database")
-			err = database.CreateDatabase(db, newDbName)
-			if err != nil {
-				l.Error().Err(err).Msg("failed to create database")
+		l.Info().Msg("refreshing all continuous aggregate views")
+		for _, v := range views {
+			viewName := v.TableName()
+			l.Info().Str("view", viewName).Msg("refreshing view")
+			if err := dbInit.RefreshContinuousAggregate(viewName); err != nil {
+				l.Error().Err(err).Str("view", viewName).Msg("failed to refresh view")
 				return err
 			}
-
-			l.Info().Str("db", newDbName).Msg("switching to new database")
-			err = database.SwitchDatabase(db, dbConfig, newDbName)
-			if err != nil {
-				l.Error().Err(err).Msg("failed to switch database")
-				return err
-			}
-
-			// insert all of the tables and data from the new database
-			// First create special types (custom postgres types that tables depend on)
-			// and type enums
-			specialTypes := []sql_data_types.DBSpecialType{
-				sql_data_types.Amount{},
-				sql_data_types.Attribute{}, // this needs to be inserted prior to event type
-				sql_data_types.Event{},
-			}
-			typeEnums := []string{
-				chainName,
-			}
-
-			// Initialize database initializer
-			dbInit := dbinit.NewDBInitializer(db.GetPool())
-
-			// Create special types first (they need to exist before tables that use them)
-			l.Info().Str("chain", chainName).Msg("inserting special types")
-			for _, specialType := range specialTypes {
-				err = dbInit.CreateSpecialTypeFromStruct(specialType, specialType.TypeName())
-				if err != nil {
-					l.Error().Err(err).Str("type", specialType.TypeName()).Msg("failed to create special type")
-					return err
-				}
-			}
-
-			// Create type enums
-			l.Info().Str("chain", chainName).Msg("inserting type enums")
-			err = dbInit.CreateChainTypeEnum(typeEnums)
-			if err != nil {
-				l.Error().Err(err).Strs("enums", typeEnums).Msg("failed to create type enum")
-				return err
-			}
-
-			// Create regular tables (non-time-series tables)
-			l.Info().Str("chain", chainName).Msg("inserting regular tables")
-			regularTables := []sql_data_types.DBTable{
-				sql_data_types.GnoAddress{},
-				sql_data_types.GnoValidatorAddress{},
-			}
-
-			for _, dataType := range regularTables {
-				err = dbInit.CreateTableFromStruct(dataType, dataType.TableName())
-				if err != nil {
-					l.Error().Err(err).Str("table", dataType.TableName()).Msg("failed to create table")
-					return err
-				}
-			}
-
-			// Create hypertables (time-series tables with timestamp columns)
-			l.Info().Str("chain", chainName).Msg("inserting hypertables")
-			hypertables := []struct {
-				table           sql_data_types.DBTable
-				partitionColumn string
-				chunkInterval   string
-			}{
-				{sql_data_types.Blocks{}, "timestamp", "1 week"},
-				{sql_data_types.ValidatorBlockSigning{}, "timestamp", "1 week"},
-				{sql_data_types.AddressTx{}, "timestamp", "1 week"},
-				{sql_data_types.TransactionGeneral{}, "timestamp", "1 week"},
-				{sql_data_types.MsgSend{}, "timestamp", "1 week"},
-				{sql_data_types.MsgCall{}, "timestamp", "1 week"},
-				{sql_data_types.MsgAddPackage{}, "timestamp", "1 week"},
-				{sql_data_types.MsgRun{}, "timestamp", "1 week"},
-			}
-
-			for _, ht := range hypertables {
-				err = dbInit.CreateHypertableFromStruct(ht.table, ht.table.TableName(), ht.partitionColumn, ht.chunkInterval)
-				if err != nil {
-					l.Error().Err(err).Str("table", ht.table.TableName()).Msg("failed to create hypertable")
-					return err
-				}
-			}
-			l.Info().Str("chain", chainName).Msg("successfully created all hypertables")
-		} else {
-			l.Info().Str("db", currentDb).Msg("database already exists, skipping creation")
-			// TODO else if the current database is "gnoland" then we need to check if the tables exist
-			// and if they don't exist then we need to create them
-			// also any kind of future updates to the database should be done here
+			l.Info().Str("view", viewName).Msg("view refreshed")
 		}
+
+		l.Info().Msg("all continuous aggregate views refreshed successfully")
 		return nil
 	},
 }
@@ -230,8 +377,8 @@ var createUserCmd = &cobra.Command{
 		if privilege == "" {
 			l.Fatal().Msg("privilege is required")
 			return cmd.Usage()
-		} else if privilege != "reader" && privilege != "writer" {
-			l.Fatal().Str("privilege", privilege).Msg("invalid privilege")
+		} else if privilege != "reader" && privilege != "writer" && privilege != "keymgr" {
+			l.Fatal().Str("privilege", privilege).Msg("invalid privilege, must be reader, writer, or keymgr")
 			return cmd.Usage()
 		}
 
@@ -261,8 +408,13 @@ var createUserCmd = &cobra.Command{
 			return err
 		}
 
+		var tableNames []string = sql_data_types.AllTableNames()
+		if privilege == "reader" {
+			tableNames = append(tableNames, sql_data_types.AllAggrTableNames()...)
+		}
+
 		// Appoint privileges to the user
-		err = dbInit.AppointPrivileges(userName, privilege, []string{})
+		err = dbInit.AppointPrivileges(userName, privilege, tableNames)
 		if err != nil {
 			l.Fatal().Err(err).Str("user", userName).Str("privilege", privilege).Msg("failed to appoint privileges")
 			return err
@@ -277,7 +429,7 @@ var createConfigCmd = &cobra.Command{
 	Use:   "create-config",
 	Short: "Generate a config with default values.",
 	Long: `Generate a config with default values. It will make a config file with default values. 
-	You can add --overwrite to overwrite the existing config file. And you can use --config to specifly the path`,
+	You can add --overwrite to overwrite the existing config file. And you can use --config to specify the path`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.Get()
 

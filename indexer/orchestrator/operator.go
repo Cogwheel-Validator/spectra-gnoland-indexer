@@ -274,7 +274,7 @@ Returns:
 
 The method will not throw an error if the transactions are not found, it will just return an empty slice.
 */
-func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockResponse) []dataprocessor.TrasnactionsData {
+func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockResponse) []dataprocessor.TransactionsData {
 	// Collect all transaction hashes from all blocks
 	var allTxHashes []string
 	blockTxData := make([]struct {
@@ -325,7 +325,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 	}
 
 	if len(allTxHashes) == 0 {
-		return make([]dataprocessor.TrasnactionsData, 0)
+		return make([]dataprocessor.TransactionsData, 0)
 	}
 
 	l.Info().Msgf("Fetching %d transactions concurrently", len(allTxHashes))
@@ -334,12 +334,12 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 	transactions := or.queryOperator.GetTransactions(allTxHashes)
 
 	// Build map of transactions with their timestamps
-	txData := make([]dataprocessor.TrasnactionsData, 0)
+	txData := make([]dataprocessor.TransactionsData, 0)
 	for _, tx := range transactions {
 		if tx != nil {
 			for _, blockTx := range blockTxData {
 				if blockTx.txHash == tx.GetHash() {
-					txData = append(txData, dataprocessor.TrasnactionsData{
+					txData = append(txData, dataprocessor.TransactionsData{
 						Response:    tx,
 						Timestamp:   blockTx.timestamp,
 						BlockHeight: blockTx.blockHeight,
@@ -369,7 +369,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 func (or *Orchestrator) processAll(
 	blocks []*rpcClient.BlockResponse,
 	commits []*rpcClient.CommitResponse,
-	transactions []dataprocessor.TrasnactionsData,
+	transactions []dataprocessor.TransactionsData,
 	compressEvents bool,
 	fromHeight uint64,
 	toHeight uint64) error {

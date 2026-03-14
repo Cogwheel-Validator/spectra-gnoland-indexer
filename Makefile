@@ -31,7 +31,7 @@ install:
 
 build-api:
 	mkdir -p build
-	go build -ldflags="-X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION)" -o build/api api/main.go
+	go build -ldflags="-X main.Commit=$(GIT_COMMIT) -X main.Version=$(VERSION)" -o build/api ./api
 
 clean:
 	rm -rf build

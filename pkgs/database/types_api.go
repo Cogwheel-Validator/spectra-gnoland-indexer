@@ -3,6 +3,8 @@ package database
 import (
 	"errors"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 // BlockData represents the actual block data returned in the response body
@@ -12,7 +14,7 @@ type BlockData struct {
 	Timestamp time.Time `json:"timestamp" doc:"Block timestamp"`
 	ChainID   string    `json:"chain_id" doc:"Chain identifier"`
 	Txs       []string  `json:"txs" doc:"Transactions (base64 encoded)"`
-	TxCount   int       `json:"tx_count" doc:"Number of transactions in the block"`
+	TxCounter int       `json:"tx_count" doc:"Number of transactions in the block"`
 }
 
 type Event struct {
@@ -143,4 +145,34 @@ type AddressTx struct {
 	Hash      string    `json:"hash" doc:"Transaction hash (base64 encoded)"`
 	Timestamp time.Time `json:"timestamp" doc:"Transaction timestamp"`
 	MsgTypes  []string  `json:"msg_types" doc:"Message types"`
+}
+
+type BlockCountByDate struct {
+	Date  time.Time `json:"date" doc:"Date"`
+	Count int64     `json:"count" doc:"Block count"`
+}
+
+type DailyActiveAccount struct {
+	Date  time.Time `json:"date" doc:"Date"`
+	Count int64     `json:"count" doc:"Active account count"`
+}
+
+type TxCountTimeRange struct {
+	Time  time.Time `json:"time" doc:"Time in timestamp format or date format depending on the query"`
+	Count int64     `json:"count" doc:"Transaction count"`
+}
+
+type VolumeByDenom map[string][]*DenomVolume
+
+type DenomVolume struct {
+	Time   time.Time       `json:"time" doc:"Time in timestamp format or date format depending on the query"`
+	Volume decimal.Decimal `json:"volume" doc:"Volume"`
+}
+
+type ValidatorSigning struct {
+	Time         *time.Time `json:"time" doc:"Time" omitempty:"true"`
+	BlocksSigned int64      `json:"blocks_signed" doc:"Blocks signed"`
+	BlocksMissed int64      `json:"blocks_missed" doc:"Blocks missed"`
+	TotalBlocks  int64      `json:"blocks_total" doc:"Total blocks"`
+	SigningRate  float64    `json:"signing_rate" doc:"Signing rate percentage"`
 }
