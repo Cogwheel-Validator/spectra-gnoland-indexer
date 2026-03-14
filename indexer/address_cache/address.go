@@ -129,13 +129,14 @@ func (a *AddressCache) insertWithRetry(
 
 	for i := range retryAttempts {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		cancel()
 
 		err := a.db.InsertAddresses(ctx, addresses, chainName, insertValidators)
 		if err == nil {
+			cancel()
 			return
 		}
 
+		cancel()
 		if oneByOne != nil && *oneByOne && i == retryAttempts-1 {
 			a.insertOneByOne(addresses, chainName, insertValidators)
 		}
@@ -147,11 +148,12 @@ func (a *AddressCache) insertWithRetry(
 func (a *AddressCache) insertOneByOne(addresses []string, chainName string, insertValidators bool) {
 	for _, addr := range addresses {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		cancel()
 
 		if err := a.db.InsertAddresses(ctx, []string{addr}, chainName, insertValidators); err != nil {
+			cancel()
 			l.Error().Caller().Stack().Err(err).Msgf("error inserting address: %s", addr)
 		}
+		cancel()
 	}
 }
 
