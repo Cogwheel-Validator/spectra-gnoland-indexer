@@ -36,12 +36,12 @@ func (m *MockDataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fro
 }
 
 // Mock method for ProcessTransactions
-func (m *MockDataProcessor) ProcessTransactions(transactions []dataprocessor.TrasnactionsData, compressEvents bool, fromHeight uint64, toHeight uint64) {
+func (m *MockDataProcessor) ProcessTransactions(transactions []dataprocessor.TransactionsData, compressEvents bool, fromHeight uint64, toHeight uint64) {
 	m.ProcessTransactionsCalled = true
 }
 
 // Mock method for ProcessMessages
-func (m *MockDataProcessor) ProcessMessages(transactions []dataprocessor.TrasnactionsData, fromHeight uint64, toHeight uint64) error {
+func (m *MockDataProcessor) ProcessMessages(transactions []dataprocessor.TransactionsData, fromHeight uint64, toHeight uint64) error {
 	m.ProcessMessagesCalled = true
 	return m.ProcessMessagesError
 }

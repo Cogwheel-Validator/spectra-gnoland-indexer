@@ -25,28 +25,14 @@ var l = logger.Get()
 //
 // If something is wrong it will throw a fatal error and close the program
 func NewAddressCache(chainName string, db DatabaseForAddresses, loadVal bool) *AddressCache {
-	if loadVal {
-		// if true load the validator addresses
-		addresses, maxIndex, err := loadAddresses(chainName, loadVal, db)
-		if err != nil {
-			l.Fatal().Caller().Stack().Err(err).Msg("failed to load addresses")
-		}
-		return &AddressCache{
-			address:      addresses,
-			db:           db,
-			highestIndex: maxIndex,
-		}
-	} else {
-		// if false load the regular addresses
-		addresses, maxIndex, err := loadAddresses(chainName, loadVal, db)
-		if err != nil {
-			l.Fatal().Caller().Stack().Err(err).Msg("failed to load addresses")
-		}
-		return &AddressCache{
-			address:      addresses,
-			db:           db,
-			highestIndex: maxIndex,
-		}
+	addresses, maxIndex, err := loadAddresses(chainName, loadVal, db)
+	if err != nil {
+		l.Fatal().Caller().Stack().Err(err).Msg("failed to load addresses")
+	}
+	return &AddressCache{
+		address:      addresses,
+		db:           db,
+		highestIndex: maxIndex,
 	}
 }
 

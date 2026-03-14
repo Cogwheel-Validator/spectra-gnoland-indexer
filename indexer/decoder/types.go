@@ -7,9 +7,10 @@ import (
 type BasicTxData struct {
 	TxHash []byte
 	// gno addresses
-	Signers []string
-	Memo    string
-	Fee     datatypes.Amount
+	Signers       []string
+	Memo          string
+	Fee           datatypes.Amount
+	TotalMsgCount int
 }
 
 type Coin struct {

@@ -99,10 +99,11 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 	}
 
 	basicTxData := BasicTxData{
-		TxHash:  txHash[:],
-		Signers: signersString,
-		Memo:    tx.GetMemo(),
-		Fee:     fee,
+		TxHash:        txHash[:],
+		Signers:       signersString,
+		Memo:          tx.GetMemo(),
+		Fee:           fee,
+		TotalMsgCount: len(tx.GetMsgs()),
 	}
 
 	var messages []map[string]any

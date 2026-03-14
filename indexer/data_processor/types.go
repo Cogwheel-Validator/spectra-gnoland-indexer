@@ -33,7 +33,7 @@ type DataProcessor struct {
 	chainName      string
 }
 
-type TrasnactionsData struct {
+type TransactionsData struct {
 	Response    *rpcClient.TxResponse
 	Timestamp   time.Time
 	BlockHeight uint64
