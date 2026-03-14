@@ -59,10 +59,7 @@ func (d *Decoder) DecodeStdTxFromBase64() (*std.Tx, error) {
 
 // GetMessageFromStdTx is a method that decodes the transaction and returns the appropriate basic tx data and messages
 //
-// The use case of this function is to decode the raw tx data and gather information about the transaction
-// It relies on data imported direclty from the gnoland repo, so any changes to the gnoland repo will need
-// to be reflected here, mostly...
-// Some will need to be updated and added manually in the future but for now this is good enough
+// # The use case of this function is to decode the raw tx data and gather information about the transaction
 //
 // Parameters:
 //   - none
@@ -98,20 +95,33 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 		Denom:  tx.Fee.GasFee.Denom,
 	}
 
+	msgCount := len(tx.GetMsgs())
+
 	basicTxData := BasicTxData{
 		TxHash:        txHash[:],
 		Signers:       signersString,
 		Memo:          tx.GetMemo(),
 		Fee:           fee,
-		TotalMsgCount: len(tx.GetMsgs()),
+		TotalMsgCount: msgCount,
 	}
 
-	var messages []map[string]any
+	var messages []map[string]any = make([]map[string]any, msgCount)
 
 	// Process each message in the transaction
+	err = processMsgs(tx, &messages)
+	if err != nil {
+		return BasicTxData{}, nil, err
+	}
+	return basicTxData, messages, nil
+}
+
+func processMsgs(
+	tx *std.Tx,
+	messages *[]map[string]any,
+) error {
 	for i, msg := range tx.GetMsgs() {
 		if i > 32767 {
-			return BasicTxData{}, nil, fmt.Errorf("transaction message count exceeds maximum: %d", i)
+			return fmt.Errorf("transaction message count exceeds maximum: %d", i)
 		}
 		messageCounter := int16(i)
 		switch m := msg.(type) {
@@ -121,13 +131,13 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 			if err != nil {
 				amount = []Coin{}
 			}
-			messages = append(messages, map[string]any{
+			(*messages)[i] = map[string]any{
 				"msg_type":        "bank_msg_send",
 				"from_address":    m.FromAddress.String(),
 				"to_address":      m.ToAddress.String(),
 				"amount":          amount,
 				"message_counter": messageCounter,
-			})
+			}
 		case vm.MsgCall:
 			caller := m.Caller.String()
 			send, err := extractCoins(m.Send)
@@ -144,7 +154,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 			funcName := m.Func
 			// combine the args into a string
 			args := strings.Join(m.Args, ",")
-			messages = append(messages, map[string]any{
+			(*messages)[i] = map[string]any{
 				"msg_type":        "vm_msg_call",
 				"caller":          caller,
 				"pkg_path":        pkgPath,
@@ -153,7 +163,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 				"send":            send,
 				"max_deposit":     maxDeposit,
 				"message_counter": messageCounter,
-			})
+			}
 		case vm.MsgAddPackage:
 			pkgPath := m.Package.Path
 			pkgName := m.Package.Name
@@ -167,7 +177,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 			if err != nil {
 				maxDeposit = []Coin{}
 			}
-			messages = append(messages, map[string]any{
+			(*messages)[i] = map[string]any{
 				"msg_type":        "vm_msg_add_package",
 				"pkg_path":        pkgPath,
 				"pkg_name":        pkgName,
@@ -176,7 +186,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 				"send":            send,
 				"max_deposit":     maxDeposit,
 				"message_counter": messageCounter,
-			})
+			}
 
 		case vm.MsgRun:
 			caller := m.Caller.String()
@@ -193,7 +203,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 			if err != nil {
 				maxDeposit = []Coin{}
 			}
-			messages = append(messages, map[string]any{
+			(*messages)[i] = map[string]any{
 				"msg_type":        "vm_msg_run",
 				"caller":          caller,
 				"pkg_path":        pkgPath,
@@ -202,13 +212,13 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 				"send":            send,
 				"max_deposit":     maxDeposit,
 				"message_counter": messageCounter,
-			})
+			}
 		// case for AnyNewMessage add here:
 		default:
-			return BasicTxData{}, nil, fmt.Errorf("unknown or unsupported message type: %T", m)
+			return fmt.Errorf("unknown or unsupported message type: %T", m)
 		}
 	}
-	return basicTxData, messages, nil
+	return nil
 }
 
 // Local function to split the amount and denom
