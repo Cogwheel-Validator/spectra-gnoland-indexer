@@ -279,6 +279,11 @@ func createContinuousAggregates(dbInit *dbinit.DBInitializer, chainName string) 
 			l.Error().Err(err).Str("view", viewName).Msg("failed to add columnstore interval")
 			return err
 		}
+
+		if err := dbInit.EnableRealTimeAggregation(viewName); err != nil {
+			l.Error().Err(err).Str("view", viewName).Msg("failed to enable real-time aggregation")
+			return err
+		}
 	}
 
 	l.Info().Str("chain", chainName).Msg("successfully created all continuous aggregate views")

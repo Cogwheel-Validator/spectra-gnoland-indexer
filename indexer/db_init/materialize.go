@@ -236,3 +236,19 @@ func (dbi *DBInitializer) AddContinuousAggregatePolicy(viewName, startOffset, en
 	}
 	return nil
 }
+
+// EnableRealTimeAggregation enables real-time aggregation for a continuous aggregate view.
+// This allows the view to be updated in real-time as new data is inserted into the underlying hypertable.
+func (dbi *DBInitializer) EnableRealTimeAggregation(viewName string) error {
+	sql := fmt.Sprintf("ALTER MATERIALIZED VIEW %s SET (timescaledb.materialized_only = FALSE)", viewName)
+	_, err := dbi.pool.Exec(context.Background(), sql)
+	if err != nil {
+		l.Error().
+			Caller().
+			Stack().
+			Str("view", viewName).
+			Msgf("failed to enable real-time aggregation: %v", err)
+		return err
+	}
+	return nil
+}
