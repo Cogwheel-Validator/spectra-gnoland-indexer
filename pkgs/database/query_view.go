@@ -248,7 +248,7 @@ func (t *TimescaleDb) GetVolumeByDate(
 		return nil, err
 	}
 	defer rows.Close()
-	var feeVolumeTimeRanges VolumeByDenom = make(VolumeByDenom)
+	var feeVolumeTimeRanges = make(VolumeByDenom)
 	for rows.Next() {
 		denomVolume := &DenomVolume{}
 		denom := ""
@@ -287,7 +287,7 @@ func (t *TimescaleDb) GetVolumeByHour(
 		return nil, err
 	}
 	defer rows.Close()
-	var feeVolumeTimeRanges VolumeByDenom = make(VolumeByDenom)
+	var feeVolumeTimeRanges = make(VolumeByDenom)
 	for rows.Next() {
 		denomVolume := &DenomVolume{}
 		denom := ""

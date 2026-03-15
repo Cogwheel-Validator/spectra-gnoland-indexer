@@ -277,12 +277,23 @@ var keyListCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
-		fmt.Fprintln(w, "PREFIX\tNAME\tRPM LIMIT\tACTIVE")
-		fmt.Fprintln(w, "------\t----\t---------\t------")
-		for _, k := range keys {
-			fmt.Fprintf(w, "%s\t%s\t%d\t%v\n", k.Prefix, k.Name, k.RpmLimit, k.IsActive)
+		_, err = fmt.Fprintln(w, "PREFIX\tNAME\tRPM LIMIT\tACTIVE")
+		if err != nil {
+			return fmt.Errorf("failed to write to tabwriter: %w", err)
 		}
-		w.Flush()
+		_, err = fmt.Fprintln(w, "------\t----\t---------\t------")
+		if err != nil {
+			return fmt.Errorf("failed to write to tabwriter: %w", err)
+		}
+		for _, k := range keys {
+			_, err = fmt.Fprintf(w, "%s\t%s\t%d\t%v\n", k.Prefix, k.Name, k.RpmLimit, k.IsActive)
+			if err != nil {
+				return fmt.Errorf("failed to write to tabwriter: %w", err)
+			}
+		}
+		if err := w.Flush(); err != nil {
+			return fmt.Errorf("failed to flush tabwriter: %w", err)
+		}
 
 		return nil
 	},

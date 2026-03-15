@@ -24,10 +24,10 @@ func (h *AddressHandler) GetDailyActiveAccount(
 	startDate := input.StartDate
 	endDate := input.EndDate
 	// validate input
-	if !startDate.Time.Before(endDate.Time) {
+	if !startDate.Before(endDate.Time) {
 		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
 	}
-	if endDate.Time.Sub(startDate.Time) > 24*time.Hour*30 {
+	if endDate.Sub(startDate.Time) > 24*time.Hour*30 {
 		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
 	}
 

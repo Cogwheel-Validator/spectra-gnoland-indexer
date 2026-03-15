@@ -21,7 +21,7 @@ func (d *Date) UnmarshalText(data []byte) error {
 }
 
 func (d Date) MarshalText() ([]byte, error) {
-	return []byte(d.Time.Format("2006-01-02")), nil
+	return []byte(d.Format("2006-01-02")), nil
 }
 
 type AddressGetInput struct {
