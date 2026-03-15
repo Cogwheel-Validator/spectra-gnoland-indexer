@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
           go-version: '1.25'
 
@@ -63,11 +63,13 @@ jobs:
           echo "Building with VERSION=$VERSION, GIT_COMMIT=$GIT_COMMIT"
 
           # Linux AMD64 for the indexer and the API (adjust ldflags packages as needed)
-          GOOS=linux GOARCH=amd64 go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT} -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}" -o build/indexer indexer/indexer.go
-          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION}" -o build/api api/main.go
+          GOOS=linux GOARCH=amd64 go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT} -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}" -o build/indexer-linux-amd64 indexer/indexer.go
+          GOOS=linux GOARCH=arm64 go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT} -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}" -o build/indexer-linux-arm64 indexer/indexer.go
+          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION}" -o build/api-linux-amd64 ./api/
+          GOOS=linux GOARCH=arm64 go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION}" -o build/api-linux-arm64 .api/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: build/*
           prerelease: ${{ steps.version.outputs.prerelease }}
