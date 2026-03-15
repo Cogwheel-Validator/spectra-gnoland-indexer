@@ -36,7 +36,7 @@ func NewDecoder(encodedTx string) *Decoder {
 
 // DecodeStdTxFromBase64 decodes a base64 encoded stdTx
 //
-// The function decodes the data and unmarshals it into a std.Tx struct
+// The function decodes the data and unmarshal it into a std.Tx struct
 // The struct contains the transaction data and the messages
 //
 // Parameters:
@@ -44,7 +44,7 @@ func NewDecoder(encodedTx string) *Decoder {
 //
 // Returns:
 //   - *std.Tx: decoded stdTx
-//   - error: if the base64 decoding or unmarshalling fails
+//   - error: if the base64 decoding or unmarshaling fails
 func (d *Decoder) DecodeStdTxFromBase64() (*std.Tx, error) {
 	bz, err := base64.StdEncoding.DecodeString(d.encodedTx)
 	if err != nil {
@@ -67,7 +67,7 @@ func (d *Decoder) DecodeStdTxFromBase64() (*std.Tx, error) {
 // Returns:
 //   - BasicTxData: basic tx data
 //   - []map[string]any: messages data in a map
-//   - error: if the decoding or unmarshalling fails
+//   - error: if the decoding or unmarshaling fails
 func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 	tx, err := d.DecodeStdTxFromBase64()
 	if err != nil {
@@ -105,7 +105,7 @@ func (d *Decoder) GetMessageFromStdTx() (BasicTxData, []map[string]any, error) {
 		TotalMsgCount: msgCount,
 	}
 
-	var messages []map[string]any = make([]map[string]any, msgCount)
+	var messages = make([]map[string]any, msgCount)
 
 	// Process each message in the transaction
 	err = processMsgs(tx, &messages)

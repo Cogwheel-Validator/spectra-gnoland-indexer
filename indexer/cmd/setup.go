@@ -413,7 +413,7 @@ var createUserCmd = &cobra.Command{
 			return err
 		}
 
-		var tableNames []string = sql_data_types.AllTableNames()
+		var tableNames = sql_data_types.AllTableNames()
 		if privilege == "reader" {
 			tableNames = append(tableNames, sql_data_types.AllAggrTableNames()...)
 		}
