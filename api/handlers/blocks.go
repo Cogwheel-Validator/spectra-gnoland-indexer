@@ -115,17 +115,19 @@ func (h *BlocksHandler) GetBlockCountByDate(
 	ctx context.Context,
 	input *humatypes.BlockCountByDateGetInput,
 ) (*humatypes.BlockCountByDateGetOutput, error) {
-	if !input.StartTimestamp.Before(input.EndTimestamp) {
+	startDate := input.StartDate
+	endDate := input.EndDate
+	if !startDate.Time.Before(endDate.Time) {
 		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
 	}
-	if input.EndTimestamp.Sub(input.StartTimestamp) > 24*time.Hour*30 {
+	if endDate.Time.Sub(startDate.Time) > 24*time.Hour*30 {
 		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
 	}
 
-	counts, err := h.db.GetBlockCountByDate(ctx, h.chainName, input.StartTimestamp, input.EndTimestamp)
+	counts, err := h.db.GetBlockCountByDate(ctx, h.chainName, startDate.Time, endDate.Time)
 	if err != nil {
 		return nil, huma.Error404NotFound(
-			fmt.Sprintf("Block count from %s to %s not found", input.StartTimestamp, input.EndTimestamp), err)
+			fmt.Sprintf("Block count from %s to %s not found", startDate.Time, endDate.Time), err)
 	}
 	return &humatypes.BlockCountByDateGetOutput{Body: counts}, nil
 }

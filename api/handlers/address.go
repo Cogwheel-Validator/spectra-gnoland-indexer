@@ -21,15 +21,17 @@ func (h *AddressHandler) GetDailyActiveAccount(
 	ctx context.Context,
 	input *humatypes.DailyActiveAccountGetInput,
 ) (*humatypes.DailyActiveAccountGetOutput, error) {
+	startDate := input.StartDate
+	endDate := input.EndDate
 	// validate input
-	if !input.StartDate.Before(input.EndDate) {
+	if !startDate.Time.Before(endDate.Time) {
 		return nil, huma.Error400BadRequest("start_date must be before end_date", nil)
 	}
-	if input.EndDate.Sub(input.StartDate) > 24*time.Hour*30 {
+	if endDate.Time.Sub(startDate.Time) > 24*time.Hour*30 {
 		return nil, huma.Error400BadRequest("end_date must be within 30 days of start_date", nil)
 	}
 
-	data, err := h.db.GetDailyActiveAccount(ctx, h.chainName, input.StartDate, input.EndDate)
+	data, err := h.db.GetDailyActiveAccount(ctx, h.chainName, startDate.Time, endDate.Time)
 	if err != nil {
 		return nil, huma.Error404NotFound("Daily active account data not found", err)
 	}
