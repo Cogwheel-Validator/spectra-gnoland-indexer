@@ -44,6 +44,9 @@ jobs:
           echo "git_tag=$(git describe --tags --exact-match 2>/dev/null || echo)" >> $GITHUB_OUTPUT
           echo "git_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo)" >> $GITHUB_OUTPUT
 
+      - name: Install arm64 cross-compiler
+        run: sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
       - name: Build binaries
         env:
           GIT_COMMIT: ${{ steps.gitmeta.outputs.git_commit }}
@@ -64,11 +67,16 @@ jobs:
 
           go mod download
 
-          # Linux AMD64 for the indexer and the API (adjust ldflags packages as needed)
-          GOOS=linux GOARCH=amd64 go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT} -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}" -o build/indexer-linux-amd64 indexer/indexer.go
-          GOOS=linux GOARCH=arm64 go build -ldflags="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT} -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}" -o build/indexer-linux-arm64 indexer/indexer.go
-          GOOS=linux GOARCH=amd64 go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION}" -o build/api-linux-amd64 api/*.go
-          GOOS=linux GOARCH=arm64 go build -ldflags="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION}" -o build/api-linux-arm64 api/*.go
+          LDFLAGS_INDEXER="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT} -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION}"
+          LDFLAGS_API="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION}"
+
+          # amd64
+          GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-amd64 indexer/indexer.go
+          GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS_API" -o build/api-linux-amd64 api/*.go
+
+          # arm64
+          GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-arm64 indexer/indexer.go
+          CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS_API" -o build/api-linux-arm64 api/*.go
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
