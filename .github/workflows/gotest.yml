@@ -10,7 +10,7 @@ on:
       branches: [main, dev, release/**]
   
 jobs:
-    lint:
+    test:
         runs-on: ubuntu-latest
         steps:
         - name: Checkout code
