@@ -148,6 +148,34 @@ erDiagram
         Amount[] max_deposit
     }
 
+    block_counter {
+        TIMESTAMPTZ time_bucket
+        BIGINT block_count
+        chain_name chain_name
+    }
+    tx_counter {
+        TIMESTAMPTZ time_bucket
+        BIGINT transaction_count
+        chain_name chain_name
+    }
+    validator_signing_counter {
+        TIMESTAMPTZ time_bucket
+        BIGINT validator_id
+        BIGINT blocks_signed
+        chain_name chain_name
+    }
+    daily_active_accounts {
+        TIMESTAMPTZ time_bucket
+        BIGINT active_account_count
+        chain_name chain_name
+    }
+    fee_volume {
+        TIMESTAMPTZ time_bucket
+        TEXT denom
+        BIGINT volume
+        chain_name chain_name
+    }
+
     blocks ||--o{ transactions_general : "contains"
     blocks ||--o{ validator_block_signings : "has"
     gno_validator_addresses ||--o{ validator_block_signings : "signs"
@@ -165,6 +193,12 @@ erDiagram
     gno_addresses ||--o{ msg_call : "caller"
     gno_addresses ||--o{ msg_add_package : "creator"
     gno_addresses ||--o{ msg_run : "caller"
+
+    block_counter ||--o{ blocks : "count"
+    tx_counter ||--o{ transactions_general : "count"
+    validator_signing_counter ||--o{ validator_block_signings : "count"
+    daily_active_accounts ||--o{ address_tx : "count"
+    fee_volume ||--o{ transactions_general : "sum"
 ```
 
 And custom types:

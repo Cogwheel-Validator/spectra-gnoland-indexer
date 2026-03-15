@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-03-14
+
+This release has some new features added and minor improvements.
+
+### Added
+
+- Continuous aggregates for the data. Now the database will automatically aggregate the data by the time bucket and the data is aggregated by the chain name. This feature adds metrics for the blocks, transactions, validator signings, daily active accounts and fee volume.
+- Added API keys authentication to the API. It is optional and can be disabled in the configuration.
+- Add ratelimit by IP address and by API key.
+- Docker service Valkey for rate limiting.
+- Add multiple new routes to the API to get the data from the continuous aggregates.
+
+### Changes
+
+- Renamed routes of some API routes to be more descriptive.
+- Changed the blocks table, now it doesn't store tx hashes.
+- Some slight performance improvements were made in data processing.
+- Adjusted the SQL commands to use newer TimescaleDB API commands and functions.
+
 ## [0.5.0] - 2026-03-05
 
 This release has some new features added and minor improvements.
