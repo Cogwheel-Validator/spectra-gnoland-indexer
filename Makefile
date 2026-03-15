@@ -68,8 +68,11 @@ semgrep:
 # Code quality
 ########################################################
 
-code-quality:
+lint:
 	golangci-lint run
+
+vulncheck:
+	govulncheck ./...
 
 ########################################################
 # Train the zstd dictionary

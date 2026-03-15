@@ -28,6 +28,7 @@ not the best choice. And finally the nodes are not the best when it comes to sto
   - [Blocks](#blocks)
   - [Validator signings](#validator-signings)
   - [Transactions](#transactions)
+  - [Counters](#counters)
 - [Pros and cons of the SGI](#pros-and-cons-of-the-sgi)
   - [🦾 Pros](#-pros)
   - [🐞 Cons](#-cons)
@@ -114,6 +115,7 @@ The data is stored in the following tables:
 - validator block signings
 - validator addresses
 - ties between the addresses and the transactions (AddressTx table)
+- counters for the blocks, transactions, validator signings, daily active accounts and fee volume
 
 Some of the data is not indexed and it is not planned to be indexed in the future. Such as:
 
@@ -155,6 +157,17 @@ Not stored:
 
 Almost all of the data regarding to the transaction and the messages are stored with the exception for the
 VM message Add Package and Call where in theory one could extract even the body of the smart contract. So this is unnecessary to store for explorers and other analytics tools. This might be added in the future if there is a demand for it.
+
+### Counters
+
+- Blocks counter: Counts the number of blocks for each chain
+- Transactions counter: Counts the number of transactions for each chain
+- Validator signings counter: Counts the number of validator signings for each validator for each chain
+- Daily active accounts counter: Counts the number of daily active accounts for each chain
+- Fee volume counter: Counts the volume of fees for each chain and each denom
+
+This are all aggregations that TimescaleDB insert by processing already inserted data. It provides a full
+history recorded by each of the counters. This is useful for the analytics and the visualization of the data.
 
 ## Pros and cons of the SGI
 

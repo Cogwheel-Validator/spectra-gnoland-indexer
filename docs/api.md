@@ -19,23 +19,36 @@ There are total of 5 routes available. This are the basic routes that are needed
 - /blocks/{block_height}/signers - Get all of the validators that signed that block + the proposer
 - /blocks/latest - Get the latest block data
 - /blocks - Get a list of blocks by setting the limit and using cursor.
+- /blocks/stats/count/recent - Get the total number of blocks produced in the last 24 hours.
+- /blocks/stats/count/daily - Get the block count per day within the given date range. Max range is 30 days.
 
 ### Transactions
 
 - /transactions/{tx_hash} - Get a specific basic transaction data by hash, this gives the basic data about the transaction like hash, timestamp, block height, gas used, gas wanted, fee and more.
 - /transactions/{tx_hash}/message - Get a specific transaction message data by hash, this gives more detailed data about type of transaction, specific data for that message type and more.
 - /transactions - Get a list of transactions by setting the limit and using cursor.
+- /transactions/stats/count/recent - Get the total transaction count for the last 24 hours.
+- /transactions/stats/count/daily - Get the transaction count per day within the given date range. Max range is 30 days.
+- /transactions/stats/count/hourly - Get the transaction count per hour within the given datetime range. Max range is 7 days.
+- /transactions/stats/volume/daily - Get the transaction volume grouped by denom per day. Max range is 30 days.
+- /transactions/stats/volume/hourly - Get the transaction volume grouped by denom per hour. Max range is 7 days.
 
 ### Addresses
 
 - /address/{address}/txs?from_timestamp={from_timestamp}&to_timestamp={to_timestamp} - Get all of the transactions for a given address for a certain time period
+- /addresses/stats/active/daily - Get the number of daily active addresses within the given date range.
 
 ### Utilities
 
 These endpoints can be queried via POST method.
 
-- /convert/base64-to-base64url - Convert a base64 encoded tx hash to a base64url encoded tx hash
-- /convert/base64url-to-base64 - Convert a base64url encoded tx hash to a base64 encoded tx hash
+- /utils/base64url/decode - Convert a base64 encoded tx hash to a base64url encoded tx hash
+- /utils/base64url/encode - Convert a base64url encoded tx hash to a base64 encoded tx hash
+
+### Validators
+
+- /validators/{validator_address}/signing/recent - Get the signing performance of a validator over the last 24 hours.
+- /validators/{validator_address}/signing/hourly - Get the per-hour signing performance of a validator within the given datetime range. Max range is 7 days.
 
 ## Setup API
 
@@ -55,6 +68,13 @@ cors_allowed_headers:
   - "Accept"
 cors_max_age: 600
 chain_name: gnoland
+trusted_proxies:
+  - "127.0.0.1/32"
+  - "192.168.1.1/32"
+  - "10.0.0.1/32"
+disable_rate_limit: false
+ip_rpm_limit: 30
+key_refresh_interval: 5m
 ```
 
 Some of the environment variables are located under the .env file. The example .env file is in the root under .env.example.
@@ -99,4 +119,34 @@ You can also use the following command to run the API with HTTPS if you have the
 ./build/api -c config-api.yml -t cert.pem -k key.pem
 ```
 
-The docker image doesn't exist for now and it will be added in the future.
+## Adding API keys
+
+To add API keys you can use the following command:
+
+```bash
+./build/api key add <api_key>
+```
+
+This will add the API key to the database. You can also use the following command to list all of the API keys:
+
+```bash
+./build/api key list
+```
+
+You can also use the following command to disable an API key:
+
+```bash
+./build/api key disable <api_key>
+```
+
+You can also use the following command to enable an API key:
+
+```bash
+./build/api key enable <api_key>
+```
+
+If you do decide to run the API with the rate limiting enabled you will need to run it with valkey also, which is
+present in the docker-compose files.
+
+If you plan to run the APi behind API gateway disable in the config file the usage or rate limits altogether and
+in the docker file you can remove the valkey service, if you are running it in docker.
