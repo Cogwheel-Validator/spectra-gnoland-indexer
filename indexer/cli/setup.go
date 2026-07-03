@@ -66,10 +66,6 @@ func init() {
 	refreshAggregatesCmd.Flags().String("ssl-cert", "", "Path to the client certificate (mutual TLS only)")
 	refreshAggregatesCmd.Flags().String("ssl-key", "", "Path to the client private key (mutual TLS only)")
 
-	// create-user specific flags
-	createUserCmd.Flags().StringP("privilege", "r", "", "The privilege level for the user (reader, writer or keymgr)")
-	createUserCmd.Flags().String("user", "", "The user name for the user to create")
-
 	// create-db specific flags
 	createDbCmd.Flags().String("new-db-name", "", "The database name to create, default is gnoland")
 	createDbCmd.Flags().String("chain-name", "", "The chain name for the database type enum, default is gnoland")
@@ -367,12 +363,15 @@ user does not have the required privileges.`,
 }
 
 var createUserCmd = &cobra.Command{
-	Use:   "create-user [user_name]",
+	Use:   "create-user [user_name] [writer/reader/keymgr]",
 	Short: "Create a new user for the database",
-	Long:  `Create a new user for the database. It will ask for the password and create the user.`,
-	Args:  cobra.ExactArgs(1),
+	Long: `Create a new user for the database. It will ask for the password and of the admin first
+then insert the password for the user you want to add.`,
+	Args:      cobra.ExactArgs(2),
+	ValidArgs: []string{"writer", "reader", "keymgr"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.Get()
+		l.Info().Msgf("%v", args)
 
 		// Parse and validate common database flags
 		params, err := parseCommonFlags(cmd, "gnoland")
@@ -381,8 +380,13 @@ var createUserCmd = &cobra.Command{
 			return err
 		}
 
+		if len(args) < 2 {
+			l.Fatal().Msg("user name and privilege are required")
+			return cmd.Usage()
+		}
+
 		// Get privilege flag
-		privilege, _ := cmd.Flags().GetString("privilege")
+		privilege := args[1]
 		if privilege == "" {
 			l.Fatal().Msg("privilege is required")
 			return cmd.Usage()
@@ -393,6 +397,10 @@ var createUserCmd = &cobra.Command{
 
 		// get the user name from the flags
 		userName := args[0]
+		if userName == "" {
+			l.Fatal().Msg("user name is required")
+			return cmd.Usage()
+		}
 
 		// Prompt for password
 		params.password, err = promptPassword()
