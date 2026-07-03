@@ -168,6 +168,10 @@ func initializeNewDatabase(db *timescaledb.TimescaleDb, dbConfig timescaledb.Dat
 		return err
 	}
 
+	if err := createIndexes(dbInit, chainName); err != nil {
+		return err
+	}
+
 	if err := createContinuousAggregates(dbInit, chainName); err != nil {
 		return err
 	}
@@ -224,6 +228,20 @@ func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 	for _, ht := range s.Hypertables() {
 		if err := dbInit.CreateHypertableFromStruct(ht.Table, ht.Table.TableName(), ht.Params); err != nil {
 			l.Error().Err(err).Str("table", ht.Table.TableName()).Msg("failed to create hypertable")
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createIndexes(dbInit *dbinit.DBInitializer, chainName string) error {
+	l := logger.Get()
+
+	l.Info().Str("chain", chainName).Msg("creating indexes")
+	for _, idx := range s.Indexes() {
+		if err := dbInit.CreateIndex(idx); err != nil {
+			l.Error().Err(err).Str("index", idx.Name).Msg("failed to create index")
 			return err
 		}
 	}
