@@ -223,6 +223,20 @@ func Hypertables() []Hypertable {
 	}
 }
 
+// Indexes returns every additional index to create beyond what the hypertable's
+// own orderby/segmentby already provides. Unlike Hypertables, this isn't derived
+// from struct tags, it requires explicit declarations.
+func Indexes() []dbinit.IndexDef {
+	return []dbinit.IndexDef{
+		{
+			Name:     "idx_transaction_general_chain_height",
+			Table:    "transaction_general",
+			Columns:  []string{"chain_name", "block_height DESC"},
+			PerChunk: true,
+		},
+	}
+}
+
 // AllTables returns one instance of every persisted table struct (regular tables
 // followed by hypertables). It is derived from RegularTables and Hypertables, so
 // it cannot drift out of sync with setup; AllTableNames and the schema validation
