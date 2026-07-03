@@ -117,11 +117,11 @@ func GenerateContinuousAggregateSQL(
 
 // CreateContinuousAggregate executes the CREATE MATERIALIZED VIEW statement for the
 // given aggregate definition. Errors are logged but not fatal.
-func (dbi *DBInitializer) CreateContinuousAggregate(
+func (init *DBInitializer) CreateContinuousAggregate(
 	agg ContinuousAggregateDefinition,
 ) error {
 	sql := GenerateContinuousAggregateSQL(agg)
-	_, err := dbi.pool.Exec(context.Background(), sql)
+	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
 		l.Error().
 			Caller().
@@ -136,7 +136,7 @@ func (dbi *DBInitializer) CreateContinuousAggregate(
 // AlterContinuousAggregateColumnstore enables TimescaleDB columnstore compression on
 // a continuous aggregate view, ordering by time_bucket DESC and segmenting by the
 // provided columns.
-func (dbi *DBInitializer) AlterContinuousAggregateColumnstore(
+func (init *DBInitializer) AlterContinuousAggregateColumnstore(
 	viewName string,
 	segmentByCols []string,
 ) error {
@@ -149,7 +149,7 @@ func (dbi *DBInitializer) AlterContinuousAggregateColumnstore(
 )`,
 		viewName, segmentBy,
 	)
-	_, err := dbi.pool.Exec(context.Background(), sql)
+	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
 		l.Error().
 			Caller().
@@ -164,7 +164,7 @@ func (dbi *DBInitializer) AlterContinuousAggregateColumnstore(
 
 // AddColumnstoreInterval adds a columnstore interval to a continuous aggregate view
 // used after the continuous aggregation policy has been set.
-func (dbi *DBInitializer) AddColumnstoreInterval(
+func (init *DBInitializer) AddColumnstoreInterval(
 	viewName string,
 	chunkInterval string,
 ) error {
@@ -172,7 +172,7 @@ func (dbi *DBInitializer) AddColumnstoreInterval(
 		`CALL add_columnstore_policy('%s', INTERVAL '%s')`,
 		viewName, chunkInterval,
 	)
-	_, err := dbi.pool.Exec(context.Background(), sql)
+	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
 		l.Error().
 			Caller().
@@ -194,9 +194,9 @@ func (dbi *DBInitializer) AddColumnstoreInterval(
 //
 // Use this after a large historical backfill when you want immediate results rather
 // than waiting for the scheduled job to work through the invalidation queue.
-func (dbi *DBInitializer) RefreshContinuousAggregate(viewName string) error {
+func (init *DBInitializer) RefreshContinuousAggregate(viewName string) error {
 	sql := fmt.Sprintf("CALL refresh_continuous_aggregate('%s', NULL, NOW())", viewName)
-	_, err := dbi.pool.Exec(context.Background(), sql)
+	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
 		l.Error().
 			Caller().
@@ -213,7 +213,7 @@ func (dbi *DBInitializer) RefreshContinuousAggregate(viewName string) error {
 // Pass an empty string for startOffset to use NULL (no lower bound), which causes the
 // scheduler to materialize all historical data — the correct behaviour for an indexer
 // that backfills old blocks.
-func (dbi *DBInitializer) AddContinuousAggregatePolicy(viewName, startOffset, endOffset, scheduleInterval string) error {
+func (init *DBInitializer) AddContinuousAggregatePolicy(viewName, startOffset, endOffset, scheduleInterval string) error {
 	var startExpr string
 	if startOffset == "" {
 		startExpr = "NULL"
@@ -228,7 +228,7 @@ func (dbi *DBInitializer) AddContinuousAggregatePolicy(viewName, startOffset, en
 )`,
 		viewName, startExpr, endOffset, scheduleInterval,
 	)
-	_, err := dbi.pool.Exec(context.Background(), sql)
+	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
 		l.Error().
 			Caller().
@@ -242,9 +242,9 @@ func (dbi *DBInitializer) AddContinuousAggregatePolicy(viewName, startOffset, en
 
 // EnableRealTimeAggregation enables real-time aggregation for a continuous aggregate view.
 // This allows the view to be updated in real-time as new data is inserted into the underlying hypertable.
-func (dbi *DBInitializer) EnableRealTimeAggregation(viewName string) error {
+func (init *DBInitializer) EnableRealTimeAggregation(viewName string) error {
 	sql := fmt.Sprintf("ALTER MATERIALIZED VIEW %s SET (timescaledb.materialized_only = FALSE)", viewName)
-	_, err := dbi.pool.Exec(context.Background(), sql)
+	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
 		l.Error().
 			Caller().

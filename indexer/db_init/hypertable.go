@@ -48,7 +48,38 @@ func GenerateCreateHypertableSQL(
 		} else if col.Nullable != nil && *col.Nullable {
 			columnDef += " NULL"
 		}
+
+		if col.Primary != nil && *col.Primary {
+			primaryKeys = append(primaryKeys, col.Name)
+		}
+
+		if col.Unique != nil && *col.Unique {
+			uniqueKeys = append(uniqueKeys, col.Name)
+		}
+
+		columns = append(columns, columnDef)
 	}
+
+	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n    %s",
+		tableInfo.TableName,
+		strings.Join(columns, ",\n    "))
+
+	if len(primaryKeys) > 0 {
+		sql += fmt.Sprintf(",\n    PRIMARY KEY (%s)", strings.Join(primaryKeys, ", "))
+	}
+
+	if len(uniqueKeys) > 0 {
+		sql += fmt.Sprintf(",\n    UNIQUE (%s)", strings.Join(uniqueKeys, ", "))
+	}
+
+	segmentBy := strings.Join(params.SegmentBy, ", ")
+
+	// Add modern TimescaleDB hypertable configuration
+	sql += fmt.Sprintf(
+		"\n) WITH (\n    tsdb.hypertable,\n    tsdb.partition_column='%s',\n    tsdb.chunk_interval='%s',\n    tsdb.orderby='%s',\n    tsdb.segmentby='%s'\n);",
+		params.PartitionColumn, params.ChunkInterval, params.OrderBy, segmentBy)
+
+	return sql
 }
 
 // AddCompressionPolicy is a method that adds the columnstore policy for the given tables.
