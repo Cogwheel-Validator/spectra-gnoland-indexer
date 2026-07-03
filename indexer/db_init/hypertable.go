@@ -87,18 +87,18 @@ func GenerateCreateHypertableSQL(
 // This function will only start this process however the whole process will run through the 3 steps
 // This is third step in the process
 // Parameters:
-// - tableNames: a slice of table names to add the columnstore policy to
+// - tables: a map of table names to their columnstore policy with compression interval
 //
 // Returns:
 // - nil: if the program has a problem it will call log.Fatalf which will exit the program
 //
-// TThis function specifies the columnstore policy
-func (init *DBInitializer) AddColumnstorePolicy(tableNames []string) {
-	for _, tableName := range tableNames {
+// This function specifies the columnstore policy
+func (init *DBInitializer) AddColumnstorePolicy(tables map[string]string) {
+	for tableName, interval := range tables {
 		sql := fmt.Sprintf(
 			`
-			CALL add_columnstore_policy('%s', INTERVAL '1 week');
-			`, tableName)
+			CALL add_columnstore_policy('%s', INTERVAL '%s');
+			`, tableName, interval)
 		_, err := init.pool.Exec(context.Background(), sql)
 		if err != nil {
 			l.Error().
