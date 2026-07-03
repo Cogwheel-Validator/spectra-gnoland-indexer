@@ -177,71 +177,6 @@ func GenerateCreateTableSQL(tableInfo *TableInfo) string {
 	return sql
 }
 
-// GenerateCreateHypertableSQL generates a PostgreSQL CREATE TABLE statement with modern TimescaleDB hypertable syntax
-//
-// Parameters:
-// - tableInfo: the table info for the table to create
-// - params: the parameters for the hypertable
-//
-// Returns:
-// - string: the SQL for the hypertable
-//
-// The function will generate a SQL statement for a hypertable based on the struct tags
-// and the column info for the hypertable
-// The SQL statement will be in the form of CREATE TABLE IF NOT EXISTS <tableName>
-// (<column1> <column1Type>, <column2> <column2Type>, ...)
-// WITH (tsdb.hypertable, tsdb.partition_column='<partitionColumn>', tsdb.chunk_interval='<chunkInterval>', tsdb.orderby='<orderBy>', tsdb.segmentby='<segmentBy>')
-func GenerateCreateHypertableSQL(
-	tableInfo *TableInfo,
-	params HypertableParams,
-) string {
-	var columns []string
-	var primaryKeys []string
-	var uniqueKeys []string
-
-	// Generate column definitions
-	for _, col := range tableInfo.Columns {
-		columnDef := fmt.Sprintf("%s %s", col.Name, col.DBType)
-
-		if col.Nullable != nil && !*col.Nullable {
-			columnDef += " NOT NULL"
-		} else if col.Nullable != nil && *col.Nullable {
-			columnDef += " NULL"
-		}
-
-		if col.Primary != nil && *col.Primary {
-			primaryKeys = append(primaryKeys, col.Name)
-		}
-
-		if col.Unique != nil && *col.Unique {
-			uniqueKeys = append(uniqueKeys, col.Name)
-		}
-
-		columns = append(columns, columnDef)
-	}
-
-	sql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (\n    %s",
-		tableInfo.TableName,
-		strings.Join(columns, ",\n    "))
-
-	if len(primaryKeys) > 0 {
-		sql += fmt.Sprintf(",\n    PRIMARY KEY (%s)", strings.Join(primaryKeys, ", "))
-	}
-
-	if len(uniqueKeys) > 0 {
-		sql += fmt.Sprintf(",\n    UNIQUE (%s)", strings.Join(uniqueKeys, ", "))
-	}
-
-	segmentBy := strings.Join(params.SegmentBy, ", ")
-
-	// Add modern TimescaleDB hypertable configuration
-	sql += fmt.Sprintf(
-		"\n) WITH (\n    tsdb.hypertable,\n    tsdb.partition_column='%s',\n    tsdb.chunk_interval='%s',\n    tsdb.orderby='%s',\n    tsdb.segmentby='%s'\n);",
-		params.PartitionColumn, params.ChunkInterval, params.OrderBy, segmentBy)
-
-	return sql
-}
-
 // GenerateSpecialTypeSQL generates a PostgreSQL CREATE TYPE statement from struct metadata
 //
 // Parameters:
@@ -508,42 +443,6 @@ func (db *DBInitializer) createHypertableModern(tableInfo *TableInfo, params Hyp
 	}
 
 	l.Info().Msgf("Successfully created hypertable: %s", tableInfo.TableName)
-	return nil
-}
-
-// createHypertableLegacy creates a hypertable using the legacy 3-step process
-//
-// Parameters:
-// - tableInfo: the table info for the table to create
-// - partitionColumn: the column to partition the table by
-// - chunkInterval: the interval to chunk the table by
-//
-// Returns:
-// - nil: if the function is successful
-// - error: if the function fails
-//
-// Deprecated: This function is no longer supported, too many new features are being added by Tiger Data.
-// So assume the only supported versions of timescaledb are v2.19.3+. This function will be left if someone
-// does intend to work with the older versions but it will not be maintained.
-//
-//nolint:unused // It won't be maintained anymore. It might even be removed in the future but for now leave it.
-func (db *DBInitializer) createHypertableLegacy(tableInfo *TableInfo, partitionColumn, chunkInterval string) error {
-	// Step 1: Create regular table
-	sql := tableInfo.CreateTableSQL()
-	_, err := db.pool.Exec(context.Background(), sql)
-	if err != nil {
-		return fmt.Errorf("failed to create table %s: %w", tableInfo.TableName, err)
-	}
-
-	// Step 2: Convert to hypertable
-	hypertableSQL := fmt.Sprintf("SELECT create_hypertable('%s', '%s', chunk_time_interval => INTERVAL '%s')",
-		tableInfo.TableName, partitionColumn, chunkInterval)
-	_, err = db.pool.Exec(context.Background(), hypertableSQL)
-	if err != nil {
-		return fmt.Errorf("failed to convert table %s to hypertable: %w", tableInfo.TableName, err)
-	}
-
-	l.Info().Msgf("Successfully created hypertable (legacy): %s", tableInfo.TableName)
 	return nil
 }
 

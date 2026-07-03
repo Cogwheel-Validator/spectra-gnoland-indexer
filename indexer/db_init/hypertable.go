@@ -12,80 +12,41 @@ var l = logger.Get()
 
 // Hypertable management for TimescaleDB
 //
-// This package supports both modern (2.19.3+) and legacy TimescaleDB versions:
-// - Modern: Uses CREATE TABLE WITH (tsdb.hypertable, ...) syntax
-// - Legacy: Uses the 3-step process with create_hypertable() function
-//
-// The system automatically detects the TimescaleDB version and uses the appropriate method.
-//
 // Recommended TimescaleDB versions:
-// - Community Edition 2.19.3+ (TimescaleDB)
+// - Community Edition 2.23.0+ (TimescaleDB)
 // - Cloud edition (Tiger Data)
 //
 
-// ConvertToHypertables is a method that converts the given table names to hypertables.
+// GenerateCreateHypertableSQL generates a PostgreSQL CREATE TABLE statement with modern TimescaleDB hypertable syntax
 //
-// This function will only start this process however the whole process will run through the 3 steps.
-// This is first step in the process.
 // Parameters:
-// - tableNames: a slice of table names to convert to hypertables
+// - tableInfo: the table info for the table to create
+// - params: the parameters for the hypertable
 //
 // Returns:
-// - nil: if the program has a problem it will call log.Fatalf which will exit the program.
+// - string: the SQL for the hypertable
 //
-// The function will only set the hypertable chunk to 1 week, this is pretty much the default
-// however this interval should be defined mostly by developer and system specs.
-// The indexed data on a weekly basis must not be more than 25% of system RAM memory.
-// However depending on the data and the system specs this might need to be adjusted to be shorter or longer.
-// This is all in alpha stage and might be adjusted later. For now it will be hard coded to 1 week since this
-// was an optimal setting for the cosmos indexer.
-// For addition info search the Tiger Data for more info.
-func (init *DBInitializer) ConvertToHypertables(tableNames []string) {
-	for _, tableName := range tableNames {
-		sql := fmt.Sprintf("SELECT create_hypertable('%s', 'timestamp', chunk_time_interval => INTERVAL '1 weeks')", tableName)
-		_, err := init.pool.Exec(context.Background(), sql)
-		if err != nil {
-			l.Error().
-				Caller().
-				Stack().
-				Msgf(
-					"failed to convert table %s to hypertable: %v", tableName, err,
-				)
-		}
-	}
-}
+// The function will generate a SQL statement for a hypertable based on the struct tags
+// and the column info for the hypertable
+// The SQL statement will be in the form of CREATE TABLE IF NOT EXISTS <tableName>
+// (<column1> <column1Type>, <column2> <column2Type>, ...)
+// WITH (tsdb.hypertable, tsdb.partition_column='<partitionColumn>', tsdb.chunk_interval='<chunkInterval>', tsdb.orderby='<orderBy>', tsdb.segmentby='<segmentBy>')
+func GenerateCreateHypertableSQL(
+	tableInfo *TableInfo,
+	params HypertableParams,
+) string {
+	var columns []string
+	var primaryKeys []string
+	var uniqueKeys []string
 
-// AlterCompressionSegments is a method that alters the compression segments for the given tables
-//
-// This function will only start this process however the whole process will run through the 3 steps
-// This is second step in the process
-// Parameters:
-// - tables: a map of table names to their columns
-//
-// Returns:
-// - nil: if the program has a problem it will call log.Fatalf which will exit the program
-//
-// The function will only set the compression segments to the given columns.
-// The columns will be hard encoded for now depending on the table.
-func (init *DBInitializer) AlterCompressionSegments(tables map[string][]string) {
-	for tableName, columns := range tables {
-		columnsString := strings.Join(columns, ", ")
-		sql := fmt.Sprintf(
-			`
-			ALTER TABLE %s SET (
-				timescaledb.enable_columnstore,
-				timescaledb.segmentby = %s,
-				timescaledb.orderby = 'timestamp DESC'
-			);
-			`, tableName, columnsString)
-		_, err := init.pool.Exec(context.Background(), sql)
-		if err != nil {
-			l.Error().
-				Caller().
-				Stack().
-				Msgf(
-					"failed to alter compression segments for table %s: %v", tableName, err,
-				)
+	// Generate column definitions
+	for _, col := range tableInfo.Columns {
+		columnDef := fmt.Sprintf("%s %s", col.Name, col.DBType)
+
+		if col.Nullable != nil && !*col.Nullable {
+			columnDef += " NOT NULL"
+		} else if col.Nullable != nil && *col.Nullable {
+			columnDef += " NULL"
 		}
 	}
 }
