@@ -238,19 +238,12 @@ type TimescaleDBVersion struct {
 
 // IsModernVersion returns true if this version supports the modern WITH syntax (2.19.3+)
 func (v TimescaleDBVersion) IsModernVersion() bool {
-	// Compare versions properly: 2.19.3+
-	if v.Major > 2 {
+	// Compare versions properly: 2.26.0+
+	if v.Major >= 2 && v.Minor >= 23 {
 		return true
+	} else {
+		return false
 	}
-	if v.Major == 2 {
-		if v.Minor > 19 {
-			return true
-		}
-		if v.Minor == 19 && v.Patch >= 3 {
-			return true
-		}
-	}
-	return false
 }
 
 // GetTimescaleDBVersion detects the TimescaleDB version
