@@ -278,3 +278,10 @@ type ValidatorList struct {
 
 // AllValidatorSignings is a map of validator address to their signing information
 type AllValidatorSignings map[string]ValidatorSigning
+
+type ValInfoPerBlock struct {
+	Proposed bool `json:"proposer" doc:"Proposer address"`
+	Signed   bool `json:"signed" doc:"Blocks signed"`
+}
+
+type ValidatorSigningsForLastNBlocks map[uint64]ValInfoPerBlock
