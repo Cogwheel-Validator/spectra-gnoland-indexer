@@ -44,6 +44,12 @@ type ValidatorDbHandler interface {
 	) ([]*database.ValidatorSigning, error)
 	GetAllValidators(ctx context.Context, chainName string) (*database.ValidatorList, error)
 	GetAllValidatorSigning24h(ctx context.Context, chainName string) (database.AllValidatorSignings, error)
+	GetValidatorLastNSigning(
+		ctx context.Context,
+		validatorAddress string,
+		chainName string,
+		n uint64,
+	) (database.ValidatorSigningsForLastNBlocks, error)
 }
 
 type BlockDbHandler interface {

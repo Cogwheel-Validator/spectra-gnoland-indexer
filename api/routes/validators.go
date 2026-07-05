@@ -27,4 +27,10 @@ func RegisterValidatorsRoutes(api huma.API, h *handlers.ValidatorsHandler) {
 			op.Summary = "Get All Validator Signing (Last 24h)"
 			op.Description = "Retrieve the signing performance of all validators that signed at least one block over the last 24 hours."
 		})
+	huma.Get(api, "/validators/{validator_address}/signing", h.GetValidatorLastNSigning,
+		func(op *huma.Operation) {
+			op.Summary = "Get Validator Last N Signing"
+			op.Description = "Retrieve the signing performance of a validator over the last N blocks."
+		})
+
 }

@@ -90,3 +90,14 @@ func (h *ValidatorsHandler) GetAllValidatorSigning24h(
 	}
 	return &humatypes.AllValidatorSigningsGetOutput{Body: signings}, nil
 }
+
+func (h *ValidatorsHandler) GetValidatorLastNSigning(
+	ctx context.Context,
+	input *humatypes.ValidatorLastNSigningGetInput,
+) (*humatypes.ValidatorLastNSigningGetOutput, error) {
+	signings, err := h.db.GetValidatorLastNSigning(ctx, input.ValidatorAddress, h.chainName, input.Amount)
+	if err != nil {
+		return nil, mapDbError("GetValidatorLastNSigning", "signing data not found", err)
+	}
+	return &humatypes.ValidatorLastNSigningGetOutput{Body: signings}, nil
+}
