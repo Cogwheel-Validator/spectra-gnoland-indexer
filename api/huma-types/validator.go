@@ -7,7 +7,7 @@ import (
 )
 
 type ValidatorSigning24hGetInput struct {
-	ValidatorAddress string `path:"validator_address" doc:"Validator consensus address" required:"true"`
+	ValidatorAddress string `path:"validator_address" doc:"Validator consensus address" required:"true" minLength:"40" maxLength:"40"`
 }
 
 type ValidatorSigning24hGetOutput struct {
@@ -34,4 +34,13 @@ type ValidatorListGetOutput struct {
 type AllValidatorSigningsGetInput struct{}
 type AllValidatorSigningsGetOutput struct {
 	Body database.AllValidatorSignings
+}
+
+type ValidatorLastNSigningGetInput struct {
+	ValidatorAddress string `path:"validator_address" doc:"Validator consensus address" required:"true" minLength:"40" maxLength:"40"`
+	Amount           uint64 `query:"amount" doc:"Number of last blocks to check" required:"true" example:"10" max:"100"`
+}
+
+type ValidatorLastNSigningGetOutput struct {
+	Body database.ValidatorSigningsForLastNBlocks
 }
