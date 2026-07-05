@@ -50,7 +50,7 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
 	ctx context.Context,
 	valAddr string,
 	chainName string,
-	limit int,
+	limit uint64,
 ) (database.ValidatorSigningsForLastNBlocks, error) {
 	result := make(database.ValidatorSigningsForLastNBlocks)
 
@@ -62,6 +62,13 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
 	WHERE
 	    address = $1 AND chain_name = $2
 	`
+
+	var validatorId uint64
+	err := t.pool.QueryRow(ctx, query1, valAddr, chainName).Scan(&validatorId)
+	if err != nil {
+		return nil, err
+	}
+
 	query2 := `
    	SELECT
         max(block_height)
@@ -70,22 +77,6 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
     WHERE
         chain_name = $1
 	`
-	query3 := `
-	SELECT
-        v.block_height AS height,
-        COALESCE(v.signed_vals @> $1, false) AS signed,
-        COALESCE(gv.id = v.proposer, false) AS proposed
-    FROM validator_block_signing v
-    JOIN gno_validators gv ON gv.id = $1
-    WHERE v.block_height BETWEEN $2 AND $3 AND chain_name = $4
-    ORDER BY v.block_height DESC;
-	    `
-
-	var validatorId uint64
-	err := t.pool.QueryRow(ctx, query1, valAddr, chainName).Scan(&validatorId)
-	if err != nil {
-		return nil, err
-	}
 
 	var maxBlockHeight uint64
 	err = t.pool.QueryRow(ctx, query2, chainName).Scan(&maxBlockHeight)
@@ -95,7 +86,18 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
 
 	startHeight := maxBlockHeight - uint64(limit)
 
-	rows, err := t.pool.Query(ctx, query3, validatorId, startHeight, maxBlockHeight, chainName)
+	query3 := fmt.Sprintf(`
+	SELECT
+        v.block_height AS height,
+        COALESCE(v.signed_vals @> '{%d}', false) AS signed,
+        COALESCE(gv.id = v.proposer, false) AS proposed
+    FROM validator_block_signing v
+    JOIN gno_validators gv ON gv.id = $1 AND gv.chain_name = $2
+    WHERE v.block_height BETWEEN $3 AND $4 AND v.chain_name = $2
+    ORDER BY v.block_height DESC
+	    `, validatorId)
+
+	rows, err := t.pool.Query(ctx, query3, validatorId, chainName, startHeight, maxBlockHeight)
 	if err != nil {
 		return nil, err
 	}
