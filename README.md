@@ -33,6 +33,7 @@ not the best choice. And finally the nodes are not the best when it comes to sto
 - [Pros and cons of the SGI](#pros-and-cons-of-the-sgi)
   - [🦾 Pros](#-pros)
   - [🐞 Cons](#-cons)
+- [Official Gnoland Indexer vs Spectra Gnoland Indexer](#official-gnoland-indexer-vs-spectra-gnoland-indexer)
 - [In depth documentation](#in-depth-documentation)
 
 ## Quick Start
@@ -257,9 +258,41 @@ history recorded by each of the counters. This is useful for the analytics and t
 
 ### 🐞 Cons
 
-- The indexer has a address cache of all of the addresses that were ever used in the transactions. This gives the indexer ability to swap the addresses with the their integer index in the database. However this introduces complexity. Anyone who plans to use the indexer and plans to make some custom solution on working with the data will need to fully understand the data structure and how to use it. The REST API provides a easy way to interact with the data and to get the data in a readable format.
 - The indexer relies on the RPC node for the data. If the RPC node is not available the indexer will not be able to index the data. ( although in the future the indexer might be able to use multiple RPC nodes )
 - Technically the indexer has a limit of 2 billion addresses. If at any point the Gnoland grows to that size the indexer would need to be updated to support it. It is not a problem for now but it is something to keep in mind.
+
+## Official Gnoland Indexer vs Spectra Gnoland Indexer
+
+The official Gnoland indexer is available on [GitHub](https://github.com/gnolang/tx-indexer).
+There are some differences between how each operates as have their own strengths and weaknesses.
+
+| Feature | Official Gnoland Indexer | Spectra Gnoland Indexer |
+| ---- | ---- | ---- |
+| Database | PebbleDB | Postgres+TimescaleDB |
+| Query data | Graphql and RPC | REST and SQL(directly in the database or via some other tool) |
+| Streaming data | Websocket is present over RPC endpoint | Not supported(yet) |
+| Programming language | Go | Go |
+| Setup | Easy(just run CLI command `start`) | Manual setup required |
+
+Both offer high performance however the biggest difference here is how the data is stored and accessed.
+PebbleDB is a key-value DB that does offer high performance for read/write operations. Any extending of
+the database requires in-depth knowledge of the database and Go since official API for this database was
+written in Go. There might exist some third party libraries that work with PebbleDB, but they are not
+officially supported by the CockroachDB team. Or you might need to even use RockDB API which in theory 
+could work.
+
+The official indexer is very easy to setup. Pretty much just run the indexer and it will set up the 
+database for you. The SGI requires manual setup of the database and setting up a config file. It also
+allows only to do a partial scan if the chain if you desire. SGI in this case requires a bit more setup.
+
+TimescaleDB is a Postgres extension, so any kinda of library that works on Postgres should pretty much
+work for the TimescaleDB, which means there is no limit to which language you can use to interact with
+the database. You can also add new tables, indexes, and TimescaleDB continuous aggregation tables along 
+with automation jobs all by just using SQL.
+
+Official indexer does offer a variety of endpoints to query from Graphql/RPC/WS. The SGI does only have
+REST API but if you know any programming language and a bit of SQL you should be able to extend the API 
+or make your own custom endpoints.
 
 ## In depth documentation
 
