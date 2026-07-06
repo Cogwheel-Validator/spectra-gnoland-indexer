@@ -66,57 +66,50 @@ func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName str
 }
 
 func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*database.BlockData, error) {
-	query1 := `
-	SELECT encode(hash, 'base64'),
-	b.height as height,
-	b.timestamp as timestamp,
-	b.chain_id as chain_id,
-	gv.address as proposer
+	query := `
+	WITH latest_height AS MATERIALIZED (
+		SELECT height FROM blocks WHERE chain_name = $1 ORDER BY height DESC LIMIT 1
+	),
+	tx_ids AS MATERIALIZED (
+		SELECT tx_id FROM transaction_general
+		WHERE chain_name = $1 AND block_height = (SELECT height FROM latest_height)
+	)
+	SELECT
+	encode(b.hash, 'base64'),
+	b.height,
+	b.timestamp,
+	b.chain_id,
+	gv.address,
+	COALESCE(
+		(SELECT array_agg(encode(tx_hash, 'base64'))
+		 FROM tx_hash_id
+		 WHERE chain_name = $1 AND tx_id = ANY(ARRAY(SELECT tx_id FROM tx_ids))),
+		'{}'
+	)
 	FROM blocks b
 	JOIN validator_block_signing vb ON b.height = vb.block_height AND b.chain_name = vb.chain_name
 	JOIN gno_validators gv ON vb.proposer = gv.id
-	WHERE b.chain_name = $1
-	ORDER BY b.height DESC
-	LIMIT 1
+	WHERE b.chain_name = $1 AND b.height = (SELECT height FROM latest_height)
 	`
-	query2 := `
-	SELECT
-	encode(id.tx_hash, 'base64'),
-	tg.block_height
-	FROM transaction_general tg
-	JOIN tx_hash_id id ON tg.tx_id = id.tx_id AND tg.chain_name = id.chain_name
-	WHERE tg.chain_name = $1
-	AND tg.block_height = (SELECT MAX(height) FROM blocks WHERE chain_name = $1)
-	`
-	var blocks []*database.BlockData
-	var txs map[uint64][]string
 
-	eg, ctx := errgroup.WithContext(ctx)
-
-	eg.Go(func() error {
-		var err error
-		blocks, err = t.fetchBlocksData(ctx, query1, chainName)
-		return err
-	})
-
-	eg.Go(func() error {
-		var err error
-		txs, err = t.fetchTransactionData(ctx, query2, chainName)
-		return err
-	})
-
-	if err := eg.Wait(); err != nil {
+	row := t.pool.QueryRow(ctx, query, chainName)
+	block := &database.BlockData{}
+	err := row.Scan(
+		&block.Hash,
+		&block.Height,
+		&block.Timestamp,
+		&block.ChainID,
+		&block.Proposer,
+		&block.Txs,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("no blocks for chain %q: %w", chainName, database.ErrNotFound)
+		}
 		return nil, err
 	}
-	if len(blocks) == 0 {
-		return nil, fmt.Errorf("no blocks for chain %q: %w", chainName, database.ErrNotFound)
-	}
-
-	if txs[blocks[0].Height] != nil {
-		blocks[0].Txs = append(blocks[0].Txs, txs[blocks[0].Height]...)
-	}
-	blocks[0].TxCounter = len(blocks[0].Txs)
-	return blocks[0], nil
+	block.TxCounter = len(block.Txs)
+	return block, nil
 }
 
 // GetLastXBlocks gets the last x blocks for a given chain name.
