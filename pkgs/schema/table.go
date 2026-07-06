@@ -123,7 +123,6 @@ func (ak ApiKey) TableColumns() []string {
 	columns := make([]string, 0)
 	fields := reflect.TypeFor[ApiKey]()
 	for field := range fields.Fields() {
-		field := field
 		columns = append(columns, field.Tag.Get("db"))
 	}
 	return columns
@@ -178,8 +177,8 @@ func Hypertables() []Hypertable {
 	msgParams := dbinit.HypertableParams{
 		PartitionColumn: "timestamp",
 		ChunkInterval:   chunk,
-		OrderBy:         tmD,
-		SegmentBy:       []string{"chain_name", "message_counter"},
+		OrderBy:         tmD + ", message_counter",
+		SegmentBy:       []string{"chain_name"},
 	}
 	return []Hypertable{
 		{Blocks{}, dbinit.HypertableParams{
