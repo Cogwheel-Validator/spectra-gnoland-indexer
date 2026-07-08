@@ -95,7 +95,9 @@ func (h *ValidatorsHandler) GetValidatorLastNSigning(
 	ctx context.Context,
 	input *humatypes.ValidatorLastNSigningGetInput,
 ) (*humatypes.ValidatorLastNSigningGetOutput, error) {
-	signings, err := h.db.GetValidatorLastNSigning(ctx, input.ValidatorAddress, h.chainName, input.Amount)
+	signings, err := h.db.GetValidatorLastNSigning(
+		ctx, input.ValidatorAddress, h.chainName, input.Amount, input.SortOrder,
+	)
 	if err != nil {
 		return nil, mapDbError("GetValidatorLastNSigning", "signing data not found", err)
 	}
