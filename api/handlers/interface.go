@@ -49,6 +49,7 @@ type ValidatorDbHandler interface {
 		validatorAddress string,
 		chainName string,
 		n uint64,
+		sortOrder database.SortOrder,
 	) (database.ValidatorSigningsForLastNBlocks, error)
 }
 

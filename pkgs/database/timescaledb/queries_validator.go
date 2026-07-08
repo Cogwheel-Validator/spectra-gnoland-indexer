@@ -51,8 +51,9 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
 	valAddr string,
 	chainName string,
 	limit uint64,
+	orderBy database.SortOrder,
 ) (database.ValidatorSigningsForLastNBlocks, error) {
-	result := make(database.ValidatorSigningsForLastNBlocks)
+	result := make(database.ValidatorSigningsForLastNBlocks, 0, limit)
 
 	query1 := `
 	SELECT
@@ -85,6 +86,7 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
 	}
 
 	startHeight := maxBlockHeight - uint64(limit)
+	order := orderBy.SQL()
 
 	query3 := fmt.Sprintf(`
 	SELECT
@@ -94,8 +96,8 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
     FROM validator_block_signing v
     JOIN gno_validators gv ON gv.id = $1 AND gv.chain_name = $2
     WHERE v.block_height BETWEEN $3 AND $4 AND v.chain_name = $2
-    ORDER BY v.block_height DESC
-	    `, validatorId)
+    ORDER BY height %s
+	    `, validatorId, order)
 
 	rows, err := t.pool.Query(ctx, query3, validatorId, chainName, startHeight, maxBlockHeight)
 	if err != nil {
@@ -109,10 +111,11 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
 		if err := rows.Scan(&height, &signed, &proposed); err != nil {
 			return nil, err
 		}
-		result[height] = database.ValInfoPerBlock{
+		result = append(result, database.ValInfoPerBlock{
+			Height:   height,
 			Signed:   signed,
 			Proposed: proposed,
-		}
+		})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

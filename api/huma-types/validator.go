@@ -37,8 +37,9 @@ type AllValidatorSigningsGetOutput struct {
 }
 
 type ValidatorLastNSigningGetInput struct {
-	ValidatorAddress string `path:"validator_address" doc:"Validator consensus address" required:"true" minLength:"40" maxLength:"40"`
-	Amount           uint64 `query:"amount" doc:"Number of last blocks to check" required:"true" example:"10" max:"100"`
+	ValidatorAddress string             `path:"validator_address" doc:"Validator consensus address" required:"true" minLength:"40" maxLength:"40"`
+	Amount           uint64             `query:"amount" doc:"Number of last blocks to check" required:"true" example:"10" max:"100"`
+	SortOrder        database.SortOrder `query:"sort_order" doc:"Sort order for results" enum:"asc,desc" default:"desc"`
 }
 
 type ValidatorLastNSigningGetOutput struct {
