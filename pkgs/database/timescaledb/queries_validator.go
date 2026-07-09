@@ -85,7 +85,7 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
 		return nil, err
 	}
 
-	startHeight := maxBlockHeight - uint64(limit)
+	startHeight := maxBlockHeight - uint64(limit-1) // minus one because SQL BETWEEN is inclusive
 	order := orderBy.SQL()
 
 	query3 := fmt.Sprintf(`
