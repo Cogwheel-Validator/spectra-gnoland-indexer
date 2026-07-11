@@ -72,7 +72,7 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
 
 	query2 := `
    	SELECT
-        max(block_height)
+        COALESCE(max(block_height), 0)
     FROM
         validator_block_signing
     WHERE
@@ -84,8 +84,16 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
 	if err != nil {
 		return nil, err
 	}
+	if maxBlockHeight == 0 {
+		return nil, fmt.Errorf("error max block height is zero for chain %s, check if the database is populated", chainName)
+	}
 
-	startHeight := maxBlockHeight - uint64(limit-1) // minus one because SQL BETWEEN is inclusive
+	var startHeight uint64
+	if limit > maxBlockHeight {
+		startHeight = 0
+	} else {
+		startHeight = maxBlockHeight - uint64(limit-1) // minus one because SQL BETWEEN is inclusive
+	}
 	order := orderBy.SQL()
 
 	query3 := fmt.Sprintf(`
