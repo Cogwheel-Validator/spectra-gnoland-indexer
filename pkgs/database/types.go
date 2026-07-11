@@ -281,8 +281,8 @@ type AllValidatorSignings map[string]ValidatorSigning
 
 type ValInfoPerBlock struct {
 	Height   uint64 `json:"height" doc:"Block height"`
-	Proposed bool   `json:"proposer" doc:"Proposer address"`
-	Signed   bool   `json:"signed" doc:"Blocks signed"`
+	Proposed bool   `json:"proposer" doc:"Confirmation that the validator proposed the block."`
+	Signed   bool   `json:"signed" doc:"Confirmation that the validator signed the block."`
 }
 
 type ValidatorSigningsForLastNBlocks []ValInfoPerBlock
