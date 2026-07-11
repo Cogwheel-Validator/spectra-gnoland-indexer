@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-07-11
+
+This version does include some small features so the first version of explorer for Gnoland is released.
+Index was added for improved query performance and a new query method for checking last number(n) of
+blocks signed by a validator. Other changes include some fixes or refactors.
+
+### Added
+
+- Feat(api): add validator last n signed blocks route [1fc9e82](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/1fc9e823bc454e04320d4d683fd7288d9975988b)
+- Feat(pkgs/database): add initial sql query for the fetch last validator [e8334b0](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/e8334b09b4977f4a48c4557b0a55443ce5c49e1b)
+- Feat(schema&db_init): add option to create index for tables [f1256cc](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f1256ccd7f78f1cafec2a4f5fa737e63ec16bdc1)
+
+### Changes
+
+- Deps: update go toolchain [4979c9c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/4979c9c2e801f929db5617b3024e66375eba8822)
+- Ci: update leftover tagged actions and switched to commit [ee030d3](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ee030d34772d959a9352bc086157380b5d44330f)
+- Docs: Update main README.md [ae89e54](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ae89e544dc44916a6a3219b3ad5d757bd15265c3)
+- Refac(pkgs/schema): adjust msgParams to order by message_counter [06f8e5f](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/06f8e5f71422cb9b785954815cbf2b413e8c8bd3)
+- Perf(database/timescaledb): optimize query to fetch the latest block [ed0470d](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ed0470de26d90a378793d9847c3caff31aa473bf)
+- Refac(indexer/cli): adjust the create user to get permission from args [ba3fb9f](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ba3fb9f49ca9ae9cf1525f4f5dc7566d00986c4d)
+- Refac(pkgs/schema): expand orderBy for tx_hash_id transaction_general [889b743](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/889b743dcebea8e4d19d43a93d034667e48b9c5a)
+- Chore(indexer/db_init): keep old function in place but modify it [5efb4d5](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5efb4d5023d5c61afe6beaa53485db47a7082594)
+- Refac(indexer/db_init): move functions and match the receiver in the pkg [e8f7c49](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/e8f7c491db2d884829d08379ac95f04814be76bf)
+- Chore(indexer/db_init): remove dead code [f7169e5](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f7169e5712f318f55d74c9568f503baf858a4a1f)
+
+### Fixed
+
+- Fix(database/timecaledb): fix last n signing for validator [11b6ee9](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/11b6ee991dcec9925ec341b2aef1fd4d8a6515be)
+- Fix(database): type for the last n signed data now returns a slice [d7ddd08](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d7ddd089390452338c4271ca0bbaad32077300f1)
+- Fix(timescaledb): database query for the last n validator signed blocks [d1982c2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d1982c2063ad6d3a80b965e84f9f3e6a87ff3670)
+
 ## [0.7.3] - 2026-07-02
 
 ### Added
