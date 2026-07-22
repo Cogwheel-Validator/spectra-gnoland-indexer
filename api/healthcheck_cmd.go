@@ -41,7 +41,11 @@ func runHealthcheck(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "healthcheck request failed: %v\n", err)
 		os.Exit(1)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to close response body: %v\n", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		fmt.Fprintf(os.Stderr, "healthcheck returned status %d\n", resp.StatusCode)

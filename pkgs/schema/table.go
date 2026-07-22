@@ -7,9 +7,6 @@ import (
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 )
 
-// used for specifying the timestamp to sort by descending order
-const tmD = "timestamp DESC"
-
 // TxAddresses groups all addresses involved in a single transaction
 // It stores in a set like data structure to avoid duplicates
 // all addresses for the same transaction hash together
