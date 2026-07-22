@@ -38,8 +38,8 @@ jobs:
 
       - name: Get git metadata
         id: gitmeta
+        # actions/checkout provides the .git directory so these commands will work
         run: |
-          # actions/checkout provides the .git directory so these commands will work
           echo "git_commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)" >> $GITHUB_OUTPUT
           echo "git_tag=$(git describe --tags --exact-match 2>/dev/null || echo)" >> $GITHUB_OUTPUT
           echo "git_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo)" >> $GITHUB_OUTPUT
@@ -56,7 +56,6 @@ jobs:
         run: |
           mkdir -p build
 
-          # Compute VERSION (prefer tag, otherwise branch-commit)
           if [ -n "$GIT_TAG" ]; then
             VERSION="$GIT_TAG"
           else
@@ -78,11 +77,21 @@ jobs:
           GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-arm64 indexer/cmd/indexer.go
           GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS_API" -o build/api-linux-arm64 api/*.go
 
+      - name: Generate Checksum
+        run: |
+          cd build
+          sha256sum * > ../CHECKSUMS
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
-          files: build/*
+          files: |
+            build/*
+            LICENSE
+            CHECKSUMS
           prerelease: ${{ steps.version.outputs.prerelease }}
+          tag_name: ${{ steps.version.outputs.version }}
+          previous_tag: ${{ steps.version.outputs.previous_tag }}
           generate_release_notes: true
           body: |
             ## Release ${{ steps.version.outputs.version }}
@@ -104,7 +113,7 @@ jobs:
             When you have the database running run the cmd to create the database and the user.
             ```bash
             indexer setup create-db --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --new-db-name gnoland --chain-name gnoland
-            indexer setup create-user --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --user writer --privilege writer
+            indexer setup create-user writer writer --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable
             ```
 
             From here you can run the indexer using live or historic mode
