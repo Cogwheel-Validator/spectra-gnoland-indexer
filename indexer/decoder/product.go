@@ -188,11 +188,11 @@ func (m *DbMessages) AddressEntries() []AddressEntry {
 }
 
 // InsertBatch is a homogeneous group of rows (all the same table) ready for the
-// generic COPY insert path, alongside the tx ids each row belongs to for
+// generic COPY insert path, alongside the tx hashes each row belongs to for
 // failure diagnostics.
 type InsertBatch struct {
-	Rows  []s.Insertable
-	TxIds []int64
+	Rows     []s.Insertable
+	TxHashes [][]byte
 }
 
 // InsertBatches groups the collected rows by destination table. Table order is
@@ -209,7 +209,7 @@ func (m *DbMessages) InsertBatches() []InsertBatch {
 			order = append(order, table)
 		}
 		batch.Rows = append(batch.Rows, r.row)
-		batch.TxIds = append(batch.TxIds, r.addresses.TxId)
+		batch.TxHashes = append(batch.TxHashes, r.addresses.TxHash)
 	}
 	batches := make([]InsertBatch, len(order))
 	for i, table := range order {
@@ -223,7 +223,7 @@ func (m *DbMessages) InsertBatches() []InsertBatch {
 // are resolved to ids via addressResolver (populated by an earlier batch resolve).
 func (dm *DecodedMsg) ConvertToDbMessages(
 	addressResolver AddressResolver,
-	txId int64,
+	txHash []byte,
 	chainName string,
 	timestamp time.Time,
 	signers []string,
@@ -247,7 +247,7 @@ func (dm *DecodedMsg) ConvertToDbMessages(
 		}
 
 		rows, err := entry.codec.convert(msg, convCtx{
-			txId:           txId,
+			txHash:         txHash,
 			chainName:      chainName,
 			timestamp:      timestamp,
 			resolver:       addressResolver,

@@ -3,7 +3,6 @@ package dataprocessor_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	dataProcessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
 	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
@@ -18,10 +17,6 @@ type MockDatabase struct {
 func (m *MockDatabase) InsertRows(ctx context.Context, rows []s.Insertable) error {
 	m.InsertRowsCalls = append(m.InsertRowsCalls, rows)
 	return m.LastInsertError
-}
-
-func (m *MockDatabase) InsertTxHashIds(ctx context.Context, txHashes []string, timestamps []time.Time, chainName string) (map[string]int64, error) {
-	return nil, m.LastInsertError
 }
 
 // Simple Mock AddressCache
@@ -47,7 +42,7 @@ func TestNewDataProcessor(t *testing.T) {
 	mockValidatorCache := &MockAddressCache{ReturnID: 2}
 
 	// Test constructor
-	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain", 100)
+	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain")
 
 	// Verify constructor returns non-nil
 	if dp == nil {
@@ -63,7 +58,7 @@ func TestDataProcessor_WithEmptyData(t *testing.T) {
 	mockAddressCache := &MockAddressCache{ReturnID: 123}
 	mockValidatorCache := &MockAddressCache{ReturnID: 456}
 
-	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain", 100)
+	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain")
 
 	// Test that we can create the processor successfully
 	if dp == nil {
@@ -94,10 +89,6 @@ func TestDataProcessor_DatabaseInterface(t *testing.T) {
 	if err := db.InsertRows(context.Background(), s.AsInsertable([]s.TransactionGeneral{})); err != nil {
 		t.Errorf("InsertRows should not return error with empty input, got: %v", err)
 	}
-
-	if _, err := db.InsertTxHashIds(context.Background(), nil, nil, "chain"); err != nil {
-		t.Errorf("InsertTxHashIds should not return error with nil input, got: %v", err)
-	}
 }
 
 func TestDataProcessor_AddressCacheInterface(t *testing.T) {
@@ -122,7 +113,7 @@ func TestDataProcessor_WithDatabaseError(t *testing.T) {
 	mockAddressCache := &MockAddressCache{}
 	mockValidatorCache := &MockAddressCache{}
 
-	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain", 100)
+	dp := dataProcessor.NewDataProcessor(mockDB, mockAddressCache, mockValidatorCache, "test-chain")
 
 	// Verify constructor still works even with error-prone database
 	if dp == nil {

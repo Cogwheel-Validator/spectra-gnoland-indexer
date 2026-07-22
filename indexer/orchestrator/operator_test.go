@@ -22,7 +22,6 @@ type MockDataProcessor struct {
 	ProcessTransactionsCalled       bool
 	ProcessMessagesCalled           bool
 	ProcessValidatorSigningsCalled  bool
-	ProcessTxHashIdsCalled          bool
 	ProcessMessagesError            error
 }
 
@@ -50,11 +49,6 @@ func (m *MockDataProcessor) ProcessMessages(transactions []dataprocessor.Transac
 // Mock method for ProcessValidatorSignings
 func (m *MockDataProcessor) ProcessValidatorSignings(commits []*rpcClient.CommitResponse, fromHeight uint64, toHeight uint64) {
 	m.ProcessValidatorSigningsCalled = true
-}
-
-// Mock method for ProcessTxHashIds
-func (m *MockDataProcessor) ProcessTxHashIds(txData []dataprocessor.TransactionsData) {
-	m.ProcessTxHashIdsCalled = true
 }
 
 // MockQueryOperator - returns minimal data

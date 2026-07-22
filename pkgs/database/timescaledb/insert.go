@@ -2,9 +2,6 @@ package timescaledb
 
 import (
 	"context"
-	"encoding/base64"
-	"fmt"
-	"time"
 
 	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 	"github.com/jackc/pgx/v5"
@@ -46,55 +43,4 @@ func (t *TimescaleDb) InsertRows(ctx context.Context, rows []s.Insertable) error
 
 	_, err := t.pool.CopyFrom(ctx, pgx.Identifier{rows[0].TableName()}, rows[0].TableColumns(), pgxSlice)
 	return err
-}
-
-func (t *TimescaleDb) InsertTxHashIds(
-	ctx context.Context,
-	txHashes []string,
-	timestamps []time.Time,
-	chainName string,
-) (map[string]int64, error) {
-	txLength := len(txHashes)
-	timestampLength := len(timestamps)
-
-	if txLength <= 0 || timestampLength <= 0 {
-		return nil, fmt.Errorf("no tx hashes to insert")
-	}
-	if txLength != timestampLength {
-		return nil, fmt.Errorf("tx hashes and timestamps must have the same length")
-	}
-
-	txHashBytes := make([][]byte, txLength)
-	for i, hash := range txHashes {
-		decoded, err := base64.StdEncoding.DecodeString(hash)
-		if err != nil {
-			return nil, err
-		}
-		txHashBytes[i] = decoded
-	}
-
-	rows, err := t.pool.Query(
-		ctx,
-		`INSERT INTO tx_hash_id (tx_hash, timestamp, chain_name)
-		 SELECT unnest($1::bytea[]), unnest($2::timestamptz[]), $3
-		 RETURNING tx_hash, tx_id`,
-		txHashBytes,
-		timestamps,
-		chainName,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	txHashIdMap := make(map[string]int64, txLength)
-	for rows.Next() {
-		var txHash []byte
-		var txId int64
-		if err := rows.Scan(&txHash, &txId); err != nil {
-			return nil, fmt.Errorf("failed to scan tx hash id: %w", err)
-		}
-		txHashIdMap[base64.StdEncoding.EncodeToString(txHash)] = txId
-	}
-	return txHashIdMap, rows.Err()
 }

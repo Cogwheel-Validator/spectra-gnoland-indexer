@@ -18,15 +18,14 @@ var defaultLimit = uint64(10)
 // selectCols is the shared projection/join for address transaction queries.
 const selectCols = `
 	SELECT
-	encode(id.tx_hash, 'base64') AS tx_hash,
+	encode(at.tx_hash, 'base64') AS tx_hash,
 	at.timestamp,
 	tg.msg_types,
 	tg.block_height AS block_height,
 	tg.success AS success,
 	tg.error_log AS error_log
 	FROM address_tx at
-	JOIN tx_hash_id id ON at.tx_id = id.tx_id AND at.chain_name = id.chain_name
-	JOIN transaction_general tg ON at.tx_id = tg.tx_id AND at.chain_name = tg.chain_name
+	JOIN transaction_general tg ON at.tx_hash = tg.tx_hash AND at.chain_name = tg.chain_name
 `
 
 // GetAddressTxs returns the transactions involving a given address.
@@ -129,15 +128,15 @@ func (t *TimescaleDb) queryAddressTxs(
 	switch direction {
 	case database.Next:
 		if hasCursor {
-			conds = append(conds, fmt.Sprintf("(tg.block_height, id.tx_hash) < (%s, %s)", arg(blockHeight), arg(decodedTxHash)))
+			conds = append(conds, fmt.Sprintf("(tg.block_height, at.tx_hash) < (%s, %s)", arg(blockHeight), arg(decodedTxHash)))
 		}
-		order = "ORDER BY tg.block_height DESC, id.tx_hash DESC"
+		order = "ORDER BY tg.block_height DESC, at.tx_hash DESC"
 	case database.Prev:
 		if !hasCursor {
 			return nil, false, fmt.Errorf("prev direction requires a cursor")
 		}
-		conds = append(conds, fmt.Sprintf("(tg.block_height, id.tx_hash) > (%s, %s)", arg(blockHeight), arg(decodedTxHash)))
-		order = "ORDER BY tg.block_height ASC, id.tx_hash ASC"
+		conds = append(conds, fmt.Sprintf("(tg.block_height, at.tx_hash) > (%s, %s)", arg(blockHeight), arg(decodedTxHash)))
+		order = "ORDER BY tg.block_height ASC, at.tx_hash ASC"
 		reverse = true
 	default:
 		return nil, false, fmt.Errorf("invalid direction: %q", direction)

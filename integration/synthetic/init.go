@@ -55,7 +55,7 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 	}
 
 	// Initialize data processor
-	dataProc := dataProcessor.NewDataProcessor(db, addrCache, validatorCache, testConfig.ChainID, int(orchConfig.MaxTransactionChunkSize))
+	dataProc := dataProcessor.NewDataProcessor(db, addrCache, validatorCache, testConfig.ChainID)
 	log.Printf("Initialized data processor")
 
 	chunkSize := orchConfig.MaxBlockChunkSize

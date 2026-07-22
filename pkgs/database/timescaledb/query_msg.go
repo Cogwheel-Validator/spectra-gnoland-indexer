@@ -17,7 +17,7 @@ func (t *TimescaleDb) GetBankSend(
 ) ([]*database.BankSend, error) {
 	query := `
 	SELECT
-	encode(id.tx_hash, 'base64') AS tx_hash,
+	encode(bms.tx_hash, 'base64') AS tx_hash,
 	bms.timestamp,
 	gn_from.address AS from_address,
 	gn_to.address AS to_address,
@@ -28,10 +28,9 @@ func (t *TimescaleDb) GetBankSend(
 		JOIN gno_addresses gn ON gn.id = signer_id
 	) AS signers
 	FROM bank_msg_send bms
-	JOIN tx_hash_id id ON bms.tx_id = id.tx_id AND bms.chain_name = id.chain_name
 	LEFT JOIN gno_addresses gn_from ON bms.from_address = gn_from.id
 	LEFT JOIN gno_addresses gn_to ON bms.to_address = gn_to.id
-	WHERE id.tx_hash = decode($1, 'base64')
+	WHERE bms.tx_hash = decode($1, 'base64')
 	AND bms.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -69,7 +68,7 @@ func (t *TimescaleDb) GetMsgCall(
 ) ([]*database.MsgCall, error) {
 	query := `
 	SELECT
-	encode(id.tx_hash, 'base64') AS tx_hash,
+	encode(vmc.tx_hash, 'base64') AS tx_hash,
 	vmc.message_counter,
 	vmc.timestamp,
 	gn.address AS caller,
@@ -84,9 +83,8 @@ func (t *TimescaleDb) GetMsgCall(
 		JOIN gno_addresses gn ON gn.id = signer_id
 	) AS signers
 	FROM vm_msg_call vmc
-	JOIN tx_hash_id id ON vmc.tx_id = id.tx_id AND vmc.chain_name = id.chain_name
 	LEFT JOIN gno_addresses gn ON vmc.caller = gn.id
-	WHERE id.tx_hash = decode($1, 'base64')
+	WHERE vmc.tx_hash = decode($1, 'base64')
 	AND vmc.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -128,7 +126,7 @@ func (t *TimescaleDb) GetMsgAddPackage(
 ) ([]*database.MsgAddPackage, error) {
 	query := `
 	SELECT
-	encode(id.tx_hash, 'base64') AS tx_hash,
+	encode(vmap.tx_hash, 'base64') AS tx_hash,
 	vmap.message_counter,
 	vmap.timestamp,
 	gn.address AS creator,
@@ -143,9 +141,8 @@ func (t *TimescaleDb) GetMsgAddPackage(
 		JOIN gno_addresses gn ON gn.id = signer_id
 	) AS signers
 	FROM vm_msg_add_package vmap
-	JOIN tx_hash_id id ON vmap.tx_id = id.tx_id AND vmap.chain_name = id.chain_name
 	LEFT JOIN gno_addresses gn ON vmap.creator = gn.id
-	WHERE id.tx_hash = decode($1, 'base64')
+	WHERE vmap.tx_hash = decode($1, 'base64')
 	AND vmap.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -187,7 +184,7 @@ func (t *TimescaleDb) GetMsgRun(
 ) ([]*database.MsgRun, error) {
 	query := `
 	SELECT
-	encode(id.tx_hash, 'base64') AS tx_hash,
+	encode(vmr.tx_hash, 'base64') AS tx_hash,
 	vmr.message_counter,
 	vmr.timestamp,
 	gn.address AS caller,
@@ -202,9 +199,8 @@ func (t *TimescaleDb) GetMsgRun(
 		JOIN gno_addresses gn ON gn.id = signer_id
 	) AS signers
 	FROM vm_msg_run vmr
-	JOIN tx_hash_id id ON vmr.tx_id = id.tx_id AND vmr.chain_name = id.chain_name
 	LEFT JOIN gno_addresses gn ON vmr.caller = gn.id
-	WHERE id.tx_hash = decode($1, 'base64')
+	WHERE vmr.tx_hash = decode($1, 'base64')
 	AND vmr.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -247,7 +243,7 @@ func (t *TimescaleDb) GetBankMultiSend(
 ) ([]*database.BankMultiSendRow, error) {
 	query := `
 	SELECT
-	encode(id.tx_hash, 'base64') AS tx_hash,
+	encode(bms.tx_hash, 'base64') AS tx_hash,
 	bms.message_counter,
 	bms.timestamp,
 	bms.direction,
@@ -259,9 +255,8 @@ func (t *TimescaleDb) GetBankMultiSend(
 		JOIN gno_addresses gn ON gn.id = signer_id
 	) AS signers
 	FROM bank_msg_multi_send bms
-	JOIN tx_hash_id id ON bms.tx_id = id.tx_id AND bms.chain_name = id.chain_name
 	LEFT JOIN gno_addresses gna ON bms.address_id = gna.id
-	WHERE id.tx_hash = decode($1, 'base64')
+	WHERE bms.tx_hash = decode($1, 'base64')
 	AND bms.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -300,7 +295,7 @@ func (t *TimescaleDb) GetMsgAuthCrSession(
 ) ([]*database.MsgAuthCrSession, error) {
 	query := `
 	SELECT
-	encode(id.tx_hash, 'base64') AS tx_hash,
+	encode(acs.tx_hash, 'base64') AS tx_hash,
 	acs.message_counter,
 	acs.timestamp,
 	gn_creator.address AS creator,
@@ -315,10 +310,9 @@ func (t *TimescaleDb) GetMsgAuthCrSession(
 		JOIN gno_addresses gn ON gn.id = signer_id
 	) AS signers
 	FROM auth_msg_create_session acs
-	JOIN tx_hash_id id ON acs.tx_id = id.tx_id AND acs.chain_name = id.chain_name
 	LEFT JOIN gno_addresses gn_creator ON acs.creator = gn_creator.id
 	LEFT JOIN gno_addresses gn_session ON acs.session_key = gn_session.id
-	WHERE id.tx_hash = decode($1, 'base64')
+	WHERE acs.tx_hash = decode($1, 'base64')
 	AND acs.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -361,7 +355,7 @@ func (t *TimescaleDb) GetMsgAuthRvSession(
 ) ([]*database.MsgAuthRvSession, error) {
 	query := `
 	SELECT
-    encode(id.tx_hash, 'base64') AS tx_hash,
+    encode(rvs.tx_hash, 'base64') AS tx_hash,
     rvs.message_counter,
     rvs.timestamp,
     gn_creator.address AS creator,
@@ -372,10 +366,9 @@ func (t *TimescaleDb) GetMsgAuthRvSession(
         JOIN gno_addresses gn ON gn.id = signer_id
     ) AS signers
     FROM auth_msg_revoke_session rvs
-    JOIN tx_hash_id id ON rvs.tx_id = id.tx_id AND rvs.chain_name = id.chain_name
     LEFT JOIN gno_addresses gn_creator ON rvs.creator = gn_creator.id
     LEFT JOIN gno_addresses gn_session ON rvs.session_key = gn_session.id
-    WHERE id.tx_hash = decode($1, 'base64')
+    WHERE rvs.tx_hash = decode($1, 'base64')
     AND rvs.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -413,7 +406,7 @@ func (t *TimescaleDb) GetMsgAuthRvAllSessions(
 ) ([]*database.MsgAuthRvAllSessions, error) {
 	query := `
 	SELECT
-	encode(id.tx_hash, 'base64') AS tx_hash,
+	encode(rvas.tx_hash, 'base64') AS tx_hash,
 	rvas.message_counter,
 	rvas.timestamp,
 	gn.address AS creator,
@@ -423,9 +416,8 @@ func (t *TimescaleDb) GetMsgAuthRvAllSessions(
 		JOIN gno_addresses gn ON gn.id = signer_id
 	) AS signers
 	FROM auth_msg_revoke_all_sessions rvas
-	JOIN tx_hash_id id ON rvas.tx_id = id.tx_id AND rvas.chain_name = id.chain_name
 	LEFT JOIN gno_addresses gn ON rvas.creator = gn.id
-	WHERE id.tx_hash = decode($1, 'base64')
+	WHERE rvas.tx_hash = decode($1, 'base64')
 	AND rvas.chain_name = $2
 	`
 	rows, err := t.pool.Query(ctx, query, txHash, chainName)
@@ -459,8 +451,7 @@ func (t *TimescaleDb) GetMsgTypes(ctx context.Context, txHash string, chainName 
 	query := `
 	SELECT tg.msg_types
 	FROM transaction_general tg
-	JOIN tx_hash_id id ON tg.tx_id = id.tx_id AND tg.chain_name = id.chain_name
-	WHERE id.tx_hash = decode($1, 'base64')
+	WHERE tg.tx_hash = decode($1, 'base64')
 	AND tg.chain_name = $2
 	`
 	row := t.pool.QueryRow(ctx, query, txHash, chainName)

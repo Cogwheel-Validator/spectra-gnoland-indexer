@@ -17,7 +17,7 @@ import (
 
 // convCtx carries the per-message context needed to build database rows.
 type convCtx struct {
-	txId           int64
+	txHash         []byte
 	chainName      string
 	timestamp      time.Time
 	resolver       AddressResolver
@@ -118,7 +118,7 @@ func init() {
 		},
 		func(m bank.MsgSend, c convCtx) ([]s.Message, error) {
 			return []s.Message{&s.MsgSend{
-				TxId:           c.txId,
+				TxHash:         c.txHash,
 				ChainName:      c.chainName,
 				FromAddress:    c.resolver.GetAddress(m.FromAddress.String()),
 				ToAddress:      c.resolver.GetAddress(m.ToAddress.String()),
@@ -145,7 +145,7 @@ func init() {
 			rows := make([]s.Message, 0, len(m.Inputs)+len(m.Outputs))
 			for _, in := range m.Inputs {
 				rows = append(rows, &s.MsgMultiSend{
-					TxId:           c.txId,
+					TxHash:         c.txHash,
 					Timestamp:      c.timestamp,
 					ChainName:      c.chainName,
 					Direction:      false,
@@ -157,7 +157,7 @@ func init() {
 			}
 			for _, out := range m.Outputs {
 				rows = append(rows, &s.MsgMultiSend{
-					TxId:           c.txId,
+					TxHash:         c.txHash,
 					Timestamp:      c.timestamp,
 					ChainName:      c.chainName,
 					Direction:      true,
@@ -177,7 +177,7 @@ func init() {
 		},
 		func(m vm.MsgCall, c convCtx) ([]s.Message, error) {
 			return []s.Message{&s.MsgCall{
-				TxId:           c.txId,
+				TxHash:         c.txHash,
 				MessageCounter: c.messageCounter,
 				ChainName:      c.chainName,
 				Caller:         c.resolver.GetAddress(m.Caller.String()),
@@ -198,7 +198,7 @@ func init() {
 		},
 		func(m vm.MsgAddPackage, c convCtx) ([]s.Message, error) {
 			return []s.Message{&s.MsgAddPackage{
-				TxId:           c.txId,
+				TxHash:         c.txHash,
 				MessageCounter: c.messageCounter,
 				ChainName:      c.chainName,
 				Creator:        c.resolver.GetAddress(m.Creator.String()),
@@ -219,7 +219,7 @@ func init() {
 		},
 		func(m vm.MsgRun, c convCtx) ([]s.Message, error) {
 			return []s.Message{&s.MsgRun{
-				TxId:           c.txId,
+				TxHash:         c.txHash,
 				MessageCounter: c.messageCounter,
 				ChainName:      c.chainName,
 				Caller:         c.resolver.GetAddress(m.Caller.String()),
@@ -240,7 +240,7 @@ func init() {
 		},
 		func(m auth.MsgCreateSession, c convCtx) ([]s.Message, error) {
 			return []s.Message{&s.MsgAuthCrSession{
-				TxId:           c.txId,
+				TxHash:         c.txHash,
 				ChainName:      c.chainName,
 				Timestamp:      c.timestamp,
 				Creator:        c.resolver.GetAddress(m.Creator.String()),
@@ -261,7 +261,7 @@ func init() {
 		},
 		func(m auth.MsgRevokeSession, c convCtx) ([]s.Message, error) {
 			return []s.Message{&s.MsgAuthRvSession{
-				TxId:           c.txId,
+				TxHash:         c.txHash,
 				ChainName:      c.chainName,
 				Timestamp:      c.timestamp,
 				Creator:        c.resolver.GetAddress(m.Creator.String()),
@@ -278,7 +278,7 @@ func init() {
 		},
 		func(m auth.MsgRevokeAllSessions, c convCtx) ([]s.Message, error) {
 			return []s.Message{&s.MsgAuthRvAllSessions{
-				TxId:           c.txId,
+				TxHash:         c.txHash,
 				ChainName:      c.chainName,
 				Timestamp:      c.timestamp,
 				Creator:        c.resolver.GetAddress(m.Creator.String()),
