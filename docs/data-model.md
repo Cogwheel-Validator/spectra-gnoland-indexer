@@ -53,6 +53,10 @@ data is gathered and processes and all the transaction general data and messages
 are stored in the database. The regular and validator addresses are processed in that way that the addresses are
 stored as unique int32 ids and then referenced by the integer value in the transaction tables.
 
+> **Note (post-0.8.1):** Transaction tables store the tx hash directly as `BYTEA tx_hash`, replacing the
+> `tx_id`/`tx_hash_id` indirection used in v0.7.0-v0.8.0. There is no migration path between the two schemas;
+> existing databases must be dropped and re-indexed from scratch.
+
 ## Core Schema
 
 ```mermaid
@@ -64,14 +68,8 @@ erDiagram
       TEXT chain_id
       chain_name chain_name
     }
-    tx_hash_id {
-      BIGINT tx_id
-      BYTEA tx_hash
-      TIMESTAMPTZ timestamp
-      chain_name chain_name
-    }
     transaction_general {
-      BIGINT tx_id
+      BYTEA tx_hash
       chain_name chain_name
       TIMESTAMPTZ timestamp
       BIGINT block_height
@@ -105,7 +103,7 @@ erDiagram
     }
     address_tx {
       INTEGER address
-      BIGINT tx_id
+      BYTEA tx_hash
       chain_name chain_name
       TIMESTAMPTZ timestamp
     }
@@ -113,7 +111,6 @@ erDiagram
     blocks ||--o{ validator_block_signing : "has"
     gno_validators ||--o{ validator_block_signing : "signs"
     gno_validators ||--o{ blocks : "proposes"
-    tx_hash_id ||--o{ transaction_general : "identifies"
     transaction_general ||--o{ address_tx : "involves"
     gno_addresses ||--o{ address_tx : "participates"
 ```
@@ -123,19 +120,15 @@ erDiagram
 ```mermaid
 erDiagram
     transaction_general {
-      BIGINT tx_id
-      chain_name chain_name
-    }
-    tx_hash_id {
-      BIGINT tx_id
       BYTEA tx_hash
+      chain_name chain_name
     }
     gno_addresses {
       INTEGER id
       TEXT address
     }
     bank_msg_send {
-      BIGINT tx_id
+      BYTEA tx_hash
       TIMESTAMPTZ timestamp
       chain_name chain_name
       INTEGER from_address
@@ -145,7 +138,7 @@ erDiagram
       SMALLINT message_counter
     }
     vm_msg_call {
-      BIGINT tx_id
+      BYTEA tx_hash
       TIMESTAMPTZ timestamp
       chain_name chain_name
       INTEGER caller
@@ -158,7 +151,7 @@ erDiagram
       SMALLINT message_counter
     }
     vm_msg_add_package {
-      BIGINT tx_id
+      BYTEA tx_hash
       TIMESTAMPTZ timestamp
       chain_name chain_name
       INTEGER creator
@@ -171,7 +164,7 @@ erDiagram
       SMALLINT message_counter
     }
     vm_msg_run {
-      BIGINT tx_id
+      BYTEA tx_hash
       TIMESTAMPTZ timestamp
       chain_name chain_name
       INTEGER caller
@@ -184,7 +177,7 @@ erDiagram
       SMALLINT message_counter
     }
     bank_msg_multi_send {
-      BIGINT tx_id
+      BYTEA tx_hash
       TIMESTAMPTZ timestamp
       chain_name chain_name
       BOOLEAN direction
@@ -198,11 +191,6 @@ erDiagram
     transaction_general ||--o{ vm_msg_add_package : "contains"
     transaction_general ||--o{ vm_msg_run : "contains"
     transaction_general ||--o{ bank_msg_multi_send : "contains"
-    tx_hash_id ||--o{ bank_msg_send : "has"
-    tx_hash_id ||--o{ vm_msg_call : "has"
-    tx_hash_id ||--o{ vm_msg_add_package : "has"
-    tx_hash_id ||--o{ vm_msg_run : "has"
-    tx_hash_id ||--o{ bank_msg_multi_send : "has"
     gno_addresses ||--o{ bank_msg_send : "from/to"
     gno_addresses ||--o{ vm_msg_call : "caller"
     gno_addresses ||--o{ vm_msg_add_package : "creator"
@@ -229,27 +217,27 @@ erDiagram
       TEXT pkg_path
     }
     transaction_general {
-      BIGINT tx_id
+      BYTEA tx_hash
       event[] tx_events
       BYTEA tx_events_compressed
       BOOLEAN compression_on
     }
     bank_msg_send {
-      BIGINT tx_id
+      BYTEA tx_hash
       amount[] amount
     }
     vm_msg_call {
-      BIGINT tx_id
+      BYTEA tx_hash
       amount[] send
       amount[] max_deposit
     }
     vm_msg_add_package {
-      BIGINT tx_id
+      BYTEA tx_hash
       amount[] send
       amount[] max_deposit
     }
     vm_msg_run {
-      BIGINT tx_id
+      BYTEA tx_hash
       amount[] send
       amount[] max_deposit
     }
@@ -291,7 +279,7 @@ erDiagram
       chain_name chain_name
     }
     transaction_general {
-      BIGINT tx_id
+      BYTEA tx_hash
       chain_name chain_name
     }
     validator_block_signing {
@@ -300,7 +288,7 @@ erDiagram
     }
     address_tx {
       INTEGER address
-      BIGINT tx_id
+      BYTEA tx_hash
       chain_name chain_name
     }
     block_counter {
