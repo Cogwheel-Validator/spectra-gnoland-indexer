@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-07-22
+
+BREAKING CHANGES: Tx hashes are directly stored into the tables now, instead of relying on tx_id. Clear
+the whole database down and re-index as there is no migration path for existing data.
+
+The change that was added in version v0.7.0 added a new table `tx_hash_id` that allowed to tie each
+table that requires the `tx_hash` and to switch it for `tx_id` which was only 8 bytes instead of 16, and 
+it allowed to query by id across different tables, while at the same time compression of integers
+with TimescaleDB achieved storing this data under less that 8 bytes. 
+
+However the trouble arouse when the database hit 1.5 million transactions, there were a lot of joins 
+needed to acquire most basic data. Simple solution was to revert the schema similar to the one from 
+v0.7.0.
+
+If you already have a indexer with the versions <= v0.8.0, the easiest way would be to create another
+database and make indexer run with the new schema. Then when ready delete the old database and set up the
+API to point to the new database.
+
+### Changes
+
+- Ci: add dependabot.yml for workflow updates [9b7ed01](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/9b7ed01ebd6b485c6c3118cc5499a89f7f0f5049)
+- Ci: update release.yml [5075ea0](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5075ea040a6c9297262e1923fd9df7bc57e3bb7f)
+- Chore: golangci error check [5f0edb2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5f0edb2d9f007a4a21328d1b223472f3c20b017b)
+- Refac(pkgs/schema): adjust the ordey by to use tx_hash [6485bb7](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/6485bb78c4a3bf062432262c790696dd48673e27)
+- Refac: store the tx_hash directly into the tables instead of using id [a328c77](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/a328c770e8b08cd9c1eaac060ac07e7fcf371566)
+
 ## [0.8.0] - 2026-07-11
 
 This version does include some small features so the first version of explorer for Gnoland is released.
