@@ -23,7 +23,6 @@ var (
 	_ DBTable = MsgAuthRvAllSessions{}
 	_ DBTable = ApiKey{}
 	_ DBTable = SchemaMigration{}
-	_ DBTable = TxHashId{}
 )
 
 // Rows inserted through the generic COPY path must be Insertable.

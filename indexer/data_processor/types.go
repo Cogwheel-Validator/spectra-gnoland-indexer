@@ -12,7 +12,6 @@ import (
 type Database interface {
 	// InsertRows inserts a homogeneous batch of rows (all the same table) via COPY FROM.
 	InsertRows(ctx context.Context, rows []s.Insertable) error
-	InsertTxHashIds(ctx context.Context, txHashes []string, timestamps []time.Time, chainName string) (map[string]int64, error)
 }
 
 // Define interface for what DataProcessor needs from AddressCache
@@ -26,7 +25,6 @@ type DataProcessor struct {
 	addressCache   AddressCache
 	validatorCache AddressCache
 	chainName      string
-	txHashCache    map[string]int64
 }
 
 type TransactionsData struct {
@@ -56,7 +54,6 @@ func (t *TransactionsData) GetTransactionErrorDetails() *string {
 // Internal types for address tx mapping
 type key struct {
 	address   int32
-	txId      int64
+	txHash    string
 	chainName string
 }
-

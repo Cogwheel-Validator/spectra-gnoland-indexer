@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"maps"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,7 +24,6 @@ var l = logger.Get()
 //   - addressCache: the address cache interface
 //   - validatorCache: the validator cache interface
 //   - chainName: the name of the chain string
-//   - batchSize: the batch size for the tx hash cache
 //
 // Returns:
 //   - *DataProcessor: the data processor
@@ -37,14 +34,12 @@ func NewDataProcessor(
 	addressCache AddressCache,
 	validatorCache AddressCache,
 	chainName string,
-	batchSize int,
 ) *DataProcessor {
 	return &DataProcessor{
 		dbPool:         db,
 		addressCache:   addressCache,
 		validatorCache: validatorCache,
 		chainName:      chainName,
-		txHashCache:    make(map[string]int64, batchSize),
 	}
 }
 
@@ -216,37 +211,6 @@ func (d *DataProcessor) processBlock(
 	}
 }
 
-// ProcessTxHashIds is a function to process the tx hash ids and store them in the tx hash cache.
-// It is used to store transaction ids that will be used later when inserting.
-//
-// Parameters:
-//   - txData - transactions data from RPC client
-func (d *DataProcessor) ProcessTxHashIds(
-	txData []TransactionsData,
-) {
-	lenData := len(txData)
-	txHashes := make([]string, lenData)
-	timestamps := make([]time.Time, lenData)
-	for idx, tx := range txData {
-		txHashes[idx] = tx.Response.GetHash()
-		timestamps[idx] = tx.Timestamp
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	txHashIds, err := d.dbPool.InsertTxHashIds(ctx, txHashes, timestamps, d.chainName)
-	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Failed to insert tx hash ids: %v", err,
-			)
-		return
-	}
-	clear(d.txHashCache)
-	maps.Copy(d.txHashCache, txHashIds)
-}
-
 // ProcessTransactions is a swarm method to process the transactions from a map of transactions and timestamps.
 // It will process the transactions using async workers and collect them in a pre allocated slice
 // it will then insert the transactions into the database.
@@ -323,14 +287,7 @@ func (d *DataProcessor) processTransaction(
 
 	fee := decodedMsg.GetFee()
 	msgTypes := decodedMsg.GetMsgTypes()
-
-	txId, ok := d.txHashCache[transaction.Response.GetHash()]
-	if !ok {
-		l.Error().
-			Caller().
-			Stack().Msgf("Transaction hash not found in cache: %s", transaction.Response.GetHash())
-		return
-	}
+	txHash := decodedMsg.GetBasicData().TxHash
 
 	gasWanted, err := strconv.ParseUint(txResult.GasWanted, 10, 64)
 	if err != nil {
@@ -372,7 +329,7 @@ func (d *DataProcessor) processTransaction(
 	}
 
 	transactionsData[idx] = s.TransactionGeneral{
-		TxId:               txId,
+		TxHash:             txHash,
 		ChainName:          d.chainName,
 		Timestamp:          transaction.Timestamp,
 		BlockHeight:        transaction.BlockHeight,
@@ -560,19 +517,8 @@ func (d *DataProcessor) processMessageGroup(
 		return
 	}
 
-	txId, ok := d.txHashCache[transaction.Response.GetHash()]
-	if !ok {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Transaction hash not found in cache: %s", transaction.Response.GetHash(),
-			)
-		return
-	}
-
 	dbMessages, err := decodedMsg.ConvertToDbMessages(
-		d.addressCache, txId, d.chainName, transaction.Timestamp, decodedMsg.GetSigners(),
+		d.addressCache, decodedMsg.GetBasicData().TxHash, d.chainName, transaction.Timestamp, decodedMsg.GetSigners(),
 	)
 	if err != nil {
 		l.Error().
@@ -614,7 +560,10 @@ func (d *DataProcessor) insertMessageBatch(batch decoder.InsertBatch, errors *[]
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	if err := d.dbPool.InsertRows(ctx, batch.Rows); err != nil {
-		hashes := d.findHashes(batch.TxIds)
+		hashes := make([]string, len(batch.TxHashes))
+		for i, h := range batch.TxHashes {
+			hashes[i] = base64.StdEncoding.EncodeToString(h)
+		}
 		*errors = append(*errors, fmt.Errorf("failed to insert %s: %w, hashes: %v", batch.Rows[0].TableName(), err, hashes))
 	}
 }
@@ -700,17 +649,6 @@ func (d *DataProcessor) processValidatorSigning(
 	*valid = true
 }
 
-func (d *DataProcessor) findHashes(txIds []int64) []string {
-	hashes := make([]string, 0, len(txIds))
-	for hash, id := range d.txHashCache {
-		if slices.Contains(txIds, id) {
-			hashes = append(hashes, hash)
-		}
-	}
-
-	return hashes
-}
-
 // createAddressTx builds a flat slice of AddressTx rows from all message groups.
 func createAddressTx(msgs *decoder.DbMessages) []s.AddressTx {
 	seen := make(map[key]s.AddressTx)
@@ -731,11 +669,11 @@ func addToAddressTx(
 	ts time.Time,
 ) {
 	for _, addr := range addresses.GetAddressList() {
-		k := key{addr, addresses.TxId, chainName}
+		k := key{addr, string(addresses.TxHash), chainName}
 		if _, ok := seen[k]; !ok {
 			seen[k] = s.AddressTx{
 				Address:   addr,
-				TxId:      addresses.TxId,
+				TxHash:    addresses.TxHash,
 				ChainName: chainName,
 				Timestamp: ts,
 			}

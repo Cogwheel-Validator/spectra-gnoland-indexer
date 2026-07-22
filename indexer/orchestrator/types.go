@@ -16,7 +16,6 @@ type DataProcessor interface {
 	ProcessTransactions(transactions []dataprocessor.TransactionsData, compressEvents bool, fromHeight uint64, toHeight uint64)
 	ProcessMessages(transactions []dataprocessor.TransactionsData, fromHeight uint64, toHeight uint64) error
 	ProcessValidatorSignings(commits []*rpcClient.CommitResponse, fromHeight uint64, toHeight uint64)
-	ProcessTxHashIds(txData []dataprocessor.TransactionsData)
 }
 
 type QueryOperator interface {

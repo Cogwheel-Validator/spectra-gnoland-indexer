@@ -420,14 +420,6 @@ func (or *Orchestrator) processPhase1(
 		l.Info().Msg("Phase 1: ProcessValidatorAddresses completed")
 	})
 
-	if ctx.hasTxs {
-		wg1.Go(func() {
-			l.Info().Msg("Phase 1: Starting ProcessTxHashIds")
-			or.dataProcessor.ProcessTxHashIds(ctx.transactions)
-			l.Info().Msg("Phase 1: ProcessTxHashIds completed")
-		})
-	}
-
 	wg1.Wait()
 	l.Info().Msg("Phase 1: chunk processing completed")
 }

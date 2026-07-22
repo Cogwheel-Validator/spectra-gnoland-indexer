@@ -169,7 +169,7 @@ func TestDecodeRoundTrip(t *testing.T) {
 	}
 
 	// The decoded messages must convert end-to-end without error.
-	if _, err := dm.ConvertToDbMessages(newMockResolver(), 1, "c", time.Unix(0, 0).UTC(), basic.Signers); err != nil {
+	if _, err := dm.ConvertToDbMessages(newMockResolver(), []byte("txhash1"), "c", time.Unix(0, 0).UTC(), basic.Signers); err != nil {
 		t.Fatalf("ConvertToDbMessages on decoded tx: %v", err)
 	}
 }
@@ -179,7 +179,7 @@ func TestDecodeRoundTrip(t *testing.T) {
 // input/output).
 func TestConvertToDbMessages(t *testing.T) {
 	dm := &DecodedMsg{Msgs: sampleMessages(sessionPubKey())}
-	out, err := dm.ConvertToDbMessages(newMockResolver(), 42, "test-chain", time.Unix(1700000000, 0).UTC(), nil)
+	out, err := dm.ConvertToDbMessages(newMockResolver(), []byte("txhash42"), "test-chain", time.Unix(1700000000, 0).UTC(), nil)
 	if err != nil {
 		t.Fatalf("ConvertToDbMessages: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestMsgSendConversion(t *testing.T) {
 		bank.MsgSend{FromAddress: from, ToAddress: to, Amount: coins(100, "ugnot")},
 	}}
 
-	out, err := dm.ConvertToDbMessages(resolver, 7, "test-chain", time.Unix(123, 0).UTC(), nil)
+	out, err := dm.ConvertToDbMessages(resolver, []byte("txhash7"), "test-chain", time.Unix(123, 0).UTC(), nil)
 	if err != nil {
 		t.Fatalf("convert: %v", err)
 	}
@@ -231,8 +231,8 @@ func TestMsgSendConversion(t *testing.T) {
 	if row.ToAddress != resolver.GetAddress(to.String()) {
 		t.Errorf("ToAddress = %d, expected resolved id %d", row.ToAddress, resolver.GetAddress(to.String()))
 	}
-	if row.TxId != 7 || row.ChainName != "test-chain" {
-		t.Errorf("TxId/ChainName = %d/%q, expected 7/test-chain", row.TxId, row.ChainName)
+	if string(row.TxHash) != "txhash7" || row.ChainName != "test-chain" {
+		t.Errorf("TxHash/ChainName = %s/%q, expected txhash7/test-chain", row.TxHash, row.ChainName)
 	}
 	if len(row.Amount) != 1 || row.Amount[0].Denom != "ugnot" || row.Amount[0].Amount.Int.Int64() != 100 {
 		t.Errorf("Amount = %+v, expected 100 ugnot", row.Amount)
@@ -247,7 +247,7 @@ func TestMultiSendDirections(t *testing.T) {
 		},
 	}}
 
-	out, err := dm.ConvertToDbMessages(newMockResolver(), 1, "c", time.Unix(0, 0).UTC(), nil)
+	out, err := dm.ConvertToDbMessages(newMockResolver(), []byte("txhash1"), "c", time.Unix(0, 0).UTC(), nil)
 	if err != nil {
 		t.Fatalf("convert: %v", err)
 	}
@@ -280,7 +280,7 @@ func TestCreateSessionConversion(t *testing.T) {
 		},
 	}}
 
-	out, err := dm.ConvertToDbMessages(resolver, 1, "c", time.Unix(0, 0).UTC(), nil)
+	out, err := dm.ConvertToDbMessages(resolver, []byte("txhash1"), "c", time.Unix(0, 0).UTC(), nil)
 	if err != nil {
 		t.Fatalf("convert: %v", err)
 	}
@@ -315,7 +315,7 @@ func TestMessageCounterMatchesIndex(t *testing.T) {
 		auth.MsgRevokeAllSessions{Creator: testAddr(11)},
 	}}
 
-	out, err := dm.ConvertToDbMessages(newMockResolver(), 1, "c", time.Unix(0, 0).UTC(), nil)
+	out, err := dm.ConvertToDbMessages(newMockResolver(), []byte("txhash1"), "c", time.Unix(0, 0).UTC(), nil)
 	if err != nil {
 		t.Fatalf("convert: %v", err)
 	}
@@ -382,7 +382,7 @@ func TestUnknownMessageTypeRejected(t *testing.T) {
 	}
 
 	dm := &DecodedMsg{Msgs: []std.Msg{unknownMsg{}}}
-	if _, err := dm.ConvertToDbMessages(newMockResolver(), 1, "c", time.Unix(0, 0).UTC(), nil); err == nil {
+	if _, err := dm.ConvertToDbMessages(newMockResolver(), []byte("txhash1"), "c", time.Unix(0, 0).UTC(), nil); err == nil {
 		t.Error("ConvertToDbMessages accepted an unregistered message type, expected error")
 	}
 }

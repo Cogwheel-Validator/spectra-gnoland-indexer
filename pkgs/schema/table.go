@@ -14,14 +14,14 @@ const tmD = "timestamp DESC"
 // It stores in a set like data structure to avoid duplicates
 // all addresses for the same transaction hash together
 type TxAddresses struct {
-	TxId      int64
+	TxHash    []byte
 	Addresses map[int32]struct{}
 }
 
 // NewTxAddresses creates a new TxAddresses with the given transaction hash
-func NewTxAddresses(txId int64) *TxAddresses {
+func NewTxAddresses(txHash []byte) *TxAddresses {
 	return &TxAddresses{
-		TxId:      txId,
+		TxHash:    txHash,
 		Addresses: make(map[int32]struct{}),
 	}
 }
@@ -210,12 +210,6 @@ func Hypertables() []Hypertable {
 		{MsgCall{}, msgParams},
 		{MsgAddPackage{}, msgParams},
 		{MsgRun{}, msgParams},
-		{TxHashId{}, dbinit.HypertableParams{
-			PartitionColumn: "timestamp",
-			ChunkInterval:   chunk,
-			OrderBy:         "tx_id DESC, timestamp DESC",
-			SegmentBy:       []string{"chain_name"},
-		}},
 		{MsgAuthCrSession{}, msgParams},
 		{MsgAuthRvSession{}, msgParams},
 		{MsgAuthRvAllSessions{}, msgParams},

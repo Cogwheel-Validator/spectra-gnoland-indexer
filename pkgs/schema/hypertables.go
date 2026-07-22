@@ -8,41 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// TxHashId represents a transaction hash and its associated metadata
-//
-// Stores:
-//   - TxId (bigserial)
-//   - TxHash (bytea)
-//   - Timestamp (timestamptz)
-//   - ChainName (chain_name)
-//
-// PRIMARY KEY (tx_id, timestamp. chain_name)
-type TxHashId struct {
-	TxId      int64     `db:"tx_id" dbtype:"bigint generated always as identity" nullable:"false" primary:"true"`
-	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"false" unique:"true"`
-	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true" unique:"true"`
-	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false" unique:"true"`
-}
-
-func (t TxHashId) TableName() string {
-	return "tx_hash_id"
-}
-
-func (t TxHashId) GetTableInfo() (*dbinit.TableInfo, error) {
-	return dbinit.GetTableInfo(t, t.TableName())
-}
-
-func (t TxHashId) TableColumns() []string {
-	fields := reflect.TypeFor[TxHashId]()
-	numFields := fields.NumField()
-	columns := make([]string, numFields)
-	for i := range numFields {
-		field := fields.Field(i)
-		columns[i] = field.Tag.Get("db")
-	}
-	return columns
-}
-
 // Blocks represents a blockchain block with database mapping information
 //
 // Stores:
@@ -123,13 +88,13 @@ func (vbs ValidatorBlockSigning) TableColumns() []string {
 //
 // Stores:
 // - Address (integer)
-// - TxId (bigint)
+// - TxHash (bytea)
 // - Chain ID (text)
 // - Timestamp (timestamptz)
-// PRIMARY KEY (address, tx_id, chain_name, timestamp)
+// PRIMARY KEY (address, tx_hash, chain_name, timestamp)
 type AddressTx struct {
 	Address   int32     `db:"address" dbtype:"INTEGER" nullable:"false" primary:"true"`
-	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 }
@@ -157,7 +122,7 @@ func (at AddressTx) TableColumns() []string {
 // TransactionGeneral represents a transaction general data with database mapping information
 //
 // Stores:
-// - TxId (bigint)
+// - TxHash (bytea)
 // - ChainName (chain_name)
 // - Timestamp (timestamptz)
 // - MsgTypes (text[])
@@ -168,9 +133,9 @@ func (at AddressTx) TableColumns() []string {
 // - Fee (fee)
 // - Success (boolean)
 //
-// PRIMARY KEY (tx_id, chain_name, timestamp)
+// PRIMARY KEY (tx_hash, chain_name, timestamp)
 type TransactionGeneral struct {
-	TxId        int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	TxHash      []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	ChainName   string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Timestamp   time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	BlockHeight uint64    `db:"block_height" dbtype:"bigint" nullable:"false" primary:"false"`
@@ -217,7 +182,7 @@ func (tg *TransactionGeneral) GetMessageTypes() []string {
 // MsgSend represents a bank send message
 //
 // Stores:
-// - TxId (bigint)
+// - TxHash (bytea)
 // - Timestamp (timestamptz)
 // - ChainName (chain_name)
 // - FromAddress (integer)
@@ -226,9 +191,9 @@ func (tg *TransactionGeneral) GetMessageTypes() []string {
 // - Signers (integer[])
 // - MessageCounter (smallint)
 //
-// PRIMARY KEY (tx_id, chain_name, timestamp, message_counter)
+// PRIMARY KEY (tx_hash, chain_name, timestamp, message_counter)
 type MsgSend struct {
-	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	// gno address, pull from the gno_addresses table
@@ -270,7 +235,7 @@ func (ms MsgSend) TableColumns() []string {
 // Returns:
 //   - *TxAddresses: grouped addresses for this transaction
 func (ms *MsgSend) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(ms.TxId)
+	txAddresses := NewTxAddresses(ms.TxHash)
 	txAddresses.AddAddress(ms.FromAddress)
 	if ms.ToAddress != 0 {
 		txAddresses.AddAddress(ms.ToAddress)
@@ -284,7 +249,7 @@ func (ms *MsgSend) GetAllAddresses() *TxAddresses {
 // MsgCall represents a VM function call message
 //
 // Stores:
-//   - TxId (bigint)
+//   - TxHash (bytea)
 //   - Timestamp (timestamptz)
 //   - ChainName (chain_name)
 //   - Caller (integer)
@@ -296,9 +261,9 @@ func (ms *MsgSend) GetAllAddresses() *TxAddresses {
 //   - Signers (integer[])
 //   - MessageCounter (smallint)
 //
-// PRIMARY KEY (tx_id, chain_name, timestamp, message_counter)
+// PRIMARY KEY (tx_hash, chain_name, timestamp, message_counter)
 type MsgCall struct {
-	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	// gno address, pull from the gno_addresses table
@@ -340,7 +305,7 @@ func (mc MsgCall) TableColumns() []string {
 // Returns:
 //   - *TxAddresses: grouped addresses for this transaction
 func (mc *MsgCall) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(mc.TxId)
+	txAddresses := NewTxAddresses(mc.TxHash)
 	txAddresses.AddAddress(mc.Caller)
 	for _, addr := range mc.Signers {
 		txAddresses.AddAddress(addr)
@@ -351,7 +316,7 @@ func (mc *MsgCall) GetAllAddresses() *TxAddresses {
 // MsgAddPackage represents a VM package addition message
 //
 // Stores:
-// - TxId (bigint)
+// - TxHash (bytea)
 // - ChainName (chain_name)
 // - Creator (text)
 // - PkgPath (text)
@@ -363,9 +328,9 @@ func (mc *MsgCall) GetAllAddresses() *TxAddresses {
 // - Timestamp (timestamptz)
 // - MessageCounter (smallint)
 //
-// PRIMARY KEY (tx_id, chain_name, timestamp)
+// PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgAddPackage struct {
-	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	// gno address, pull from the gno_addresses table
@@ -408,7 +373,7 @@ func (ma MsgAddPackage) TableColumns() []string {
 // Returns:
 //   - *TxAddresses: grouped addresses for this transaction
 func (ma *MsgAddPackage) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(ma.TxId)
+	txAddresses := NewTxAddresses(ma.TxHash)
 	txAddresses.AddAddress(ma.Creator)
 	for _, addr := range ma.Signers {
 		txAddresses.AddAddress(addr)
@@ -419,7 +384,7 @@ func (ma *MsgAddPackage) GetAllAddresses() *TxAddresses {
 // MsgRun represents a VM package run message
 //
 // Stores:
-// - TxId (bigint)
+// - TxHash (bytea)
 // - Timestamp (timestamptz)
 // - ChainName (text)
 // - Caller (integer)
@@ -431,9 +396,9 @@ func (ma *MsgAddPackage) GetAllAddresses() *TxAddresses {
 // - Signers (integer[])
 // - MessageCounter (smallint)
 //
-// PRIMARY KEY (tx_id, chain_name, timestamp)
+// PRIMARY KEY (tx_hash, chain_name, timestamp)
 type MsgRun struct {
-	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	// gno address, pull from the gno_addresses table
@@ -477,7 +442,7 @@ func (mr MsgRun) GetTableInfo() (*dbinit.TableInfo, error) {
 // Returns:
 //   - *TxAddresses: grouped addresses for this transaction
 func (mr *MsgRun) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(mr.TxId)
+	txAddresses := NewTxAddresses(mr.TxHash)
 	txAddresses.AddAddress(mr.Caller)
 	for _, addr := range mr.Signers {
 		txAddresses.AddAddress(addr)
@@ -491,15 +456,15 @@ func (mr *MsgRun) GetAllAddresses() *TxAddresses {
 // input/output for every address.
 //
 // Stores:
-//   - TxId: transaction ID
+//   - TxHash: transaction hash
 //   - Timestamp: timestamp of the transaction
 //   - Direction: true for output, false for input
 //   - AddressId: address ID
 //   - Coins: amount of coins
 //
-// PRIMARY KEY (tx_id, timestamp, chain_name, direction, address_id, message_counter)
+// PRIMARY KEY (tx_hash, timestamp, chain_name, direction, address_id, message_counter)
 type MsgMultiSend struct {
-	TxId      int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	TxHash    []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	Timestamp time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	// By direction it refers to if this part is output entry or input entry.
@@ -525,7 +490,7 @@ func (m MsgMultiSend) GetTableInfo() (*dbinit.TableInfo, error) {
 // Returns:
 //   - *TxAddresses: grouped addresses for this transaction
 func (m *MsgMultiSend) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(m.TxId)
+	txAddresses := NewTxAddresses(m.TxHash)
 	txAddresses.AddAddress(m.AddressId)
 	return txAddresses
 }
@@ -544,7 +509,7 @@ func (m MsgMultiSend) TableColumns() []string {
 }
 
 type MsgAuthCrSession struct {
-	TxId       int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	TxHash     []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	Timestamp  time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName  string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Creator    int32     `db:"creator" dbtype:"integer" nullable:"false" primary:"false"`
@@ -579,7 +544,7 @@ func (ma MsgAuthCrSession) TableColumns() []string {
 }
 
 func (ma *MsgAuthCrSession) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(ma.TxId)
+	txAddresses := NewTxAddresses(ma.TxHash)
 	txAddresses.AddAddress(ma.Creator)
 	txAddresses.AddAddress(ma.SessionKey)
 	for _, addr := range ma.Signers {
@@ -589,7 +554,7 @@ func (ma *MsgAuthCrSession) GetAllAddresses() *TxAddresses {
 }
 
 type MsgAuthRvSession struct {
-	TxId           int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	TxHash         []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	Timestamp      time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName      string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Creator        int32     `db:"creator" dbtype:"integer" nullable:"false" primary:"false"`
@@ -618,7 +583,7 @@ func (ma MsgAuthRvSession) TableColumns() []string {
 }
 
 func (ma *MsgAuthRvSession) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(ma.TxId)
+	txAddresses := NewTxAddresses(ma.TxHash)
 	txAddresses.AddAddress(ma.Creator)
 	txAddresses.AddAddress(ma.SessionKey)
 	for _, addr := range ma.Signers {
@@ -628,7 +593,7 @@ func (ma *MsgAuthRvSession) GetAllAddresses() *TxAddresses {
 }
 
 type MsgAuthRvAllSessions struct {
-	TxId           int64     `db:"tx_id" dbtype:"bigint" nullable:"false" primary:"true"`
+	TxHash         []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
 	Timestamp      time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
 	ChainName      string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Creator        int32     `db:"creator" dbtype:"integer" nullable:"false" primary:"false"`
@@ -656,7 +621,7 @@ func (ma MsgAuthRvAllSessions) TableColumns() []string {
 }
 
 func (ma *MsgAuthRvAllSessions) GetAllAddresses() *TxAddresses {
-	txAddresses := NewTxAddresses(ma.TxId)
+	txAddresses := NewTxAddresses(ma.TxHash)
 	txAddresses.AddAddress(ma.Creator)
 	for _, addr := range ma.Signers {
 		txAddresses.AddAddress(addr)

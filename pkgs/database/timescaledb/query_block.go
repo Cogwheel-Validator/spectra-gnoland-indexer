@@ -27,10 +27,9 @@ func (t *TimescaleDb) GetBlock(ctx context.Context, height uint64, chainName str
 	`
 	query2 := `
 	SELECT
-	encode(id.tx_hash, 'base64'),
+	encode(tg.tx_hash, 'base64'),
 	tg.block_height
 	FROM transaction_general tg
-	JOIN tx_hash_id id ON tg.tx_id = id.tx_id AND tg.chain_name = id.chain_name
 	WHERE tg.chain_name = $1
 	AND tg.block_height = $2
 	`
@@ -69,10 +68,6 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*da
 	query := `
 	WITH latest_height AS MATERIALIZED (
 		SELECT height FROM blocks WHERE chain_name = $1 ORDER BY height DESC LIMIT 1
-	),
-	tx_ids AS MATERIALIZED (
-		SELECT tx_id FROM transaction_general
-		WHERE chain_name = $1 AND block_height = (SELECT height FROM latest_height)
 	)
 	SELECT
 	encode(b.hash, 'base64'),
@@ -82,8 +77,8 @@ func (t *TimescaleDb) GetLatestBlock(ctx context.Context, chainName string) (*da
 	gv.address,
 	COALESCE(
 		(SELECT array_agg(encode(tx_hash, 'base64'))
-		 FROM tx_hash_id
-		 WHERE chain_name = $1 AND tx_id = ANY(ARRAY(SELECT tx_id FROM tx_ids))),
+		 FROM transaction_general
+		 WHERE chain_name = $1 AND block_height = (SELECT height FROM latest_height)),
 		'{}'
 	)
 	FROM blocks b
@@ -129,10 +124,9 @@ func (t *TimescaleDb) GetLastXBlocks(ctx context.Context, chainName string, x ui
 	`
 	query2 := `
 	SELECT
-	encode(id.tx_hash, 'base64'),
+	encode(tg.tx_hash, 'base64'),
 	tg.block_height
 	FROM transaction_general tg
-	JOIN tx_hash_id id ON tg.tx_id = id.tx_id AND tg.chain_name = id.chain_name
 	WHERE tg.chain_name = $1
 	AND tg.block_height <= (SELECT MAX(height) FROM blocks WHERE chain_name = $1)
 	AND tg.block_height >= (SELECT MAX(height) FROM blocks WHERE chain_name = $1) - $2
@@ -189,10 +183,9 @@ func (t *TimescaleDb) GetFromToBlocks(ctx context.Context, fromHeight uint64, to
 
 	query2 := `
 	SELECT
-	encode(id.tx_hash, 'base64'),
+	encode(tg.tx_hash, 'base64'),
 	tg.block_height
 	FROM transaction_general tg
-	JOIN tx_hash_id id ON tg.tx_id = id.tx_id AND tg.chain_name = id.chain_name
 	WHERE tg.chain_name = $1
 	AND tg.block_height >= $2 AND tg.block_height <= $3
 	`

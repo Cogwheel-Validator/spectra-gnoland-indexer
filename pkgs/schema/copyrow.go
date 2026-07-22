@@ -68,7 +68,7 @@ func (vbs ValidatorBlockSigning) CopyRow() []any {
 
 func (tg TransactionGeneral) CopyRow() []any {
 	return []any{
-		tg.TxId,
+		tg.TxHash,
 		tg.ChainName,
 		tg.Timestamp,
 		tg.BlockHeight,
@@ -88,7 +88,7 @@ func (tg TransactionGeneral) CopyRow() []any {
 func (at AddressTx) CopyRow() []any {
 	return []any{
 		at.Address,
-		at.TxId,
+		at.TxHash,
 		at.ChainName,
 		at.Timestamp,
 	}
@@ -96,7 +96,7 @@ func (at AddressTx) CopyRow() []any {
 
 func (ms MsgSend) CopyRow() []any {
 	return []any{
-		ms.TxId,
+		ms.TxHash,
 		ms.Timestamp,
 		ms.ChainName,
 		ms.FromAddress,
@@ -109,7 +109,7 @@ func (ms MsgSend) CopyRow() []any {
 
 func (mms MsgMultiSend) CopyRow() []any {
 	return []any{
-		mms.TxId,
+		mms.TxHash,
 		mms.Timestamp,
 		mms.ChainName,
 		mms.Direction,
@@ -122,7 +122,7 @@ func (mms MsgMultiSend) CopyRow() []any {
 
 func (mc MsgCall) CopyRow() []any {
 	return []any{
-		mc.TxId,
+		mc.TxHash,
 		mc.Timestamp,
 		mc.ChainName,
 		mc.Caller,
@@ -138,7 +138,7 @@ func (mc MsgCall) CopyRow() []any {
 
 func (map_ MsgAddPackage) CopyRow() []any {
 	return []any{
-		map_.TxId,
+		map_.TxHash,
 		map_.Timestamp,
 		map_.ChainName,
 		map_.Creator,
@@ -154,7 +154,7 @@ func (map_ MsgAddPackage) CopyRow() []any {
 
 func (mr MsgRun) CopyRow() []any {
 	return []any{
-		mr.TxId,
+		mr.TxHash,
 		mr.Timestamp,
 		mr.ChainName,
 		mr.Caller,
@@ -170,7 +170,7 @@ func (mr MsgRun) CopyRow() []any {
 
 func (cs MsgAuthCrSession) CopyRow() []any {
 	return []any{
-		cs.TxId,
+		cs.TxHash,
 		cs.Timestamp,
 		cs.ChainName,
 		cs.Creator,
@@ -186,7 +186,7 @@ func (cs MsgAuthCrSession) CopyRow() []any {
 
 func (rs MsgAuthRvSession) CopyRow() []any {
 	return []any{
-		rs.TxId,
+		rs.TxHash,
 		rs.Timestamp,
 		rs.ChainName,
 		rs.Creator,
@@ -198,7 +198,7 @@ func (rs MsgAuthRvSession) CopyRow() []any {
 
 func (ras MsgAuthRvAllSessions) CopyRow() []any {
 	return []any{
-		ras.TxId,
+		ras.TxHash,
 		ras.Timestamp,
 		ras.ChainName,
 		ras.Creator,
