@@ -90,8 +90,6 @@ jobs:
             LICENSE
             CHECKSUMS
           prerelease: ${{ steps.version.outputs.prerelease }}
-          tag_name: ${{ steps.version.outputs.version }}
-          previous_tag: ${{ steps.version.outputs.previous_tag }}
           generate_release_notes: true
           body: |
             ## Release ${{ steps.version.outputs.version }}
