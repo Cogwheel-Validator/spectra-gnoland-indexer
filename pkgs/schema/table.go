@@ -177,7 +177,7 @@ func Hypertables() []Hypertable {
 	msgParams := dbinit.HypertableParams{
 		PartitionColumn: "timestamp",
 		ChunkInterval:   chunk,
-		OrderBy:         tmD + ", message_counter",
+		OrderBy:         "tx_hash DESC, message_counter DESC",
 		SegmentBy:       []string{"chain_name"},
 	}
 	return []Hypertable{
@@ -196,13 +196,13 @@ func Hypertables() []Hypertable {
 		{AddressTx{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   chunk,
-			OrderBy:         tmD,
+			OrderBy:         "tx_hash DESC, timestamp DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
 		{TransactionGeneral{}, dbinit.HypertableParams{
 			PartitionColumn: "timestamp",
 			ChunkInterval:   chunk,
-			OrderBy:         "block_height DESC, timestamp DESC",
+			OrderBy:         "block_height DESC, tx_hash DESC",
 			SegmentBy:       []string{"chain_name"},
 		}},
 		{MsgSend{}, msgParams},
