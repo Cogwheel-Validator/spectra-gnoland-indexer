@@ -13,22 +13,26 @@ the whole database down and re-index as there is no migration path for existing 
 The change that was added in version v0.7.0 added a new table `tx_hash_id` that allowed to tie each
 table that requires the `tx_hash` and to switch it for `tx_id` which was only 8 bytes instead of 16, and 
 it allowed to query by id across different tables, while at the same time compression of integers
-with TimescaleDB achieved storing this data under less that 8 bytes. 
+with TimescaleDB achieved storing this data under less than 8 bytes. 
 
-However the trouble arouse when the database hit 1.5 million transactions, there were a lot of joins 
+However the trouble arose when the database hit 1.5 million transactions, there were a lot of joins 
 needed to acquire most basic data. Simple solution was to revert the schema similar to the one from 
 v0.7.0.
 
-If you already have a indexer with the versions <= v0.8.0, the easiest way would be to create another
+If you already have an indexer with the versions <= v0.8.0, the easiest way would be to create another
 database and make indexer run with the new schema. Then when ready delete the old database and set up the
 API to point to the new database.
 
 ### Changes
 
+- Docs: update data-model docs [cf9eaa8](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/cf9eaa81f2d647d15db57654bc259dcf0bfcb6eb)
+- Ci: remove tag_name and previous tag from release action [d354180](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d35418061f3cab05737e6bae04b0f313a746f221)
+- Deps: update pgx to v5.10.0 [ceadddc](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ceadddcfdf4e844c42cb98417a680bb2bd16ec2f)
+- Docs: update CHANGELOG.md [b38c08b](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/b38c08ba61e71b570da6102e9b91bae980f16c28)
 - Ci: add dependabot.yml for workflow updates [9b7ed01](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/9b7ed01ebd6b485c6c3118cc5499a89f7f0f5049)
 - Ci: update release.yml [5075ea0](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5075ea040a6c9297262e1923fd9df7bc57e3bb7f)
 - Chore: golangci error check [5f0edb2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5f0edb2d9f007a4a21328d1b223472f3c20b017b)
-- Refac(pkgs/schema): adjust the ordey by to use tx_hash [6485bb7](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/6485bb78c4a3bf062432262c790696dd48673e27)
+- Refac(pkgs/schema): adjust the order by to use tx_hash [6485bb7](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/6485bb78c4a3bf062432262c790696dd48673e27)
 - Refac: store the tx_hash directly into the tables instead of using id [a328c77](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/a328c770e8b08cd9c1eaac060ac07e7fcf371566)
 
 ## [0.8.0] - 2026-07-11
@@ -105,7 +109,7 @@ There were multiple refactors which should improve the maintainability and reada
 
 - Fix(indexer/dp): return errors if processing message fails [2426e89](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/2426e89195563f95c71240ad25c9fe68b09abd84)
 - Fix(indexer): a bug where the database pool closes before the ingestion [076f3f5](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/076f3f5f2417085cfd5266de54e1da5924f72372)
-- Fix(indexer/cli): add missing tables for adding privilages to the user [74be438](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/74be438702ec7197b3d7be7c0dabe6e45ac60b76)
+- Fix(indexer/cli): add missing tables for adding privileges to the user [74be438](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/74be438702ec7197b3d7be7c0dabe6e45ac60b76)
 - Fix(ci): revert the go version for govulncheck [13ba5fc](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/13ba5fc2e0403c767c3a41e1eeab864e2d111099)
 - Fix(api): fix empty volume response [3011c77](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/3011c7747e814545701f5134442a1ff7d3522f70)
 
@@ -145,7 +149,7 @@ types, and the bank multi send should be supported.
 - Fix: add missing add address [f681153](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f6811537e78ba1bcb9d46199a9938968b2cd7556)
 - Fix(sql_data_types): fix chain_name to use enum type in database [ca36797](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ca36797cfd6e92d3b9745ef0abe2f0ebd87551fc)
 - Fix: add missing data to the create session [ac2130c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ac2130c71e40ad8bd435d49dc58624d06c27778e)
-- Fix: dockerfile indexer.go path updated and force the toolcahin to auto [a04c48c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/a04c48ca497a82565673900f90a6e0343232a1ba)
+- Fix: dockerfile indexer.go path updated and force the toolchain to auto [a04c48c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/a04c48ca497a82565673900f90a6e0343232a1ba)
 - Fix(ci): fix the release.yml to use correct path to indexer.go [61b96b3](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/61b96b3df53d342567fa8f46c69b63da31505312)
 
 ## [0.7.0] - 2026-06-14
@@ -275,8 +279,8 @@ In this release there are some fixes and improvements. The live process should w
 
 ### Changed
 
-- The CLI commands are now combined all together so the cmd/setup.go is removed and the users can now only download the main cli and initiate everything they needs for the indexer to work. [805513b](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/805513b20fdd4f452e8d6f5ad6d56d318e78d5d9)
-- Changed the data and query operators to use mutex and store any data they process/collect directly into the type they need to return. There shouldn't be any major perfromance difference but it should allocate less memory. [89e5b6d](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/89e5b6d103710970cbe69c02865bb4b0727649b3)
+- The CLI commands are now combined all together so the cmd/setup.go is removed and the users can now only download the main cli and initiate everything they need for the indexer to work. [805513b](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/805513b20fdd4f452e8d6f5ad6d56d318e78d5d9)
+- Changed the data and query operators to use mutex and store any data they process/collect directly into the type they need to return. There shouldn't be any major performance difference but it should allocate less memory. [89e5b6d](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/89e5b6d103710970cbe69c02865bb4b0727649b3)
 
 ### Fixed
 
@@ -284,7 +288,7 @@ In this release there are some fixes and improvements. The live process should w
 
 ## [0.2.1] - 2025-10-06
 
-Not really much of a change just added dockerignore file, small changes to the release.yml so it pushes the api also.
+Not really much of a change, just added dockerignore file, small changes to the release.yml so it also pushes the api.
 
 ## [0.2.0] - 2025-10-04
 
@@ -294,7 +298,7 @@ Added the REST API with some basic routes that will come in handy. Small bug fix
 
 - Rest API with 5 basic routes that will come in handy. [90bef0e](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/90bef0ec5a0bff468d4a1d6771b82706029f4ea9),[f2a39d6](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f2a39d65c5622e0a5953d1f6113ab5eea1996cad),[d875be2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d875be2c42eb5fd71a02b4b29d1496c4b7c3de1e)
 - Some basic documentation for the API and modified the existing docs. [b2c20d2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/b2c20d222e4f52b74b333974a7930df3cddad29e)
-- Database queries for the API ( althoguh they can be used for any other app or service if needed ) [d875be2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d875be2c42eb5fd71a02b4b29d1496c4b7c3de1e), [f2a39d6](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f2a39d65c5622e0a5953d1f6113ab5eea1996cad)
+- Database queries for the API ( although they can be used for any other app or service if needed ) [d875be2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d875be2c42eb5fd71a02b4b29d1496c4b7c3de1e), [f2a39d6](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f2a39d65c5622e0a5953d1f6113ab5eea1996cad)
 
 ### Fixed
 
@@ -316,9 +320,9 @@ Mostly some fixes. The live should work now there was a bug with the RPC client 
 
 ## [0.1.0] - 2025-10-01
 
-This is officially first working version of the indexer. The historic version was successfuly tested on the real 
+This is officially first working version of the indexer. The historic version was successfully tested on the real 
 data. It took about 2m30s on 2vCPU for 10K blocks and about 1m30s on 4vCPU for 10K blocks. 
-The live version was not tested on the real data yet mostly because there is active pullic Gnoland testnet.
+The live version was not tested on the real data yet mostly because there is no active public Gnoland testnet available.
 The live will be tested properly on the testnet 9 when it is released. So the index will probably work but expect
 some bugs. Some features are still missing and this is still a work in progress.
 
@@ -334,17 +338,17 @@ some bugs. Some features are still missing and this is still a work in progress.
 
 ### Fixed 
 
-- There were some bugs related to poinetrs if the value was nil for block responsers related to validator signing [c7f229a](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c7f229aedfbb3fb7a0fb05553898f7f2bb43f23b)
+- There were some bugs related to pointers if the value was nil for block responses related to validator signing [c7f229a](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c7f229aedfbb3fb7a0fb05553898f7f2bb43f23b)
 
 
 ## [0.1.0-beta.2] - 2025-09-29
 
-The indexer had some bug fixes and some small improvments. The integration test was technically successful but there seems there is some kind of bug with the indexer. The indexer is not fully tested yet only the historic process has been tested. But not any runs were made on the real data. You can try to run this version on the real data but be advised it is not fully tested and might not work as expected.
+The indexer had some bug fixes and some small improvements. The integration test was technically successful but there seems there is some kind of bug with the indexer. The indexer is not fully tested yet only the historic process has been tested. But not any runs were made on the real data. You can try to run this version on the real data but be advised it is not fully tested and might not work as expected.
 
 ### Added
 
-- Makefile has been added. If you feel advanterous you can try to build the indexer with greentea garbage collection. [9fdad03](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/9fdad03ca3b9fe213dced5e1ef68912cc792355a)
-- Apperently the previous versions didn't had the method to insert the data for the table address_tx. Now every transaction that was executed can be tied to each address that was involved in the transaction. [9fdad03](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/9fdad03ca3b9fe213dced5e1ef68912cc792355a), [6dd764](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/6dd76464b68809ac8df63f2c66f11678e1083b14)
+- Makefile has been added. If you feel adventurous you can try to build the indexer with greentea garbage collection. [9fdad03](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/9fdad03ca3b9fe213dced5e1ef68912cc792355a)
+- Apparently the previous versions didn't have the method to insert the data for the table address_tx. Now every transaction that was executed can be tied to each address that was involved in the transaction. [9fdad03](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/9fdad03ca3b9fe213dced5e1ef68912cc792355a), [6dd764](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/6dd76464b68809ac8df63f2c66f11678e1083b14)
 - The CLI for the database setup now has a new command to create a new user for the database and appoint privileges to the user. It can be a reader(for APIs and some other programs that need SELECT privileges) or a writer(example indexer for historical data). [c39c1f7](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c39c1f7b5f992da468710a54401f73efa6611881)
 - Added a retry mechanism for the query operator. [900ee4f](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/tree/900ee4ff933e1015acc7f9a80de28201075370cf)
 
@@ -358,7 +362,7 @@ The indexer had some bug fixes and some small improvments. The integration test 
 
 ### Changed
 
-- When the indexer decodes the data using Amino decoder it unloads the data into a map[string]any, then from there it would make 2 conversions, one for the general data struct and the second for the sql data types. The idea was to have seperated logic for the general data struct and sql types. However at this point the indexer already needs to call the copy from method where the data is again being unloaded into some sort of tuple. So the first conversion was removed. [50ca1f2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/50ca1f2e0d3ee1a3637ca26cdd70e5b48732da8d)
+- When the indexer decodes the data using Amino decoder it unloads the data into a map[string]any, then from there it would make 2 conversions, one for the general data struct and the second for the sql data types. The idea was to have separated logic for the general data struct and sql types. However at this point the indexer already needs to call the copy from method where the data is again being unloaded into some sort of tuple. So the first conversion was removed. [50ca1f2](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/50ca1f2e0d3ee1a3637ca26cdd70e5b48732da8d)
 - Updated all of the dependencies to the latest version [5370a5c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5370a5c5486be5ef3803f16f968c383598e7f033)
 
 ### Fixed
@@ -403,4 +407,4 @@ done but it is not tested fully so this version is not recommended for productio
 - The indexer is not tested and it is not recommended for production use.
 - The setup program only sets the database and ties it to the admin user. This could be bad for security.
 - The proto encoding for the events is not tested yet and might not even end in the final release.
-- Zstandard compression has been added but it has only been used in some minor test nothing more. For this to work properly a synthetic dataset would need to be created and used to train the dictionary. Alternatively it can be trained on the real data but given that the chain is still in the development stage there is no gurantee it will have enough data to train a good dictionary.
+- Zstandard compression has been added but it has only been used in some minor test nothing more. For this to work properly a synthetic dataset would need to be created and used to train the dictionary. Alternatively it can be trained on the real data but given that the chain is still in the development stage there is no guarantee it will have enough data to train a good dictionary.
