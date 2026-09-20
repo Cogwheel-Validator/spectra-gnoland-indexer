@@ -3,6 +3,7 @@ package query_test
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/query"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
@@ -53,7 +54,7 @@ func (m *MockRpcClient) GetCommit(height uint64) (*rpcClient.CommitResponse, *rp
 	m.GetCommitCalled = true
 	m.GetCommitCallCount++
 	m.mu.Unlock()
-	return &rpcClient.CommitResponse{}, nil
+	return &rpcClient.CommitResponse{Result: rpcClient.CommitResult{Canonical: true}}, nil
 }
 
 // TestQueryOperator - tests the query operator
@@ -85,4 +86,39 @@ func TestQueryOperator(t *testing.T) {
 	assert.True(t, mockRpcClient.GetCommitCalled)
 
 	assert.Equal(t, 10, mockRpcClient.GetCommitCallCount)
+}
+
+// commitSeqRpcClient returns non canonical commits a few times, then an error, then a canonical one
+type commitSeqRpcClient struct {
+	MockRpcClient
+	calls int
+}
+
+func (m *commitSeqRpcClient) GetCommit(height uint64) (*rpcClient.CommitResponse, *rpcClient.RpcCommitError) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls++
+	switch m.calls {
+	case 1, 2, 3:
+		return &rpcClient.CommitResponse{}, nil
+	case 4:
+		return nil, &rpcClient.RpcCommitError{}
+	}
+	return &rpcClient.CommitResponse{Result: rpcClient.CommitResult{Canonical: true}}, nil
+}
+
+// TestGetFromToCommitsRetriesUntilCanonical - a non canonical commit must never be returned as final
+func TestGetFromToCommitsRetriesUntilCanonical(t *testing.T) {
+	mock := &commitSeqRpcClient{}
+	retries, pause := 6, 3
+	d := time.Millisecond
+	q := query.NewQueryOperator(mock, &retries, &pause, &d, &d)
+
+	commits := q.GetFromToCommits(1, 1)
+
+	assert.Len(t, commits, 1)
+	if assert.NotNil(t, commits[0]) {
+		assert.True(t, commits[0].Result.Canonical)
+	}
+	assert.Equal(t, 5, mock.calls)
 }

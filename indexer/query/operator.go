@@ -153,7 +153,6 @@ func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*
 	}
 
 	commits := make([]*rc.CommitResponse, diff)
-	var mu sync.Mutex
 	wg := sync.WaitGroup{}
 	wg.Add(int(diff))
 
@@ -163,8 +162,12 @@ func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*
 		idx := i // Capture index
 		go func(height uint64, idx int) {
 			commit, err := q.rpcClient.GetCommit(height)
-			if err != nil {
+			canonical := commit != nil && commit.Result.Canonical
+			if err != nil || !canonical {
 				// Use retry mechanism with callback pattern
+				if !canonical {
+					l.Info().Msgf("commit %d is not canonical, retrying", height)
+				}
 				retry.RetryWithContext(
 					q.retryAmount,
 					q.pause,
@@ -176,12 +179,13 @@ func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*
 						if rpcErr != nil {
 							return nil, rpcErr
 						}
+						if !result.Result.Canonical {
+							return nil, retry.ErrNotReady
+						}
 						return result, nil
 					},
 					func(result *rc.CommitResponse) {
-						mu.Lock()
 						commits[idx] = result
-						mu.Unlock()
 						wg.Done()
 					},
 					func(retryErr error) {
@@ -190,18 +194,14 @@ func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*
 							Stack().
 							Err(retryErr).
 							Msgf("failed to get commit %d after retries", height)
-						mu.Lock()
 						commits[idx] = nil
-						mu.Unlock()
 						wg.Done()
 					},
 					height,
 				)
 				return
 			}
-			mu.Lock()
 			commits[idx] = commit
-			mu.Unlock()
 			wg.Done()
 		}(height, int(idx))
 	}
