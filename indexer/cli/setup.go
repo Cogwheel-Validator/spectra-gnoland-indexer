@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
@@ -460,9 +461,8 @@ var addChainNameCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.Get()
 		chainName := args[0]
-		if len(args) != 1 {
-			l.Fatal().Msg("chain_name cannot be empty")
-			return cmd.Usage()
+		if err := config.ValidateChainName(chainName); err != nil {
+			return err
 		}
 
 		params, err := parseCommonFlags(cmd, "gnoland")

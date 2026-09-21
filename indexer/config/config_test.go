@@ -36,3 +36,18 @@ func TestErrorLoadConfig(t *testing.T) {
 	_, err = config.LoadConfig("testdata/test3.yml")
 	assert.Error(t, err)
 }
+
+func TestValidateChainName(t *testing.T) {
+	valid := []string{"gnoland", "test-12", "chain_1", "Betanet"}
+	invalid := []string{"", "   ", "a'b", "x'; DROP TABLE t;--", "a;b", "a--b c", "-lead", "a/*c*/"}
+	for _, v := range valid {
+		if err := config.ValidateChainName(v); err != nil {
+			t.Errorf("%q should be valid: %v", v, err)
+		}
+	}
+	for _, v := range invalid {
+		if err := config.ValidateChainName(v); err == nil {
+			t.Errorf("%q should be invalid", v)
+		}
+	}
+}
