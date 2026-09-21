@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/term"
@@ -443,16 +444,28 @@ func (db *DBInitializer) createHypertableModern(tableInfo *TableInfo, params Hyp
 // This function should be used to create type enums, for now only one enum is created at a time
 func (db *DBInitializer) CreateChainTypeEnum(enumValues []string) error {
 	sql := fmt.Sprintln("CREATE TYPE chain_name AS ENUM ()")
-	_, err := db.pool.Exec(context.Background(), sql)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := db.pool.Exec(ctx, sql)
 	if err != nil {
 		return fmt.Errorf("failed to create type enum chain_name: %w", err)
 	}
 	for _, enumValue := range enumValues {
-		sql = fmt.Sprintf("ALTER TYPE chain_name ADD VALUE '%s'", enumValue)
-		_, err = db.pool.Exec(context.Background(), sql)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err := db.AddEnumValue(enumValue, "chain_name", ctx)
 		if err != nil {
 			return fmt.Errorf("failed to add value %s to type enum chain_name: %w", enumValue, err)
 		}
+	}
+	return nil
+}
+
+func (db *DBInitializer) AddEnumValue(val, typeName string, ctx context.Context) error {
+	sql := fmt.Sprintf("ALTER TYPE %s ADD VALUE '%s'", typeName, val)
+	_, err := db.pool.Exec(ctx, sql)
+	if err != nil {
+		return fmt.Errorf("failed to add value %s: %w", val, err)
 	}
 	return nil
 }
