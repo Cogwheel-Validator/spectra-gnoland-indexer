@@ -1,6 +1,8 @@
 package query
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -146,10 +148,13 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 	return blocks
 }
 
-func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*rc.CommitResponse {
+// GetFromToCommits fetches canonical commits for the height range. If any commit
+// still fails after the retry budget, the returned error lists the failed heights
+// and the corresponding slice entries are nil.
+func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) ([]*rc.CommitResponse, error) {
 	diff := toHeight - fromHeight + 1
 	if diff < 1 {
-		return nil
+		return nil, nil
 	}
 
 	commits := make([]*rc.CommitResponse, diff)
@@ -166,7 +171,17 @@ func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*
 	}
 
 	wg.Wait()
-	return commits
+
+	var errs []error
+	for i, commit := range commits {
+		if commit == nil {
+			errs = append(errs, fmt.Errorf("commit %d unavailable after retries", fromHeight+uint64(i)))
+		}
+	}
+	if len(errs) > 0 {
+		return commits, errors.Join(errs...)
+	}
+	return commits, nil
 }
 
 func (q *QueryOperator) fetchCommit(height uint64, idx int, commits []*rc.CommitResponse, wg *sync.WaitGroup) {

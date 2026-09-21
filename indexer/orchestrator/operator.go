@@ -219,6 +219,7 @@ func (or *Orchestrator) processChunk(chunkStart, chunkEnd uint64, compressEvents
 
 	var blocks []*rpcClient.BlockResponse
 	var commits []*rpcClient.CommitResponse
+	var commitsErr error
 
 	go func() {
 		defer wg.Done()
@@ -226,10 +227,14 @@ func (or *Orchestrator) processChunk(chunkStart, chunkEnd uint64, compressEvents
 	}()
 	go func() {
 		defer wg.Done()
-		commits = or.queryOperator.GetFromToCommits(chunkStart, chunkEnd)
+		commits, commitsErr = or.queryOperator.GetFromToCommits(chunkStart, chunkEnd)
 	}()
 
 	wg.Wait()
+
+	if commitsErr != nil {
+		return fmt.Errorf("failed to fetch commits for chunk %d-%d: %w", chunkStart, chunkEnd, commitsErr)
+	}
 
 	fetchDuration := time.Since(chunkStartTime)
 	l.Debug().Msgf("Chunk %d-%d fetched in %v", chunkStart, chunkEnd, fetchDuration)
