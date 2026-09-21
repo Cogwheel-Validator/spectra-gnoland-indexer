@@ -5,12 +5,26 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/joho/godotenv"
 	"go.yaml.in/yaml/v4"
 )
+
+var chainNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
+
+// ValidateChainName checks that a chain name is non-empty and only contains letters, digits, '_' and '-'.
+func ValidateChainName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return errors.New("chain name is required")
+	}
+	if !chainNamePattern.MatchString(name) {
+		return fmt.Errorf("invalid chain name %q: use only letters, digits, '_' and '-'", name)
+	}
+	return nil
+}
 
 func LoadConfig(path string) (*Config, error) {
 	yamlFile, err := os.ReadFile(path)
@@ -26,8 +40,8 @@ func LoadConfig(path string) (*Config, error) {
 	} else if !strings.HasPrefix(config.RpcUrl, "http://") && !strings.HasPrefix(config.RpcUrl, "https://") {
 		return nil, errors.New("rpc url must start with http:// or https://")
 	}
-	if config.ChainName == "" {
-		return nil, errors.New("chain name is required")
+	if err := ValidateChainName(config.ChainName); err != nil {
+		return nil, err
 	}
 
 	if err != nil {

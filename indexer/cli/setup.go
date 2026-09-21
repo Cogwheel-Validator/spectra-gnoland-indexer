@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
@@ -43,9 +44,10 @@ func init() {
 	setupCmd.AddCommand(createUserCmd)
 	setupCmd.AddCommand(createConfigCmd)
 	setupCmd.AddCommand(refreshAggregatesCmd)
+	setupCmd.AddCommand(addChainNameCmd)
 
 	// Common flags for both database setup commands
-	for _, cmd := range []*cobra.Command{createDbCmd, createUserCmd} {
+	for _, cmd := range []*cobra.Command{createDbCmd, createUserCmd, refreshAggregatesCmd, addChainNameCmd} {
 		cmd.Flags().StringP("db-host", "b", "", "The database host, default is localhost")
 		cmd.Flags().IntP("db-port", "p", 0, "The database port, default is 5432")
 		cmd.Flags().StringP("db-user", "u", "", "The database user, default is postgres")
@@ -55,16 +57,6 @@ func init() {
 		cmd.Flags().String("ssl-cert", "", "Path to the client certificate (mutual TLS only)")
 		cmd.Flags().String("ssl-key", "", "Path to the client private key (mutual TLS only)")
 	}
-
-	// refresh-aggregates flags (same connection flags as create-db)
-	refreshAggregatesCmd.Flags().StringP("db-host", "b", "", "The database host, default is localhost")
-	refreshAggregatesCmd.Flags().IntP("db-port", "p", 0, "The database port, default is 5432")
-	refreshAggregatesCmd.Flags().StringP("db-user", "u", "", "The database user, default is postgres")
-	refreshAggregatesCmd.Flags().StringP("db-name", "d", "", "The database name to refresh, default is gnoland")
-	refreshAggregatesCmd.Flags().StringP("ssl-mode", "s", "", "The SSL mode for the database connection, default is disable")
-	refreshAggregatesCmd.Flags().String("ssl-rootcert", "", "Path to the CA certificate for server verification (verify-ca/verify-full)")
-	refreshAggregatesCmd.Flags().String("ssl-cert", "", "Path to the client certificate (mutual TLS only)")
-	refreshAggregatesCmd.Flags().String("ssl-key", "", "Path to the client private key (mutual TLS only)")
 
 	// create-db specific flags
 	createDbCmd.Flags().String("new-db-name", "", "The database name to create, default is gnoland")
@@ -457,6 +449,43 @@ You can add --overwrite to overwrite the existing config file. And you can use -
 			return err
 		}
 		l.Info().Str("file", configFileName).Msg("successfully created config file")
+		return nil
+	},
+}
+
+var addChainNameCmd = &cobra.Command{
+	Use:   "add-chain-name [chain_name]",
+	Short: "Add a chain name to the chain_name enum.",
+	Long:  `When you want to add new chain to the database, you need to add that chain's name to the chain_name enum.`,
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		l := logger.Get()
+		chainName := args[0]
+		if err := config.ValidateChainName(chainName); err != nil {
+			return err
+		}
+
+		params, err := parseCommonFlags(cmd, "gnoland")
+		if err != nil {
+			return err
+		}
+
+		params.password, err = promptPassword()
+		if err != nil {
+			l.Error().Err(err).Msg("failed to read password")
+			return err
+		}
+
+		dbConfig := params.createDatabaseConfig()
+		db := timescaledb.NewTimescaleDbSetup(dbConfig)
+		dbInit := dbinit.NewDBInitializer(db.GetPool())
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := dbInit.AddEnumValue(chainName, "chain_name", ctx); err != nil {
+			return err
+		}
+		l.Info().Str("chain_name", chainName).Msg("successfully added chain name")
 		return nil
 	},
 }

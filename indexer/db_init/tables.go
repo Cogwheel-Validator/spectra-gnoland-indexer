@@ -7,7 +7,9 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/term"
 )
@@ -443,13 +445,16 @@ func (db *DBInitializer) createHypertableModern(tableInfo *TableInfo, params Hyp
 // This function should be used to create type enums, for now only one enum is created at a time
 func (db *DBInitializer) CreateChainTypeEnum(enumValues []string) error {
 	sql := fmt.Sprintln("CREATE TYPE chain_name AS ENUM ()")
-	_, err := db.pool.Exec(context.Background(), sql)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := db.pool.Exec(ctx, sql)
 	if err != nil {
 		return fmt.Errorf("failed to create type enum chain_name: %w", err)
 	}
 	for _, enumValue := range enumValues {
-		sql = fmt.Sprintf("ALTER TYPE chain_name ADD VALUE '%s'", enumValue)
-		_, err = db.pool.Exec(context.Background(), sql)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err := db.AddEnumValue(enumValue, "chain_name", ctx)
 		if err != nil {
 			return fmt.Errorf("failed to add value %s to type enum chain_name: %w", enumValue, err)
 		}
@@ -457,15 +462,63 @@ func (db *DBInitializer) CreateChainTypeEnum(enumValues []string) error {
 	return nil
 }
 
-// CreateUser creates a user in the database
-//
-// The function will
-// Parameters:
-// - name: the name of the user to create
-//
-// Returns:
-// - nil: if the function is successful
-// - error: if the function fails
+// buildAddEnumValueSQL quotes the type as an identifier and the value as a string literal.
+func buildAddEnumValueSQL(typeName, val string) string {
+	return fmt.Sprintf("ALTER TYPE %s ADD VALUE '%s'",
+		pgx.Identifier{typeName}.Sanitize(),
+		strings.ReplaceAll(val, "'", "''"))
+}
+
+func (db *DBInitializer) AddEnumValue(val, typeName string, ctx context.Context) error {
+	sql := buildAddEnumValueSQL(typeName, val)
+	_, err := db.pool.Exec(ctx, sql)
+	if err != nil {
+		return fmt.Errorf("failed to add value %s: %w", val, err)
+	}
+	return nil
+}
+
+// quoteLiteral encodes val as an escape string literal. Backslashes and quotes are doubled,
+// so the result is safe regardless of standard_conforming_strings.
+func quoteLiteral(val string) string {
+	r := strings.NewReplacer(`\`, `\\`, `'`, `''`)
+	return "E'" + r.Replace(val) + "'"
+}
+
+func buildCreateUserSQL(userName, password string) (string, error) {
+	if strings.TrimSpace(userName) == "" {
+		return "", fmt.Errorf("user name cannot be empty")
+	}
+	if strings.ContainsRune(userName, 0) || strings.ContainsRune(password, 0) {
+		return "", fmt.Errorf("user name and password cannot contain NUL bytes")
+	}
+	return fmt.Sprintf("CREATE USER %s WITH PASSWORD %s",
+		pgx.Identifier{userName}.Sanitize(), quoteLiteral(password)), nil
+}
+
+func buildPrivilegesSQL(userName, privilege string, tableNames []string) (string, error) {
+	if strings.TrimSpace(userName) == "" || strings.ContainsRune(userName, 0) {
+		return "", fmt.Errorf("invalid user name")
+	}
+	user := pgx.Identifier{userName}.Sanitize()
+	var sql strings.Builder
+	switch privilege {
+	case "reader":
+		for _, t := range tableNames {
+			fmt.Fprintf(&sql, "GRANT SELECT ON TABLE %s TO %s;\n", pgx.Identifier{t}.Sanitize(), user)
+		}
+	case "writer":
+		for _, t := range tableNames {
+			fmt.Fprintf(&sql, "GRANT SELECT, INSERT, UPDATE ON TABLE %s TO %s;\n", pgx.Identifier{t}.Sanitize(), user)
+		}
+	case "keymgr":
+		fmt.Fprintf(&sql, "GRANT SELECT, INSERT, UPDATE ON TABLE api_keys TO %s;\n", user)
+	default:
+		return "", fmt.Errorf("invalid privilege: %s", privilege)
+	}
+	return sql.String(), nil
+}
+
 func (db *DBInitializer) CreateUser(userName string) error {
 	l.Info().Msgf("Creating user %s.....\n", userName)
 	fmt.Print("Enter the password for the new user: ")
@@ -476,7 +529,10 @@ func (db *DBInitializer) CreateUser(userName string) error {
 	}
 	password := string(bytePassword)
 
-	sql := fmt.Sprintf("CREATE USER %s WITH PASSWORD '%s'", userName, password)
+	sql, err := buildCreateUserSQL(userName, password)
+	if err != nil {
+		return err
+	}
 	_, err = db.pool.Exec(context.Background(), sql)
 	// if error is related to user already existing mark it as a warning and continue
 	if err != nil {
@@ -495,24 +551,11 @@ func (db *DBInitializer) AppointPrivileges(
 	privilege string,
 	tableNames []string,
 ) error {
-	var sql strings.Builder
-
-	switch privilege {
-	case "reader":
-		for _, tableName := range tableNames {
-			fmt.Fprintf(&sql, "GRANT SELECT ON TABLE %s TO %s;\n", tableName, userName)
-		}
-	case "writer":
-		for _, tableName := range tableNames {
-			fmt.Fprintf(&sql, "GRANT SELECT, INSERT, UPDATE ON TABLE %s TO %s;\n", tableName, userName)
-		}
-	case "keymgr":
-		fmt.Fprintf(&sql, "GRANT SELECT, INSERT, UPDATE ON TABLE api_keys TO %s;\n", userName)
-	default:
-		return fmt.Errorf("invalid privilege: %s", privilege)
+	sql, err := buildPrivilegesSQL(userName, privilege, tableNames)
+	if err != nil {
+		return err
 	}
-
-	_, err := db.pool.Exec(context.Background(), sql.String())
+	_, err = db.pool.Exec(context.Background(), sql)
 	if err != nil {
 		return fmt.Errorf("failed to appoint privileges to user %s: %w", userName, err)
 	}
