@@ -17,6 +17,7 @@ type CommitResponse struct {
 // CommitResult is the result from the commit endpoint
 type CommitResult struct {
 	SignedHeader SignedHeader `json:"signed_header"`
+	Canonical    bool         `json:"canonical"`
 }
 
 // SignedHeader is the struct for the signed header, which is a part of commit result

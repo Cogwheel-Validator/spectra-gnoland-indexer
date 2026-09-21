@@ -1,12 +1,16 @@
 package retry
 
 import (
+	"errors"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 )
 
 var l = logger.Get()
+
+// ErrNotReady marks a healthy response that is not final yet.
+var ErrNotReady = errors.New("result not ready")
 
 // RetryResult holds the result of a retry operation
 //
@@ -63,11 +67,16 @@ func GenericRetryQuery[T any](
 
 			// if the result is not successful, store the error
 			lastErr = err
-			l.Error().
-				Caller().
-				Stack().
-				Err(err).
-				Msgf("Retry attempt %d failed", i+1)
+			notReady := errors.Is(err, ErrNotReady)
+			if notReady {
+				l.Info().Msgf("Retry attempt %d: result not ready yet", i+1)
+			} else {
+				l.Error().
+					Caller().
+					Stack().
+					Err(err).
+					Msgf("Retry attempt %d failed", i+1)
+			}
 
 			// Don't sleep on the last retry attempt
 			if i < retryAmount-1 {
@@ -83,7 +92,8 @@ func GenericRetryQuery[T any](
 				// default for this is 15 seconds backoff, although it can be changed
 				// it might slow down the program in the long run
 				// but per block chunk this is max of 1 minute
-				if (i+1)%pause == 0 {
+				// a not ready result is not an outage, the backoff above is enough
+				if !notReady && (i+1)%pause == 0 {
 					time.Sleep(pauseTime)
 				}
 			}
@@ -118,7 +128,9 @@ func RetryWithContext[T any](
 		if result.Success {
 			onSuccess(result.Value)
 		} else {
-			if result.Error != nil {
+			if errors.Is(result.Error, ErrNotReady) {
+				l.Warn().Err(result.Error).Msg("Retry attempts exhausted, result still not ready")
+			} else if result.Error != nil {
 				l.Error().
 					Caller().
 					Stack().

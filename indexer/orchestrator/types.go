@@ -22,7 +22,7 @@ type QueryOperator interface {
 	GetFromToBlocks(fromHeight uint64, toHeight uint64) []*rpcClient.BlockResponse
 	GetTransactions(txs []string) []*rpcClient.TxResponse
 	GetLatestBlockHeight() (uint64, error)
-	GetFromToCommits(fromHeight uint64, toHeight uint64) []*rpcClient.CommitResponse
+	GetFromToCommits(fromHeight uint64, toHeight uint64) ([]*rpcClient.CommitResponse, error)
 }
 
 // Only needed for one opetaion

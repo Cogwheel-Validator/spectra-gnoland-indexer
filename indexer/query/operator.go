@@ -1,6 +1,8 @@
 package query
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -146,14 +148,16 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 	return blocks
 }
 
-func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*rc.CommitResponse {
+// GetFromToCommits fetches canonical commits for the height range. If any commit
+// still fails after the retry budget, the returned error lists the failed heights
+// and the corresponding slice entries are nil.
+func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) ([]*rc.CommitResponse, error) {
 	diff := toHeight - fromHeight + 1
 	if diff < 1 {
-		return nil
+		return nil, nil
 	}
 
 	commits := make([]*rc.CommitResponse, diff)
-	var mu sync.Mutex
 	wg := sync.WaitGroup{}
 	wg.Add(int(diff))
 
@@ -162,52 +166,67 @@ func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*
 		height := fromHeight + i
 		idx := i // Capture index
 		go func(height uint64, idx int) {
-			commit, err := q.rpcClient.GetCommit(height)
-			if err != nil {
-				// Use retry mechanism with callback pattern
-				retry.RetryWithContext(
-					q.retryAmount,
-					q.pause,
-					q.pauseTime,
-					q.exponentialBackoff,
-					func(args ...any) (*rc.CommitResponse, error) {
-						h := args[0].(uint64)
-						result, rpcErr := q.rpcClient.GetCommit(h)
-						if rpcErr != nil {
-							return nil, rpcErr
-						}
-						return result, nil
-					},
-					func(result *rc.CommitResponse) {
-						mu.Lock()
-						commits[idx] = result
-						mu.Unlock()
-						wg.Done()
-					},
-					func(retryErr error) {
-						l.Error().
-							Caller().
-							Stack().
-							Err(retryErr).
-							Msgf("failed to get commit %d after retries", height)
-						mu.Lock()
-						commits[idx] = nil
-						mu.Unlock()
-						wg.Done()
-					},
-					height,
-				)
-				return
-			}
-			mu.Lock()
-			commits[idx] = commit
-			mu.Unlock()
-			wg.Done()
+			q.fetchCommit(height, idx, commits, &wg)
 		}(height, int(idx))
 	}
 
 	wg.Wait()
-	return commits
+
+	var errs []error
+	for i, commit := range commits {
+		if commit == nil {
+			errs = append(errs, fmt.Errorf("commit %d unavailable after retries", fromHeight+uint64(i)))
+		}
+	}
+	if len(errs) > 0 {
+		return commits, errors.Join(errs...)
+	}
+	return commits, nil
+}
+
+func (q *QueryOperator) fetchCommit(height uint64, idx int, commits []*rc.CommitResponse, wg *sync.WaitGroup) {
+	commit, err := q.rpcClient.GetCommit(height)
+	canonical := commit != nil && commit.Result.Canonical
+	if err != nil || !canonical {
+		// Use retry mechanism with callback pattern
+		if !canonical {
+			l.Info().Msgf("commit %d is not canonical, retrying", height)
+		}
+		retry.RetryWithContext(
+			q.retryAmount,
+			q.pause,
+			q.pauseTime,
+			q.exponentialBackoff,
+			func(args ...any) (*rc.CommitResponse, error) {
+				h := args[0].(uint64)
+				result, rpcErr := q.rpcClient.GetCommit(h)
+				if rpcErr != nil {
+					return nil, rpcErr
+				}
+				if !result.Result.Canonical {
+					return nil, retry.ErrNotReady
+				}
+				return result, nil
+			},
+			func(result *rc.CommitResponse) {
+				commits[idx] = result
+				wg.Done()
+			},
+			func(retryErr error) {
+				l.Error().
+					Caller().
+					Stack().
+					Err(retryErr).
+					Msgf("failed to get commit %d after retries", height)
+				commits[idx] = nil
+				wg.Done()
+			},
+			height,
+		)
+		return
+	}
+	commits[idx] = commit
+	wg.Done()
 }
 
 // A swarm method to get transactions from a slice of tx hashes

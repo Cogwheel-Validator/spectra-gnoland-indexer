@@ -72,14 +72,14 @@ func (m *MockQueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) 
 }
 
 // Mock method for GetFromToCommits
-func (m *MockQueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*rpcClient.CommitResponse {
+func (m *MockQueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) ([]*rpcClient.CommitResponse, error) {
 	m.CallCount++
 	if !m.ShouldReturnCommits {
-		return []*rpcClient.CommitResponse{} // Return empty slice
+		return []*rpcClient.CommitResponse{}, nil // Return empty slice
 	}
 
 	// Return a single empty commit
-	return []*rpcClient.CommitResponse{{}}
+	return []*rpcClient.CommitResponse{{}}, nil
 }
 
 // Mock method for GetTransactions

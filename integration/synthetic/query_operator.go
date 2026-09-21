@@ -105,10 +105,10 @@ func (sq *SyntheticQueryOperator) GetTransactions(txHashes []string) []*rpcClien
 }
 
 // GetFromToCommits implements the QueryOperator interface by returning synthetic commits
-func (sq *SyntheticQueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*rpcClient.CommitResponse {
+func (sq *SyntheticQueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) ([]*rpcClient.CommitResponse, error) {
 	diff := toHeight - fromHeight + 1
 	if diff < 1 {
-		return nil
+		return nil, nil
 	}
 
 	commits := make([]*rpcClient.CommitResponse, 0, diff)
@@ -116,7 +116,7 @@ func (sq *SyntheticQueryOperator) GetFromToCommits(fromHeight uint64, toHeight u
 	for height := fromHeight; height <= toHeight; height++ {
 		commits = append(commits, sq.getCommit(height))
 	}
-	return commits
+	return commits, nil
 }
 
 // GetLatestBlockHeight implements the QueryOperator interface
