@@ -161,53 +161,57 @@ func (q *QueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) []*
 		height := fromHeight + i
 		idx := i // Capture index
 		go func(height uint64, idx int) {
-			commit, err := q.rpcClient.GetCommit(height)
-			canonical := commit != nil && commit.Result.Canonical
-			if err != nil || !canonical {
-				// Use retry mechanism with callback pattern
-				if !canonical {
-					l.Info().Msgf("commit %d is not canonical, retrying", height)
-				}
-				retry.RetryWithContext(
-					q.retryAmount,
-					q.pause,
-					q.pauseTime,
-					q.exponentialBackoff,
-					func(args ...any) (*rc.CommitResponse, error) {
-						h := args[0].(uint64)
-						result, rpcErr := q.rpcClient.GetCommit(h)
-						if rpcErr != nil {
-							return nil, rpcErr
-						}
-						if !result.Result.Canonical {
-							return nil, retry.ErrNotReady
-						}
-						return result, nil
-					},
-					func(result *rc.CommitResponse) {
-						commits[idx] = result
-						wg.Done()
-					},
-					func(retryErr error) {
-						l.Error().
-							Caller().
-							Stack().
-							Err(retryErr).
-							Msgf("failed to get commit %d after retries", height)
-						commits[idx] = nil
-						wg.Done()
-					},
-					height,
-				)
-				return
-			}
-			commits[idx] = commit
-			wg.Done()
+			q.fetchCommit(height, idx, commits, &wg)
 		}(height, int(idx))
 	}
 
 	wg.Wait()
 	return commits
+}
+
+func (q *QueryOperator) fetchCommit(height uint64, idx int, commits []*rc.CommitResponse, wg *sync.WaitGroup) {
+	commit, err := q.rpcClient.GetCommit(height)
+	canonical := commit != nil && commit.Result.Canonical
+	if err != nil || !canonical {
+		// Use retry mechanism with callback pattern
+		if !canonical {
+			l.Info().Msgf("commit %d is not canonical, retrying", height)
+		}
+		retry.RetryWithContext(
+			q.retryAmount,
+			q.pause,
+			q.pauseTime,
+			q.exponentialBackoff,
+			func(args ...any) (*rc.CommitResponse, error) {
+				h := args[0].(uint64)
+				result, rpcErr := q.rpcClient.GetCommit(h)
+				if rpcErr != nil {
+					return nil, rpcErr
+				}
+				if !result.Result.Canonical {
+					return nil, retry.ErrNotReady
+				}
+				return result, nil
+			},
+			func(result *rc.CommitResponse) {
+				commits[idx] = result
+				wg.Done()
+			},
+			func(retryErr error) {
+				l.Error().
+					Caller().
+					Stack().
+					Err(retryErr).
+					Msgf("failed to get commit %d after retries", height)
+				commits[idx] = nil
+				wg.Done()
+			},
+			height,
+		)
+		return
+	}
+	commits[idx] = commit
+	wg.Done()
 }
 
 // A swarm method to get transactions from a slice of tx hashes
