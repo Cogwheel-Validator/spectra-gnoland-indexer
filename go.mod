@@ -2,12 +2,12 @@ module github.com/Cogwheel-Validator/spectra-gnoland-indexer
 
 go 1.26.1
 
-toolchain go1.26.6
+toolchain go1.26.8
 
 require (
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/danielgtaylor/huma/v2 v2.39.1
-	github.com/gnolang/gno v0.0.0-20260827075919-c4c72fdd288c
+	github.com/gnolang/gno v1.2.0
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-chi/cors v1.2.2
 	github.com/jackc/pgx/v5 v5.10.0

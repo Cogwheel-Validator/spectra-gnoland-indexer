@@ -1,171 +1,219 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+    push:
+        tags:
+            - "v*"
 
 jobs:
-  build-and-release:
-    name: Build and Release
-    permissions:
-      contents: write
-      packages: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    build-and-release:
+        name: Build and Release
+        permissions:
+            contents: write
+            packages: write
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.4
-        with:
-          go-version: "1.26.6"
+            - name: Setup Go
+              uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.4
+              with:
+                  go-version: "1.26.8"
 
-      - name: Get version
-        id: version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+            - name: Get version
+              id: version
+              run: |
+                  VERSION=${GITHUB_REF#refs/tags/v}
+                  echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-          # Check if this is a pre-release (contains alpha, beta, rc, etc.)
-          if [[ $VERSION =~ (alpha|beta|rc) ]]; then
-            echo "prerelease=true" >> $GITHUB_OUTPUT
-            echo "docker_tag=dev" >> $GITHUB_OUTPUT
-          else
-            echo "prerelease=false" >> $GITHUB_OUTPUT
-            echo "docker_tag=latest" >> $GITHUB_OUTPUT
-          fi
+                  # Check if this is a pre-release (contains alpha, beta, rc, etc.)
+                  if [[ $VERSION =~ (alpha|beta|rc) ]]; then
+                    echo "prerelease=true" >> $GITHUB_OUTPUT
+                    echo "docker_tag=dev" >> $GITHUB_OUTPUT
+                  else
+                    echo "prerelease=false" >> $GITHUB_OUTPUT
+                    echo "docker_tag=latest" >> $GITHUB_OUTPUT
+                  fi
 
-      - name: Get git metadata
-        id: gitmeta
-        # actions/checkout provides the .git directory so these commands will work
-        run: |
-          echo "git_commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)" >> $GITHUB_OUTPUT
-          echo "git_tag=$(git describe --tags --exact-match 2>/dev/null || echo)" >> $GITHUB_OUTPUT
-          echo "git_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo)" >> $GITHUB_OUTPUT
+            - name: Get git metadata
+              id: gitmeta
+              # actions/checkout provides the .git directory so these commands will work
+              run: |
+                  echo "git_commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)" >> $GITHUB_OUTPUT
+                  echo "git_tag=$(git describe --tags --exact-match 2>/dev/null || echo)" >> $GITHUB_OUTPUT
+                  echo "git_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo)" >> $GITHUB_OUTPUT
 
-      - name: Install arm64 cross-compiler
-        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+            - name: Install arm64 cross-compiler
+              run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
-      - name: Build binaries
-        env:
-          GIT_COMMIT: ${{ steps.gitmeta.outputs.git_commit }}
-          GIT_TAG: ${{ steps.gitmeta.outputs.git_tag }}
-          GIT_BRANCH: ${{ steps.gitmeta.outputs.git_branch }}
-          VERSION_INPUT: ${{ steps.version.outputs.version }}
-        run: |
-          mkdir -p build
+            - name: Build binaries
+              env:
+                  GIT_COMMIT: ${{ steps.gitmeta.outputs.git_commit }}
+                  GIT_TAG: ${{ steps.gitmeta.outputs.git_tag }}
+                  GIT_BRANCH: ${{ steps.gitmeta.outputs.git_branch }}
+                  VERSION_INPUT: ${{ steps.version.outputs.version }}
+              run: |
+                  mkdir -p build
 
-          if [ -n "$GIT_TAG" ]; then
-            VERSION="$GIT_TAG"
-          else
-            VERSION="${GIT_BRANCH}-${GIT_COMMIT}"
-          fi
+                  if [ -n "$GIT_TAG" ]; then
+                    VERSION="$GIT_TAG"
+                  else
+                    VERSION="${GIT_BRANCH}-${GIT_COMMIT}"
+                  fi
 
-          echo "Building with VERSION=$VERSION, GIT_COMMIT=$GIT_COMMIT"
+                  echo "Building with VERSION=$VERSION, GIT_COMMIT=$GIT_COMMIT"
 
-          go mod download
+                  go mod download
+                  GOWORK=$PWD/go.testnet.work go mod download
 
-          LDFLAGS_INDEXER="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT} -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION} -w -s"
-          LDFLAGS_API="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION} -w -s"
+                  LDFLAGS_INDEXER="-X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Commit=${GIT_COMMIT} -X github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cmd.Version=${VERSION} -w -s"
+                  LDFLAGS_API="-X main.Commit=${GIT_COMMIT} -X main.Version=${VERSION} -w -s"
 
-          # amd64
-          GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-amd64 indexer/cmd/indexer.go
-          GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS_API" -o build/api-linux-amd64 api/*.go
+                  # amd64
+                  GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-amd64 indexer/cmd/indexer.go
+                  GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS_API" -o build/api-linux-amd64 api/*.go
 
-          # arm64
-          GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-arm64 indexer/cmd/indexer.go
-          GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS_API" -o build/api-linux-arm64 api/*.go
+                  # arm64
+                  GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-linux-arm64 indexer/cmd/indexer.go
+                  GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS_API" -o build/api-linux-arm64 api/*.go
 
-      - name: Generate Checksum
-        run: |
-          cd build
-          sha256sum * > ../CHECKSUMS
+                  # testnet builds
+                  GOOS=linux GOARCH=amd64 GOWORK=$PWD/go.testnet.work go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-testnet-linux-amd64 indexer/cmd/indexer.go
+                  GOOS=linux GOARCH=amd64 GOWORK=$PWD/go.testnet.work go build -ldflags="$LDFLAGS_API" -o build/api-testnet-linux-amd64 api/*.go
+                  GOOS=linux GOARCH=arm64 GOWORK=$PWD/go.testnet.work go build -ldflags="$LDFLAGS_INDEXER" -o build/indexer-testnet-linux-arm64 indexer/cmd/indexer.go
+                  GOOS=linux GOARCH=arm64 GOWORK=$PWD/go.testnet.work go build -ldflags="$LDFLAGS_API" -o build/api-testnet-linux-arm64 api/*.go
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-        with:
-          files: |
-            build/*
-            LICENSE
-            CHECKSUMS
-          prerelease: ${{ steps.version.outputs.prerelease }}
-          generate_release_notes: true
-          body: |
-            ## Release ${{ steps.version.outputs.version }}
+            - name: Generate Checksum
+              run: |
+                  cd build
+                  sha256sum * > ../CHECKSUMS
 
-            ### Installation for the indexer
-            Download the binary for your platform and make it executable:
-            ```bash
-            chmod +x indexer-*
-            ```
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+              with:
+                  files: |
+                      build/*
+                      LICENSE
+                      CHECKSUMS
+                  prerelease: ${{ steps.version.outputs.prerelease }}
+                  generate_release_notes: true
+                  body: |
+                      ## Release ${{ steps.version.outputs.version }}
 
-            You will need to set up the database for the indexer, check the docs for more information.
+                      ### Installation for the indexer
+                      Download the binary for your platform and make it executable:
+                      ```bash
+                      chmod +x indexer-*
+                      ```
 
-            To generate a default config use:
-            ```bash
-            indexer setup create-config
-            ```
-            This will create a config.yml in the current directory.
+                      Binaries and images with `testnet` in the name (e.g. `indexer-testnet-linux-amd64`,
+                      `:<version>-testnet`) are built against the testnet gno version. Use those for testnet chains.
 
-            When you have the database running run the cmd to create the database and the user.
-            ```bash
-            indexer setup create-db --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --new-db-name gnoland --chain-name gnoland
-            indexer setup create-user writer writer --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable
-            ```
+                      You will need to set up the database for the indexer, check the docs for more information.
 
-            From here you can run the indexer using live or historic mode
-            ```bash
-            ./indexer run live --config config.yml
-            ./indexer run historic --config config.yml --from-height 1 --to-height 2000
-            ```
+                      To generate a default config use:
+                      ```bash
+                      indexer setup create-config
+                      ```
+                      This will create a config.yml in the current directory.
 
-            For more information check the docs.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                      When you have the database running run the cmd to create the database and the user.
+                      ```bash
+                      indexer setup create-db --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable --new-db-name gnoland --chain-name gnoland
+                      indexer setup create-user writer writer --db-host localhost --db-port 5432 --db-user postgres --db-name postgres --ssl-mode disable
+                      ```
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+                      From here you can run the indexer using live or historic mode
+                      ```bash
+                      ./indexer run live --config config.yml
+                      ./indexer run historic --config config.yml --from-height 1 --to-height 2000
+                      ```
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+                      For more information check the docs.
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker Indexer image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ghcr.io/cogwheel-validator/spectra-gnoland-indexer:${{ steps.version.outputs.version }}
-            ghcr.io/cogwheel-validator/spectra-gnoland-indexer:${{ steps.version.outputs.docker_tag }}
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}
-            GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
-            GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
-            GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
-      - name: Build and push Docker API image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
-        with:
-          context: .
-          file: Dockerfile-api
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ghcr.io/cogwheel-validator/spectra-gnoland-api:${{ steps.version.outputs.version }}
-            ghcr.io/cogwheel-validator/spectra-gnoland-api:${{ steps.version.outputs.docker_tag }}
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}
-            GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
-            GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
-            GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            - name: Login to GitHub Container Registry
+              uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Build and push Docker Indexer image
+              uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+              with:
+                  context: .
+                  file: Dockerfile
+                  push: true
+                  platforms: linux/amd64
+                  tags: |
+                      ghcr.io/cogwheel-validator/spectra-gnoland-indexer:${{ steps.version.outputs.version }}
+                      ghcr.io/cogwheel-validator/spectra-gnoland-indexer:${{ steps.version.outputs.docker_tag }}
+                  build-args: |
+                      VERSION=${{ steps.version.outputs.version }}
+                      GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
+                      GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
+                      GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
+                  cache-from: type=gha,scope=indexer
+                  cache-to: type=gha,mode=max,scope=indexer
+
+            - name: Build and push Docker API image
+              uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+              with:
+                  context: .
+                  file: Dockerfile-api
+                  push: true
+                  platforms: linux/amd64
+                  tags: |
+                      ghcr.io/cogwheel-validator/spectra-gnoland-api:${{ steps.version.outputs.version }}
+                      ghcr.io/cogwheel-validator/spectra-gnoland-api:${{ steps.version.outputs.docker_tag }}
+                  build-args: |
+                      VERSION=${{ steps.version.outputs.version }}
+                      GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
+                      GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
+                      GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
+                  cache-from: type=gha,scope=api
+                  cache-to: type=gha,mode=max,scope=api
+
+            - name: Build and push Docker Indexer testnet image
+              uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+              with:
+                  context: .
+                  file: Dockerfile
+                  push: true
+                  platforms: linux/amd64
+                  tags: |
+                      ghcr.io/cogwheel-validator/spectra-gnoland-indexer:${{ steps.version.outputs.version }}-testnet
+                      ghcr.io/cogwheel-validator/spectra-gnoland-indexer:${{ steps.version.outputs.docker_tag }}-testnet
+                  build-args: |
+                      NETWORK=testnet
+                      VERSION=${{ steps.version.outputs.version }}
+                      GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
+                      GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
+                      GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
+                  cache-from: type=gha,scope=testnet-indexer
+                  cache-to: type=gha,mode=max,scope=testnet-indexer
+
+            - name: Build and push Docker API testnet image
+              uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+              with:
+                  context: .
+                  file: Dockerfile-api
+                  push: true
+                  platforms: linux/amd64
+                  tags: |
+                      ghcr.io/cogwheel-validator/spectra-gnoland-api:${{ steps.version.outputs.version }}-testnet
+                      ghcr.io/cogwheel-validator/spectra-gnoland-api:${{ steps.version.outputs.docker_tag }}-testnet
+                  build-args: |
+                      NETWORK=testnet
+                      VERSION=${{ steps.version.outputs.version }}
+                      GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
+                      GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
+                      GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
+                  cache-from: type=gha,scope=testnet-api
+                  cache-to: type=gha,mode=max,scope=testnet-api

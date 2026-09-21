@@ -2,7 +2,7 @@
 # Build and install the indexer and API
 ########################################################
 
-.PHONY: build-indexer build-api clean
+.PHONY: build-indexer build-api build-indexer-testnet build-api-testnet clean
 
 # Get git information
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -23,6 +23,18 @@ build-api:
 	mkdir -p build
 	GOTOOLCHAIN=auto go build -ldflags="$(api_flags)" -o build/api ./api
 
+# Testnet builds use go.testnet.work (gno pinned through a workspace replace directive).
+# go.mod stays the single source of truth for dependencies.
+export_testnet := GOWORK=$(CURDIR)/go.testnet.work
+
+build-indexer-testnet:
+	mkdir -p build
+	$(export_testnet) GOTOOLCHAIN=auto go build -ldflags "$(indexer_flags) -w -s" -o build/indexer-testnet indexer/cmd/indexer.go
+
+build-api-testnet:
+	mkdir -p build
+	$(export_testnet) GOTOOLCHAIN=auto go build -ldflags="$(api_flags)" -o build/api-testnet ./api
+
 build-dev:
 	mkdir -p build
 	GOTOOLCHAIN=auto go build -gcflags="-m=2" -tags=devmode -ldflags "$(indexer_flags)" -o build/dev indexer/cmd/indexer.go
@@ -36,6 +48,9 @@ clean:
 
 test:
 	go test -v ./...
+
+test-testnet:
+	$(export_testnet) go test -v ./...
 
 integration-test:
 	cd integration && go test -v -tags=integration -timeout=20m ./...
@@ -59,6 +74,9 @@ lint:
 
 vulncheck:
 	GOTOOLCHAIN=auto govulncheck ./...
+
+vulncheck-testnet:
+	$(export_testnet) GOTOOLCHAIN=auto govulncheck ./...
 
 ########################################################
 # Train the zstd dictionary

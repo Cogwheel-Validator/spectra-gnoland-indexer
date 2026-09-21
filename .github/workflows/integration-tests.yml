@@ -1,137 +1,137 @@
 name: Integration Tests
 on:
-  pull_request:
-    branches: [main, dev]
-  push:
-    branches: [main, dev]
-  workflow_dispatch:
-    inputs:
-      test_size:
-        description: "Test size (small/medium/large)"
-        required: true
-        default: "small"
-        type: choice
-        options:
-          - small
-          - medium
-          - large
+    pull_request:
+        branches: [main, dev]
+    push:
+        branches: [main, dev]
+    workflow_dispatch:
+        inputs:
+            test_size:
+                description: "Test size (small/medium/large)"
+                required: true
+                default: "small"
+                type: choice
+                options:
+                    - small
+                    - medium
+                    - large
 
 jobs:
-  setup:
-    name: Determine test matrix
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - id: set-matrix
-        run: |
-          case "${{ github.event_name }}" in
-            pull_request)
-              echo 'matrix={"include":[{"size":"small","label":"Small","max_height":1000,"job_timeout":10,"test_timeout":"5m","test_timeout_min":5,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
-              ;;
-            push)
-              echo 'matrix={"include":[{"size":"medium","label":"Medium","max_height":10000,"job_timeout":30,"test_timeout":"20m","test_timeout_min":20,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
-              ;;
-            workflow_dispatch)
-              case "${{ github.event.inputs.test_size }}" in
-                small)
-                  echo 'matrix={"include":[{"size":"small","label":"Small","max_height":1000,"job_timeout":10,"test_timeout":"5m","test_timeout_min":5,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
-                  ;;
-                medium)
-                  echo 'matrix={"include":[{"size":"medium","label":"Medium","max_height":10000,"job_timeout":30,"test_timeout":"20m","test_timeout_min":20,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
-                  ;;
-                large)
-                  echo 'matrix={"include":[{"size":"large","label":"Large","max_height":100000,"job_timeout":90,"test_timeout":"75m","test_timeout_min":75,"upload_artifacts":true}]}' >> $GITHUB_OUTPUT
-                  ;;
-              esac
-              ;;
-          esac
+    setup:
+        name: Determine test matrix
+        runs-on: ubuntu-latest
+        outputs:
+            matrix: ${{ steps.set-matrix.outputs.matrix }}
+        steps:
+            - id: set-matrix
+              run: |
+                  case "${{ github.event_name }}" in
+                    pull_request)
+                      echo 'matrix={"include":[{"size":"small","label":"Small","max_height":1000,"job_timeout":10,"test_timeout":"5m","test_timeout_min":5,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
+                      ;;
+                    push)
+                      echo 'matrix={"include":[{"size":"medium","label":"Medium","max_height":10000,"job_timeout":30,"test_timeout":"20m","test_timeout_min":20,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
+                      ;;
+                    workflow_dispatch)
+                      case "${{ github.event.inputs.test_size }}" in
+                        small)
+                          echo 'matrix={"include":[{"size":"small","label":"Small","max_height":1000,"job_timeout":10,"test_timeout":"5m","test_timeout_min":5,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
+                          ;;
+                        medium)
+                          echo 'matrix={"include":[{"size":"medium","label":"Medium","max_height":10000,"job_timeout":30,"test_timeout":"20m","test_timeout_min":20,"upload_artifacts":false}]}' >> $GITHUB_OUTPUT
+                          ;;
+                        large)
+                          echo 'matrix={"include":[{"size":"large","label":"Large","max_height":100000,"job_timeout":90,"test_timeout":"75m","test_timeout_min":75,"upload_artifacts":true}]}' >> $GITHUB_OUTPUT
+                          ;;
+                      esac
+                      ;;
+                  esac
 
-  integration-test:
-    name: Integration Test (${{ matrix.label }})
-    needs: setup
-    permissions:
-      contents: read
-      packages: read
-    runs-on: ubuntu-latest
-    timeout-minutes: ${{ matrix.job_timeout }}
-    strategy:
-      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    integration-test:
+        name: Integration Test (${{ matrix.label }})
+        needs: setup
+        permissions:
+            contents: read
+            packages: read
+        runs-on: ubuntu-latest
+        timeout-minutes: ${{ matrix.job_timeout }}
+        strategy:
+            matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
 
-    services:
-      timescaledb:
-        image: timescale/timescaledb-ha:pg17
-        env:
-          POSTGRES_PASSWORD: test_password_12345678
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+        services:
+            timescaledb:
+                image: timescale/timescaledb-ha:pg17
+                env:
+                    POSTGRES_PASSWORD: test_password_12345678
+                    POSTGRES_DB: postgres
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U postgres -d postgres"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.4
-        with:
-          go-version: "1.26.6"
-          cache: true
+            - name: Set up Go
+              uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v6.4
+              with:
+                  go-version: "1.26.8"
+                  cache: true
 
-      - name: Wait for PostgreSQL
-        run: |
-          timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done'
-        env:
-          PGPASSWORD: test_password_12345678
+            - name: Wait for PostgreSQL
+              run: |
+                  timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done'
+              env:
+                  PGPASSWORD: test_password_12345678
 
-      - name: Initialize database schema
-        run: |
-          go run indexer/cmd/indexer.go setup create-db --db-user postgres --db-name postgres
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USER: postgres
-          DB_PASSWORD: test_password_12345678
-          DB_NAME: gnoland
+            - name: Initialize database schema
+              run: |
+                  go run indexer/cmd/indexer.go setup create-db --db-user postgres --db-name postgres
+              env:
+                  DB_HOST: localhost
+                  DB_PORT: 5432
+                  DB_USER: postgres
+                  DB_PASSWORD: test_password_12345678
+                  DB_NAME: gnoland
 
-      - name: Create test config
-        run: |
-          cat > integration/test_config.yml << EOF
-          host: localhost
-          port: 5432
-          user: postgres
-          password: test_password_12345678
-          dbname: gnoland
-          sslmode: disable
-          pool_max_conns: 100
-          pool_min_conns: 2
-          pool_max_conn_lifetime: 5m
-          pool_max_conn_idle_time: 2m
-          pool_health_check_period: 30s
-          pool_max_conn_lifetime_jitter: 30s
+            - name: Create test config
+              run: |
+                  cat > integration/test_config.yml << EOF
+                  host: localhost
+                  port: 5432
+                  user: postgres
+                  password: test_password_12345678
+                  dbname: gnoland
+                  sslmode: disable
+                  pool_max_conns: 100
+                  pool_min_conns: 2
+                  pool_max_conn_lifetime: 5m
+                  pool_max_conn_idle_time: 2m
+                  pool_health_check_period: 30s
+                  pool_max_conn_lifetime_jitter: 30s
 
-          chain_id: gnoland
-          max_height: ${{ matrix.max_height }}
-          from_height: 1
-          to_height: ${{ matrix.max_height }}
-          EOF
+                  chain_id: gnoland
+                  max_height: ${{ matrix.max_height }}
+                  from_height: 1
+                  to_height: ${{ matrix.max_height }}
+                  EOF
 
-      - name: Run ${{ matrix.size }} integration test (${{ matrix.label }})
-        run: |
-          cd integration
-          go test -v -tags=integration -timeout=${{ matrix.test_timeout }}
-        timeout-minutes: ${{ matrix.test_timeout_min }}
+            - name: Run ${{ matrix.size }} integration test (${{ matrix.label }})
+              run: |
+                  cd integration
+                  go test -v -tags=integration -timeout=${{ matrix.test_timeout }}
+              timeout-minutes: ${{ matrix.test_timeout_min }}
 
-      - name: Upload test results
-        if: always() && matrix.upload_artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: integration-test-results
-          path: |
-            integration/test_results/
-            state_dumps/
-          retention-days: 7
+            - name: Upload test results
+              if: always() && matrix.upload_artifacts
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: integration-test-results
+                  path: |
+                      integration/test_results/
+                      state_dumps/
+                  retention-days: 7
