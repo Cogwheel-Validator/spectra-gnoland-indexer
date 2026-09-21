@@ -11,7 +11,8 @@ ARG VERSION=""
 # Set to "testnet" to build against go.testnet.work
 ARG NETWORK="mainnet"
 
-RUN if [ -z "$VERSION" ]; then \
+RUN mkdir -p build && \
+    if [ -z "$VERSION" ]; then \
     if [ -n "$GIT_TAG" ]; then VERSION="$GIT_TAG"; \
     else VERSION="${GIT_BRANCH}-${GIT_COMMIT}"; \
     fi; \

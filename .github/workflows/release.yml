@@ -159,8 +159,8 @@ jobs:
                       GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
                       GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
                       GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
+                  cache-from: type=gha,scope=indexer
+                  cache-to: type=gha,mode=max,scope=indexer
 
             - name: Build and push Docker API image
               uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
@@ -177,8 +177,8 @@ jobs:
                       GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
                       GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
                       GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
+                  cache-from: type=gha,scope=api
+                  cache-to: type=gha,mode=max,scope=api
 
             - name: Build and push Docker Indexer testnet image
               uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
@@ -196,8 +196,8 @@ jobs:
                       GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
                       GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
                       GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
-                  cache-from: type=gha,scope=testnet
-                  cache-to: type=gha,mode=max,scope=testnet
+                  cache-from: type=gha,scope=testnet-indexer
+                  cache-to: type=gha,mode=max,scope=testnet-indexer
 
             - name: Build and push Docker API testnet image
               uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
@@ -215,5 +215,5 @@ jobs:
                       GIT_COMMIT=${{ steps.gitmeta.outputs.git_commit }}
                       GIT_TAG=${{ steps.gitmeta.outputs.git_tag }}
                       GIT_BRANCH=${{ steps.gitmeta.outputs.git_branch }}
-                  cache-from: type=gha,scope=testnet
-                  cache-to: type=gha,mode=max,scope=testnet
+                  cache-from: type=gha,scope=testnet-api
+                  cache-to: type=gha,mode=max,scope=testnet-api
