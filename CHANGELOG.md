@@ -5,18 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-09-23
+
+Small adjustment and fixes to the indexer and the database schema.
+The indexer now supports mainnet and testnet versions, and a new CLI command was
+added to add chain_name enum. Major fix was added to make the data processor
+await the RPC commit to have canonical true, and a race condition in the test
+was fixed.
+
+### Added
+
+- Add mainnet and testnet versions ([#36](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/36)) [001d639](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/001d639bfd0d46bd97c0869ce9f942550ba50172)
+- Add cli command to add chain_name enum ([#35](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/35)) [49223db](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/49223db77e70b0f4874c4b14759625e0b06f10b4)
+
+### Changes
+
+- Bump softprops/action-gh-release from 3.0.2 to 3.0.3 ([#33](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/33)) [382928c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/382928cad86dc86c6675224213c0b6e2d18c695d)
+
+### Fixed
+
+- Race condition in the test ([#37](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/37)) [250e4a1](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/250e4a1376980bbb662985b4b514befd76ae4410)
+- Await rpc commit to have canonical true ([#34](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/34)) [ca4374b](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ca4374b81c7d18a4f7530e02be9e228f95642568)
+
 ## [0.8.1] - 2026-07-22
 
 BREAKING CHANGES: Tx hashes are directly stored into the tables now, instead of relying on tx_id. Clear
 the whole database down and re-index as there is no migration path for existing data.
 
 The change that was added in version v0.7.0 added a new table `tx_hash_id` that allowed to tie each
-table that requires the `tx_hash` and to switch it for `tx_id` which was only 8 bytes instead of 16, and 
+table that requires the `tx_hash` and to switch it for `tx_id` which was only 8 bytes instead of 16, and
 it allowed to query by id across different tables, while at the same time compression of integers
-with TimescaleDB achieved storing this data under less than 8 bytes. 
+with TimescaleDB achieved storing this data under less than 8 bytes.
 
-However the trouble arose when the database hit 1.5 million transactions, there were a lot of joins 
-needed to acquire most basic data. Simple solution was to revert the schema similar to the one from 
+However the trouble arose when the database hit 1.5 million transactions, there were a lot of joins
+needed to acquire most basic data. Simple solution was to revert the schema similar to the one from
 v0.7.0.
 
 If you already have an indexer with the versions <= v0.8.0, the easiest way would be to create another
@@ -154,14 +176,14 @@ types, and the bank multi send should be supported.
 
 ## [0.7.0] - 2026-06-14
 
-This release brings a versioned REST API, several new routes, real-time statistics, partial support 
+This release brings a versioned REST API, several new routes, real-time statistics, partial support
 for the bank multi send message type, and a large number of query fixes and performance refactors. The
 database layer received significant work, including a schema migration table for future releases and
 a refactor of the transaction lookups to use `tx_hash_id`. The Go toolchain and dependencies were
 updated and the TimescaleDB code was separated out of the database package.
 
 This version will make a freeze on any new feature unless it is related to performance, stability, or
-security until the v1 release. All of the development will be focused on bug fixes and improvements of 
+security until the v1 release. All of the development will be focused on bug fixes and improvements of
 the existing functionality.
 
 ### Added
@@ -271,7 +293,7 @@ Mostly it has some bug fixes.
 
 ## [0.3.0] - 2025-11-10
 
-In this release there are some fixes and improvements. The live process should work properly now and the REST API has some new routes. CLI commands are now combined with the ones from the setup cli. Some processes have been improved to use less memory. 
+In this release there are some fixes and improvements. The live process should work properly now and the REST API has some new routes. CLI commands are now combined with the ones from the setup cli. Some processes have been improved to use less memory.
 
 ### Added
 
@@ -320,8 +342,8 @@ Mostly some fixes. The live should work now there was a bug with the RPC client 
 
 ## [0.1.0] - 2025-10-01
 
-This is officially first working version of the indexer. The historic version was successfully tested on the real 
-data. It took about 2m30s on 2vCPU for 10K blocks and about 1m30s on 4vCPU for 10K blocks. 
+This is officially first working version of the indexer. The historic version was successfully tested on the real
+data. It took about 2m30s on 2vCPU for 10K blocks and about 1m30s on 4vCPU for 10K blocks.
 The live version was not tested on the real data yet mostly because there is no active public Gnoland testnet available.
 The live will be tested properly on the testnet 9 when it is released. So the index will probably work but expect
 some bugs. Some features are still missing and this is still a work in progress.
@@ -336,10 +358,9 @@ some bugs. Some features are still missing and this is still a work in progress.
 
 - The cmd setup can now add tables to already existing database [5f20967](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/5f20967c429dbc95d959cbb09b3b050afe79477b)
 
-### Fixed 
+### Fixed
 
 - There were some bugs related to pointers if the value was nil for block responses related to validator signing [c7f229a](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c7f229aedfbb3fb7a0fb05553898f7f2bb43f23b)
-
 
 ## [0.1.0-beta.2] - 2025-09-29
 
@@ -372,10 +393,9 @@ The indexer had some bug fixes and some small improvments. The integration test 
 - The chunk end height was incremented by 1 when the indexer started the historic process. This caused the chunks to overlap and the indexer to throw an error about the duplication. The indexer now correctly sets the chunk end height to the max height [ddfdcc1](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ddfdcc1955784ad510de7f7c847d1a8cf3009e71)
 - Fixed a bug where the data processor would ask the address from the regular address cache instead from the validator address cache [ddfdcc1](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ddfdcc1955784ad510de7f7c847d1a8cf3009e71)
 
-
 ## [0.1.0-alpha.2] - 2025-09-21
 
-This is a second alpha release although the indexer is not yet ready. 
+This is a second alpha release although the indexer is not yet ready.
 
 ### Added
 
@@ -384,11 +404,10 @@ This is a second alpha release although the indexer is not yet ready.
 - Added the synthetic integration test [76e42f6](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/76e42f60b4a828a075322c35d03e8ab52a1721ea)
 - Moved some of the code logic to it's own package [9cc12e9](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/9cc12e9961e5c7d2e984209faa5ffda97f75eb06), [76e42f6](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/76e42f60b4a828a075322c35d03e8ab52a1721ea), [9ca2214](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/9ca221475ac90df0edadc6b1eaf028feb75b79a6)
 
-
 ## [0.1.0-alpha.1] - 2025-09-15
 
 This is the first alpha release of the Spectra Gnoland indexer. Technically most of the indexer components are
-done but it is not tested fully so this version is not recommended for production use. 
+done but it is not tested fully so this version is not recommended for production use.
 
 ### Added
 
@@ -400,7 +419,7 @@ done but it is not tested fully so this version is not recommended for productio
 - Signal hook for graceful shutdown and emergency shutdown
 - Amino decoder for the data from the Gnoland Chain
 - Major operator/worker pattern for the indexer have been implemented
-- Basic database setup 
+- Basic database setup
 
 ### Known Issues
 

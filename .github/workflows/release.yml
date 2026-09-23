@@ -131,6 +131,7 @@ jobs:
                       ```
 
                       For more information check the docs.
+                      And to check each change visit the [CHANGELOG](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/blob/${{ steps.version.outputs.version }}/CHANGELOG.md)
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

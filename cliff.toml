@@ -1,6 +1,11 @@
 # git-cliff configuration for spectra-gnoland-indexer
 # Tuned to the existing CHANGELOG.md style (Keep a Changelog + Added/Changes/Fixed).
 #
+# Commit messages are expected to be strict Conventional Commits
+# (https://www.conventionalcommits.org/en/v1.0.0/): `type(scope)!: description`.
+# GitHub squash-merges append " (#NN)" to the subject line; that reference is
+# rewritten into a link to the PR itself (see commit_preprocessors below).
+#
 # Release workflow example:
 #   1. Preview:   git cliff --unreleased --tag v0.7.1
 #   2. Prepend:   git cliff --unreleased --tag v0.7.1 --prepend CHANGELOG.md
@@ -37,24 +42,32 @@ body = """
 trim = true
 
 [git]
-conventional_commits = false
+conventional_commits = true
+# Don't drop non-conforming commits route them to the catch-all group below so nothing
+# silently vanishes; a full "Uncategorized" section is a signal to fix commit hygiene, not hide it.
 filter_unconventional = false
 split_commits = false
-protect_breaking_commits = false
+# Breaking commits are never dropped by another parser matching first.
+protect_breaking_commits = true
 
 commit_preprocessors = [
-  # Only strip a trailing period from the subject — the type prefix stays so parsers can see it.
+  # Strip a trailing period from the subject — the type prefix stays so parsers can see it.
   { pattern = '\.\s*$', replace = "" },
+  # GitHub squash-merge appends " (#NN)" to the subject — turn it into a link to the PR.
+  { pattern = '(?m)\(#(\d+)\)[ \t]*$', replace = "([#$1](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/$1))" },
 ]
 
-# Parsers match against the FULL commit message (including type prefix) since conventional_commits = false.
+# Parsers match against the FULL commit message (including type prefix).
 # (\([^)]+\))? handles optional scopes: both "feat:" and "feat(api):" are matched.
 # The <!-- N --> markers control section sort order (lower number = higher in the output).
 commit_parsers = [
-  { message = '^\s*(?i)(feat|feature|add|added)(\([^)]+\))?:',                                                              group = "<!-- 0 -->Added" },
-  { message = '^\s*(?i)(fix|bug ?fix|fixed)(\([^)]+\))?:',                                                                  group = "<!-- 2 -->Fixed" },
-  { message = '^\s*(?i)(change|changed|chore|deps|dep|refactor|refac|lint|go fmt|go fix|perf|docs|doc|build|ci)(\([^)]+\))?:', group = "<!-- 1 -->Changes" },
-  { message = '^\s*(?i)(test|audit|vulncheck|vuln)(\([^)]+\))?:',                                                           group = "<!-- 3 -->Tests and Code Check" },
+  # Breaking changes (type(scope)!: ... or a BREAKING CHANGE: footer) always come first.
+  { message = '^\s*(?i)[a-z]+(\([^)]+\))?!:', group = "<!-- -1 -->Breaking Changes" },
+  { footer = '^(?i)BREAKING[ -]CHANGE', group = "<!-- -1 -->Breaking Changes" },
+  { message = '^\s*(?i)(feat|feature|add|added)(\([^)]+\))?:',                                                                    group = "<!-- 0 -->Added" },
+  { message = '^\s*(?i)(fix|bug ?fix|fixed)(\([^)]+\))?:',                                                                        group = "<!-- 2 -->Fixed" },
+  { message = '^\s*(?i)(change|changed|chore|deps|dep|refactor|refac|lint|go fmt|go fix|perf|docs|doc|build|ci|style|revert)(\([^)]+\))?:', group = "<!-- 1 -->Changes" },
+  { message = '^\s*(?i)(test|audit|vulncheck|vuln)(\([^)]+\))?:',                                                                 group = "<!-- 3 -->Tests and Code Check" },
   # Catch-all so nothing silently vanishes — triage these before releasing.
   { message = '.*', group = "<!-- 4 -->Uncategorized (please triage)" },
 ]
