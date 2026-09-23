@@ -2,6 +2,7 @@ package orchestrator_test
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -56,13 +57,13 @@ func (m *MockDataProcessor) ProcessValidatorSignings(commits []*rpcClient.Commit
 // and check if the method is called with the correct parameters
 type MockQueryOperator struct {
 	ShouldReturnBlocks  bool
-	CallCount           int
+	CallCount           atomic.Int32
 	ShouldReturnCommits bool
 }
 
 // Mock method for GetFromToBlocks
 func (m *MockQueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*rpcClient.BlockResponse {
-	m.CallCount++
+	m.CallCount.Add(1)
 	if !m.ShouldReturnBlocks {
 		return []*rpcClient.BlockResponse{} // Return empty slice
 	}
@@ -73,7 +74,7 @@ func (m *MockQueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) 
 
 // Mock method for GetFromToCommits
 func (m *MockQueryOperator) GetFromToCommits(fromHeight uint64, toHeight uint64) ([]*rpcClient.CommitResponse, error) {
-	m.CallCount++
+	m.CallCount.Add(1)
 	if !m.ShouldReturnCommits {
 		return []*rpcClient.CommitResponse{}, nil // Return empty slice
 	}
@@ -185,7 +186,7 @@ func TestOrchestrator_HistoricProcess_CallsAllProcessors(t *testing.T) {
 	}
 
 	// Verify query operator was called
-	if mockQueryOperator.CallCount == 0 {
+	if mockQueryOperator.CallCount.Load() == 0 {
 		t.Error("Expected QueryOperator to be called")
 	}
 }
@@ -216,7 +217,7 @@ func TestOrchestrator_HistoricProcess_SkipsProcessingWhenNoBlocks(t *testing.T) 
 	orch.HistoricProcess(context.Background(), 1, 5, false)
 
 	// Verify query was attempted
-	if mockQueryOperator.CallCount == 0 {
+	if mockQueryOperator.CallCount.Load() == 0 {
 		t.Error("Expected QueryOperator to be called")
 	}
 
