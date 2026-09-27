@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-09-27
+
+Fix for the new vm message types that were added in the Gnoland mainnet.
+
+BREAKING CHANGE: The new vm message types are now supported, however for this
+to be implemented for now the only way is to do it manually by making the necessary
+changes inside of the database, or to use the CLI command `setup create-db` which
+will create new database from scratch. In the future release a migration option
+will be added to support this kind of changes.
+
+### Added
+
+- Add vm msg reject package ([#42](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/42)) [f97f182](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/f97f182441a69d562cc2d1f53ed42969f6a6a2ea)
+- Add MsgEnablePackage message type support ([#41](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/41)) [376ec34](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/376ec345341a92adeb49df409182f0f3d8f232aa)
+
+### Changes
+
+- Update gno to v1.5.0 [ebdb074](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/ebdb07438541c0be5231fcedf63bc9774fa1536d)
+- Add vm package enable and reject messages [521c668](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/521c6685e83dc0001e75cea2f7dc91d46eb2309d)
+- Bump docker/build-push-action from 7.3.0 to 7.4.0 ([#38](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/38)) [85428cb](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/85428cbb4d3145f8f3ba3b90758433ef9e1035bc)
+- Bump docker/setup-buildx-action from 4.3.0 to 4.4.1 ([#39](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/39)) [c8223b3](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c8223b38b25d01ba2dc216ea210bb7f50c065709)
+
+### Tests and Code Check
+
+- Add possibility to the synthetic integration test to generate missing vm messages ([#43](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/43)) [140a0bb](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/140a0bb3d3ada276e8ca6d6702552250061d57d7)
+
 ## [0.9.0] - 2026-09-23
 
 Small adjustment and fixes to the indexer and the database schema.
