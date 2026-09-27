@@ -17,6 +17,8 @@ var (
 	_ DBTable = MsgMultiSend{}
 	_ DBTable = MsgCall{}
 	_ DBTable = MsgAddPackage{}
+	_ DBTable = MsgEnablePackage{}
+	_ DBTable = MsgRejectPackage{}
 	_ DBTable = MsgRun{}
 	_ DBTable = MsgAuthCrSession{}
 	_ DBTable = MsgAuthRvSession{}
@@ -35,6 +37,8 @@ var (
 	_ Insertable = MsgMultiSend{}
 	_ Insertable = MsgCall{}
 	_ Insertable = MsgAddPackage{}
+	_ Insertable = MsgEnablePackage{}
+	_ Insertable = MsgRejectPackage{}
 	_ Insertable = MsgRun{}
 	_ Insertable = MsgAuthCrSession{}
 	_ Insertable = MsgAuthRvSession{}
@@ -48,6 +52,8 @@ var (
 	_ Message = (*MsgMultiSend)(nil)
 	_ Message = (*MsgCall)(nil)
 	_ Message = (*MsgAddPackage)(nil)
+	_ Message = (*MsgEnablePackage)(nil)
+	_ Message = (*MsgRejectPackage)(nil)
 	_ Message = (*MsgRun)(nil)
 	_ Message = (*MsgAuthCrSession)(nil)
 	_ Message = (*MsgAuthRvSession)(nil)

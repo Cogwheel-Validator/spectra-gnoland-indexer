@@ -2,6 +2,7 @@ package decoder
 
 import (
 	"encoding/base64"
+	"reflect"
 	"slices"
 	"sort"
 	"testing"
@@ -71,6 +72,7 @@ var expectedTypeNames = []string{
 	"vm_msg_add_package",
 	"vm_msg_run",
 	"vm_msg_enable_package",
+	"vm_msg_reject_package",
 	"auth_msg_create_session",
 	"auth_msg_revoke_session",
 	"auth_msg_revoke_all_sessions",
@@ -92,7 +94,8 @@ func sampleMessages(sk crypto.PubKey) []std.Msg {
 		vm.MsgCall{Caller: testAddr(6), Send: coins(5, "ugnot"), PkgPath: "gno.land/r/demo/foo", Func: "Bar", Args: []string{"a", "b"}},
 		vm.MsgAddPackage{Creator: testAddr(7), Package: memPkg(), Send: std.Coins{}, MaxDeposit: std.Coins{}},
 		vm.MsgRun{Caller: testAddr(8), Package: memPkg(), Send: std.Coins{}, MaxDeposit: std.Coins{}},
-		vm.MsgEnablePackage{Approver: testAddr(7), PkgPath: "gno.land/r/demo/foo", PkgHash: sampleSha256(), PkgHeight: 123456},
+		vm.MsgEnablePackage{Approver: testAddr(7), PkgPath: "gno.land/r/demo/foo", PkgHash: sampleSha256()},
+		vm.MsgRejectPackage{Sender: testAddr(12), PkgPath: "gno.land/r/demo/bar"},
 		auth.MsgCreateSession{Creator: testAddr(9), SessionKey: sk, ExpiresAt: 1700000000, AllowPaths: []string{"*"}, SpendLimit: coins(1000, "ugnot"), SpendPeriod: 3600},
 		auth.MsgRevokeSession{Creator: testAddr(10), SessionKey: sk},
 		auth.MsgRevokeAllSessions{Creator: testAddr(11)},
@@ -190,6 +193,7 @@ func TestConvertToDbMessages(t *testing.T) {
 		"vm_msg_add_package":           1,
 		"vm_msg_run":                   1,
 		"vm_msg_enable_package":        1,
+		"vm_msg_reject_package":        1,
 		"auth_msg_create_session":      1,
 		"auth_msg_revoke_session":      1,
 		"auth_msg_revoke_all_sessions": 1,
@@ -231,6 +235,37 @@ func TestMsgSendConversion(t *testing.T) {
 	}
 	if len(row.Amount) != 1 || row.Amount[0].Denom != "ugnot" || row.Amount[0].Amount.Int.Int64() != 100 {
 		t.Errorf("Amount = %+v, expected 100 ugnot", row.Amount)
+	}
+}
+
+func TestRejectPackageConversion(t *testing.T) {
+	sender := testAddr(12)
+	resolver := newMockResolver()
+	dm := &DecodedMsg{Msgs: []std.Msg{
+		vm.MsgRejectPackage{Sender: sender, PkgPath: "gno.land/r/demo/bar"},
+	}}
+
+	if got := dm.CollectAllAddresses(); len(got) != 1 || got[0] != sender.String() {
+		t.Errorf("CollectAllAddresses = %v, expected [%s]", got, sender.String())
+	}
+
+	out, err := dm.ConvertToDbMessages(resolver, []byte("txhash8"), "test-chain", time.Unix(123, 0).UTC(), nil)
+	if err != nil {
+		t.Fatalf("convert: %v", err)
+	}
+	rows := out.InsertBatches()[0].Rows
+	row, ok := rows[0].(*s.MsgRejectPackage)
+	if !ok {
+		t.Fatalf("row is %T, expected *schema.MsgRejectPackage", rows[0])
+	}
+	if row.Sender != resolver.GetAddress(sender.String()) {
+		t.Errorf("Sender = %d, expected resolved id %d", row.Sender, resolver.GetAddress(sender.String()))
+	}
+	if row.PkgPath != "gno.land/r/demo/bar" {
+		t.Errorf("PkgPath = %q, expected %q", row.PkgPath, "gno.land/r/demo/bar")
+	}
+	if string(row.TxHash) != "txhash8" || row.ChainName != "test-chain" {
+		t.Errorf("TxHash/ChainName = %s/%q, expected txhash8/test-chain", row.TxHash, row.ChainName)
 	}
 }
 
@@ -379,5 +414,22 @@ func TestUnknownMessageTypeRejected(t *testing.T) {
 	dm := &DecodedMsg{Msgs: []std.Msg{unknownMsg{}}}
 	if _, err := dm.ConvertToDbMessages(newMockResolver(), []byte("txhash1"), "c", time.Unix(0, 0).UTC(), nil); err == nil {
 		t.Error("ConvertToDbMessages accepted an unregistered message type, expected error")
+	}
+}
+
+// TestEnablePackageHeight covers both gno versions: mainnet's MsgEnablePackage
+// has PkgHeight, the testnet pin (go.testnet.work) does not.
+func TestEnablePackageHeight(t *testing.T) {
+	var m vm.MsgEnablePackage
+	f := reflect.ValueOf(&m).Elem().FieldByName("PkgHeight")
+	if !f.IsValid() {
+		if got := enablePackageHeight(m); got != 0 {
+			t.Fatalf("enablePackageHeight without PkgHeight field = %d, want 0", got)
+		}
+		return
+	}
+	f.SetInt(123456)
+	if got := enablePackageHeight(m); got != 123456 {
+		t.Fatalf("enablePackageHeight = %d, want 123456", got)
 	}
 }

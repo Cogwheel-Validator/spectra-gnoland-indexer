@@ -124,6 +124,15 @@ type MsgEnablePackage struct {
 	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
 }
 
+type MsgRejectPackage struct {
+	MessageCounter int16     `json:"message_counter" doc:"Transaction order integer, starts from 0"`
+	TxHash         string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp      time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	Sender         string    `json:"sender" doc:"Sender address (approver or package creator)"`
+	PkgPath        string    `json:"pkg_path" doc:"Package path"`
+	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
+}
+
 type Transaction struct {
 	TxHash      string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
 	Timestamp   time.Time `json:"timestamp" doc:"Transaction timestamp"`

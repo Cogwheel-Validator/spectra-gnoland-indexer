@@ -79,6 +79,7 @@ type TransactionDbHandler interface {
 	GetMsgCall(ctx context.Context, txHash string, chainName string) ([]*database.MsgCall, error)
 	GetMsgAddPackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgAddPackage, error)
 	GetMsgEnablePackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgEnablePackage, error)
+	GetMsgRejectPackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgRejectPackage, error)
 	GetMsgRun(ctx context.Context, txHash string, chainName string) ([]*database.MsgRun, error)
 	GetMsgAuthCrSession(ctx context.Context, txHash string, chainName string) ([]*database.MsgAuthCrSession, error)
 	GetMsgAuthRvSession(ctx context.Context, txHash string, chainName string) ([]*database.MsgAuthRvSession, error)

@@ -72,6 +72,7 @@ func (h *TransactionsHandler) GetTransactionMessage(
 		"vm_msg_add_package":           h.getMsgAddPackageResponse,
 		"vm_msg_run":                   h.getMsgRunResponse,
 		"vm_msg_enable_package":        h.getMsgEnablePackageResponse,
+		"vm_msg_reject_package":        h.getMsgRejectPackageResponse,
 		"auth_msg_create_session":      h.getMsgAuthCrSessionResponse,
 		"auth_msg_revoke_session":      h.getMsgAuthRvSessionResponse,
 		"auth_msg_revoke_all_sessions": h.getMsgAuthRvAllSessionsResponse,
@@ -602,6 +603,31 @@ func (h *TransactionsHandler) getMsgEnablePackageResponse(
 			PkgHash:     d.PkgHash,
 			Approver:    d.Approver,
 			PkgHeight:   &d.PkgHeight,
+		}
+	}
+	return nil
+}
+
+func (h *TransactionsHandler) getMsgRejectPackageResponse(
+	ctx context.Context,
+	msgType string,
+	txHash string,
+	chainName string,
+	response map[int16]humatypes.TransactionMessage,
+) error {
+	data, err := h.db.GetMsgRejectPackage(ctx, txHash, chainName)
+	if err != nil {
+		return internalError("GetMsgRejectPackage", err)
+	}
+	for _, d := range data {
+		index := d.MessageCounter
+		response[index] = humatypes.TransactionMessage{
+			MessageType: msgType,
+			TxHash:      d.TxHash,
+			Timestamp:   d.Timestamp,
+			Signers:     d.Signers,
+			PkgPath:     d.PkgPath,
+			Sender:      d.Sender,
 		}
 	}
 	return nil
