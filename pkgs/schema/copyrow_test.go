@@ -24,6 +24,8 @@ func allRowEncoders() []rowEncoder {
 		MsgMultiSend{},
 		MsgCall{},
 		MsgAddPackage{},
+		MsgEnablePackage{},
+		MsgRejectPackage{},
 		MsgRun{},
 		MsgAuthCrSession{},
 		MsgAuthRvSession{},

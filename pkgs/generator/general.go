@@ -2,6 +2,7 @@ package generator
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -252,7 +253,8 @@ func (g *DataGenerator) GenerateTransaction() (TxEvents, std.Tx) {
 	// declare the transaction type first
 	// bank send should be maybe 40% of the time?
 	// vm. MsgCall and MsgRun should be 50% (25/25) of the time?
-	// vm. MsgAddPackage should be 10% of the time since it is only used to create and update smart contracts?
+	// vm. MsgAddPackage should be 7% of the time since it is only used to create and update smart contracts?
+	// vm. MsgEnablePackage and MsgRejectPackage follow a parked MsgAddPackage, so they are rarer (2% and 1%)
 
 	var transactionType string
 	randomNum := g.rand.Float32()
@@ -267,8 +269,12 @@ func (g *DataGenerator) GenerateTransaction() (TxEvents, std.Tx) {
 		default:
 			transactionType = "vm_msg_run"
 		}
-	case randomNum >= 0.9 && randomNum < 1.0:
+	case randomNum >= 0.9 && randomNum < 0.97:
 		transactionType = "vm_msg_add_package"
+	case randomNum >= 0.97 && randomNum < 0.99:
+		transactionType = "vm_msg_enable_package"
+	case randomNum >= 0.99 && randomNum < 1.0:
+		transactionType = "vm_msg_reject_package"
 	default:
 		transactionType = "bank_send"
 	}
@@ -402,8 +408,35 @@ func (g *DataGenerator) genMsgData(transactionType string) std.Msg {
 				{Amount: g.GenerateAmount().Amount, Denom: g.GenerateAmount().Denom},
 			},
 		}
+	case "vm_msg_enable_package":
+		approver, err := crypto.AddressFromString(g.GenerateAddress())
+		if err != nil {
+			return nil
+		}
+		// PkgHeight is left unset because the testnet gno pin does not have the field
+		return vm.MsgEnablePackage{
+			Approver: approver,
+			PkgPath:  g.GeneratePackagePath(),
+			PkgHash:  g.GeneratePackageHash(),
+		}
+	case "vm_msg_reject_package":
+		sender, err := crypto.AddressFromString(g.GenerateAddress())
+		if err != nil {
+			return nil
+		}
+		return vm.MsgRejectPackage{
+			Sender:  sender,
+			PkgPath: g.GeneratePackagePath(),
+		}
 	}
 	return nil
+}
+
+// GeneratePackageHash generates a hex encoded sha256 sized package hash
+func (g *DataGenerator) GeneratePackageHash() string {
+	data := make([]byte, 32)
+	g.rand.Read(data)
+	return hex.EncodeToString(data)
 }
 
 func (g *DataGenerator) GenerateFuncName() string {
