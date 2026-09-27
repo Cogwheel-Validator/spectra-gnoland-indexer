@@ -113,6 +113,17 @@ type MsgRun struct {
 	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
 }
 
+type MsgEnablePackage struct {
+	MessageCounter int16     `json:"message_counter" doc:"Transaction order integer, starts from 0"`
+	TxHash         string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
+	Timestamp      time.Time `json:"timestamp" doc:"Transaction timestamp"`
+	Approver       string    `json:"approver" doc:"Approver address (addresses)"`
+	PkgPath        string    `json:"pkg_path" doc:"Package path"`
+	PkgHash        string    `json:"pkg_hash" doc:"Package hash"`
+	PkgHeight      int64     `json:"pkg_height" doc:"Package height"`
+	Signers        []string  `json:"signers" doc:"Signers (addresses)"`
+}
+
 type Transaction struct {
 	TxHash      string    `json:"tx_hash" doc:"Transaction hash (base64 encoded)"`
 	Timestamp   time.Time `json:"timestamp" doc:"Transaction timestamp"`

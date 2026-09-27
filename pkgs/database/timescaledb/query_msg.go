@@ -446,6 +446,59 @@ func (t *TimescaleDb) GetMsgAuthRvAllSessions(
 	return result, nil
 }
 
+func (t *TimescaleDb) GetMsgEnablePackage(
+	ctx context.Context,
+	txHash string,
+	chainName string,
+) ([]*database.MsgEnablePackage, error) {
+	query := `
+    SELECT
+    encode(ep.tx_hash, 'base64') AS tx_hash,
+    ep.message_counter,
+    ep.timestamp,
+    gn.address AS approver,
+    ep.pkg_path,
+    encode(ep.pkg_hash, 'hex') AS pkg_hash,
+    ep.pkg_height,
+    array(
+		SELECT gn.address
+		FROM unnest(ep.signers) AS signer_id
+		JOIN gno_addresses gn ON gn.id = signer_id
+	) AS signers
+	FROM vm_msg_enable_package ep
+    LEFT JOIN gno_addresses gn ON ep.approver = gn.id
+    WHERE ep.tx_hash = decode($1, 'base64')
+    AND ep.chain_name = $2
+	`
+	rows, err := t.pool.Query(ctx, query, txHash, chainName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]*database.MsgEnablePackage, 0)
+	for rows.Next() {
+		msg := &database.MsgEnablePackage{}
+		err := rows.Scan(
+			&msg.TxHash,
+			&msg.MessageCounter,
+			&msg.Timestamp,
+			&msg.Approver,
+			&msg.PkgPath,
+			&msg.PkgHash,
+			&msg.PkgHeight,
+			&msg.Signers,
+		)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, msg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // GetMsgTypes returns the message types for a given transaction hash.
 func (t *TimescaleDb) GetMsgTypes(ctx context.Context, txHash string, chainName string) ([]string, error) {
 	query := `

@@ -66,13 +66,14 @@ func (h *TransactionsHandler) GetTransactionMessage(
 
 	type msgHandler func(context.Context, string, string, string, map[int16]humatypes.TransactionMessage) error
 	dispatch := map[string]msgHandler{
-		"bank_msg_send":              h.getBankSendResponse,
-		"bank_msg_multi_send":        h.getBankMultiSendResponse,
-		"vm_msg_call":                h.getMsgCallResponse,
-		"vm_msg_add_package":         h.getMsgAddPackageResponse,
-		"vm_msg_run":                 h.getMsgRunResponse,
-		"auth_msg_create_session":    h.getMsgAuthCrSessionResponse,
-		"auth_msg_revoke_session":    h.getMsgAuthRvSessionResponse,
+		"bank_msg_send":                h.getBankSendResponse,
+		"bank_msg_multi_send":          h.getBankMultiSendResponse,
+		"vm_msg_call":                  h.getMsgCallResponse,
+		"vm_msg_add_package":           h.getMsgAddPackageResponse,
+		"vm_msg_run":                   h.getMsgRunResponse,
+		"vm_msg_enable_package":        h.getMsgEnablePackageResponse,
+		"auth_msg_create_session":      h.getMsgAuthCrSessionResponse,
+		"auth_msg_revoke_session":      h.getMsgAuthRvSessionResponse,
 		"auth_msg_revoke_all_sessions": h.getMsgAuthRvAllSessionsResponse,
 	}
 
@@ -574,6 +575,33 @@ func (h *TransactionsHandler) getBankSendResponse(
 			FromAddress: d.FromAddress,
 			ToAddress:   d.ToAddress,
 			Amount:      d.Amount,
+		}
+	}
+	return nil
+}
+
+func (h *TransactionsHandler) getMsgEnablePackageResponse(
+	ctx context.Context,
+	msgType string,
+	txHash string,
+	chainName string,
+	response map[int16]humatypes.TransactionMessage,
+) error {
+	data, err := h.db.GetMsgEnablePackage(ctx, txHash, chainName)
+	if err != nil {
+		return internalError("GetMsgEnablePackage", err)
+	}
+	for _, d := range data {
+		index := d.MessageCounter
+		response[index] = humatypes.TransactionMessage{
+			MessageType: msgType,
+			TxHash:      d.TxHash,
+			Timestamp:   d.Timestamp,
+			Signers:     d.Signers,
+			PkgPath:     d.PkgPath,
+			PkgHash:     d.PkgHash,
+			Approver:    d.Approver,
+			PkgHeight:   &d.PkgHeight,
 		}
 	}
 	return nil

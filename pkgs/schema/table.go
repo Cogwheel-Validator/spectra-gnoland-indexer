@@ -206,6 +206,7 @@ func Hypertables() []Hypertable {
 		{MsgMultiSend{}, msgParams},
 		{MsgCall{}, msgParams},
 		{MsgAddPackage{}, msgParams},
+		{MsgEnablePackage{}, msgParams},
 		{MsgRun{}, msgParams},
 		{MsgAuthCrSession{}, msgParams},
 		{MsgAuthRvSession{}, msgParams},
