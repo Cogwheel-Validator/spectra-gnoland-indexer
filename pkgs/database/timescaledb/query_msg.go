@@ -499,6 +499,56 @@ func (t *TimescaleDb) GetMsgEnablePackage(
 	return result, nil
 }
 
+// GetMsgRejectPackage returns the vm reject package messages for a given transaction hash.
+func (t *TimescaleDb) GetMsgRejectPackage(
+	ctx context.Context,
+	txHash string,
+	chainName string,
+) ([]*database.MsgRejectPackage, error) {
+	query := `
+	SELECT
+	encode(rp.tx_hash, 'base64') AS tx_hash,
+	rp.message_counter,
+	rp.timestamp,
+	gn.address AS sender,
+	rp.pkg_path,
+	array(
+		SELECT gn.address
+		FROM unnest(rp.signers) AS signer_id
+		JOIN gno_addresses gn ON gn.id = signer_id
+	) AS signers
+	FROM vm_msg_reject_package rp
+	LEFT JOIN gno_addresses gn ON rp.sender = gn.id
+	WHERE rp.tx_hash = decode($1, 'base64')
+	AND rp.chain_name = $2
+	`
+	rows, err := t.pool.Query(ctx, query, txHash, chainName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]*database.MsgRejectPackage, 0)
+	for rows.Next() {
+		msg := &database.MsgRejectPackage{}
+		err := rows.Scan(
+			&msg.TxHash,
+			&msg.MessageCounter,
+			&msg.Timestamp,
+			&msg.Sender,
+			&msg.PkgPath,
+			&msg.Signers,
+		)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, msg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // GetMsgTypes returns the message types for a given transaction hash.
 func (t *TimescaleDb) GetMsgTypes(ctx context.Context, txHash string, chainName string) ([]string, error) {
 	query := `

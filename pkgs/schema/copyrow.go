@@ -166,6 +166,18 @@ func (me MsgEnablePackage) CopyRow() []any {
 	}
 }
 
+func (mrp MsgRejectPackage) CopyRow() []any {
+	return []any{
+		mrp.TxHash,
+		mrp.Timestamp,
+		mrp.ChainName,
+		mrp.Sender,
+		mrp.PkgPath,
+		pgArray(mrp.Signers),
+		mrp.MessageCounter,
+	}
+}
+
 func (mr MsgRun) CopyRow() []any {
 	return []any{
 		mr.TxHash,

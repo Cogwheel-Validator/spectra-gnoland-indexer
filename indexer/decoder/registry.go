@@ -112,6 +112,20 @@ func sanitizeUTF8Slice(strs []string) []string {
 	return out
 }
 
+// enablePackageHeight returns MsgEnablePackage.PkgHeight when the linked gno
+// version has it. The testnet build (go.testnet.work) pins a gno version that
+// predates the field, so it can't be accessed directly; there it reads as 0,
+// which gno itself treats as "unpinned".
+// TODO: while this does fix the current issue, the gap between mainnet and
+// testnet gno versions is a problem. Some alternative solution should exist to handle
+// this in the future.
+func enablePackageHeight(m vm.MsgEnablePackage) int64 {
+	if f := reflect.ValueOf(m).FieldByName("PkgHeight"); f.IsValid() && f.CanInt() {
+		return f.Int()
+	}
+	return 0
+}
+
 func init() {
 	register("bank_msg_send",
 		func(m bank.MsgSend) []string {
@@ -237,7 +251,24 @@ func init() {
 				Approver:       c.resolver.GetAddress(m.Approver.String()),
 				PkgPath:        sanitizeUTF8(m.PkgPath),
 				PkgHash:        pHash,
-				PkgHeight:      m.PkgHeight,
+				PkgHeight:      enablePackageHeight(m),
+				Signers:        c.signerIds,
+				Timestamp:      c.timestamp,
+			}}, nil
+		},
+	)
+
+	register("vm_msg_reject_package",
+		func(m vm.MsgRejectPackage) []string {
+			return []string{m.Sender.String()}
+		},
+		func(m vm.MsgRejectPackage, c convCtx) ([]s.Message, error) {
+			return []s.Message{&s.MsgRejectPackage{
+				TxHash:         c.txHash,
+				MessageCounter: c.messageCounter,
+				ChainName:      c.chainName,
+				Sender:         c.resolver.GetAddress(m.Sender.String()),
+				PkgPath:        sanitizeUTF8(m.PkgPath),
 				Signers:        c.signerIds,
 				Timestamp:      c.timestamp,
 			}}, nil

@@ -65,6 +65,9 @@ type TransactionMessage struct {
 	PkgHeight *int64 `json:"pkg_height,omitempty" doc:"Package height (only for vm_msg_enable_package)"`
 	PkgHash   string `json:"pkg_hash,omitempty" doc:"Package hash (only for vm_msg_enable_package)"`
 	Approver  string `json:"approver,omitempty" doc:"Approver address (only for vm_msg_enable_package)"`
+
+	// Reject package specific fields
+	Sender string `json:"sender,omitempty" doc:"Sender address, approver or package creator (only for vm_msg_reject_package)"`
 }
 
 // TransactionMessageGetOutput represents the response containing all messages within a transaction

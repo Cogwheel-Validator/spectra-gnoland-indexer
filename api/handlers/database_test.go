@@ -25,6 +25,7 @@ type MockDatabase struct {
 	msgAuthRvSession map[string]*database.MsgAuthRvSession
 	msgAuthRvAll     map[string]*database.MsgAuthRvAllSessions
 	msgEnablePackage map[string]*database.MsgEnablePackage
+	msgRejectPackage map[string]*database.MsgRejectPackage
 	msgTypes         map[string][]string
 
 	shouldError bool
@@ -263,6 +264,17 @@ func (m *MockDatabase) GetMsgEnablePackage(ctx context.Context, txHash string, c
 		return nil, notFoundErr("enable package not found")
 	}
 	return []*database.MsgEnablePackage{msg}, nil
+}
+
+func (m *MockDatabase) GetMsgRejectPackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgRejectPackage, error) {
+	if m.shouldError {
+		return nil, m.simulatedError()
+	}
+	msg, ok := m.msgRejectPackage[txHash]
+	if !ok {
+		return nil, notFoundErr("reject package not found")
+	}
+	return []*database.MsgRejectPackage{msg}, nil
 }
 
 func (m *MockDatabase) GetTransactionsByRange(

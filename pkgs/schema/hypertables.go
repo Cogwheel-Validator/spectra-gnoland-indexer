@@ -290,6 +290,49 @@ func (me *MsgEnablePackage) GetAllAddresses() *TxAddresses {
 	return txAddresses
 }
 
+// MsgRejectPackage represents a vm.MsgRejectPackage message.
+// Sent by an approver declining a parked package or by the creator withdrawing it.
+// PRIMARY KEY (tx_hash, chain_name, timestamp, message_counter)
+type MsgRejectPackage struct {
+	TxHash         []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	Timestamp      time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	ChainName      string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	Sender         int32     `db:"sender" dbtype:"INTEGER" nullable:"false" primary:"false"`
+	PkgPath        string    `db:"pkg_path" dbtype:"TEXT" nullable:"true" primary:"false"`
+	Signers        []int32   `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	MessageCounter int16     `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
+}
+
+func (mr MsgRejectPackage) TableName() string {
+	return "vm_msg_reject_package"
+}
+
+func (mr MsgRejectPackage) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(mr, mr.TableName())
+}
+
+func (mr MsgRejectPackage) TableColumns() []string {
+	fields := reflect.TypeFor[MsgRejectPackage]()
+	numFields := fields.NumField()
+	columns := make([]string, numFields)
+	for i := range numFields {
+		field := fields.Field(i)
+		columns[i] = field.Tag.Get("db")
+	}
+	return columns
+}
+
+// GetAllAddresses returns all the addresses that are involved in the message
+// Groups the sender and signers for this transaction
+func (mr *MsgRejectPackage) GetAllAddresses() *TxAddresses {
+	txAddresses := NewTxAddresses(mr.TxHash)
+	txAddresses.AddAddress(mr.Sender)
+	for _, addr := range mr.Signers {
+		txAddresses.AddAddress(addr)
+	}
+	return txAddresses
+}
+
 // MsgCall represents a VM function call message
 //
 // Stores:
