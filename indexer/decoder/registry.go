@@ -213,6 +213,24 @@ func init() {
 		},
 	)
 
+	register("vm_msg_enable_package",
+		func(m vm.MsgEnablePackage) []string {
+			return []string{m.Approver.String()}
+		},
+		func(m vm.MsgEnablePackage, c convCtx) ([]s.Message, error) {
+			return []s.Message{&s.MsgEnablePackage{
+				TxHash:         c.txHash,
+				MessageCounter: c.messageCounter,
+				ChainName:      c.chainName,
+				Approver:       c.resolver.GetAddress(m.Approver.String()),
+				PkgPath:        sanitizeUTF8(m.PkgPath),
+				PkgHash:        sanitizeUTF8(m.PkgHash),
+				Signers:        c.signerIds,
+				Timestamp:      c.timestamp,
+	        	}}, nil
+        	},
+	)
+
 	register("vm_msg_run",
 		func(m vm.MsgRun) []string {
 			return []string{m.Caller.String()}

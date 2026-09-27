@@ -152,6 +152,19 @@ func (map_ MsgAddPackage) CopyRow() []any {
 	}
 }
 
+func (me MsgEnablePackage) CopyRow() []any {
+	return []any{
+		me.TxHash,
+		me.Timestamp,
+		me.ChainName,
+		me.Approver,
+		me.PkgPath,
+		me.PkgHash,
+		pgArray(me.Signers),
+		me.MessageCounter,
+	}
+}
+
 func (mr MsgRun) CopyRow() []any {
 	return []any{
 		mr.TxHash,

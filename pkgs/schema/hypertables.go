@@ -246,6 +246,49 @@ func (ms *MsgSend) GetAllAddresses() *TxAddresses {
 	return txAddresses
 }
 
+// MsgEnablePackage represents a vm.MsgEnablePackage message.
+// PRIMARY KEY (tx_hash, chain_name, timestamp)
+type MsgEnablePackage struct {
+	TxHash         []byte    `db:"tx_hash" dbtype:"bytea" nullable:"false" primary:"true"`
+	Timestamp      time.Time `db:"timestamp" dbtype:"timestamptz" nullable:"false" primary:"true"`
+	ChainName      string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	Approver       int32     `db:"approver" dbtype:"INTEGER" nullable:"false" primary:"false"`
+	PkgPath        string    `db:"pkg_path" dbtype:"TEXT" nullable:"true" primary:"false"`
+	PkgHash        string    `db:"pkg_hash" dbtype:"TEXT" nullable:"true" primary:"false"`
+	Signers        []int32   `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
+	MessageCounter int16     `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
+}
+
+func (me MsgEnablePackage) TableName() string {
+	return "vm_msg_enable_package"
+}
+
+func (me MsgEnablePackage) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(me, me.TableName())
+}
+
+func (me MsgEnablePackage) TableColumns() []string {
+	fields := reflect.TypeFor[MsgEnablePackage]()
+	numFields := fields.NumField()
+	columns := make([]string, numFields)
+	for i := range numFields {
+		field := fields.Field(i)
+		columns[i] = field.Tag.Get("db")
+	}
+	return columns
+}
+
+// GetAllAddresses returns all the addresses that are involved in the message
+// Groups the approver and signers for this transaction
+func (me *MsgEnablePackage) GetAllAddresses() *TxAddresses {
+	txAddresses := NewTxAddresses(me.TxHash)
+	txAddresses.AddAddress(me.Approver)
+	for _, addr := range me.Signers {
+		txAddresses.AddAddress(addr)
+	}
+	return txAddresses
+}
+
 // MsgCall represents a VM function call message
 //
 // Stores:
