@@ -254,7 +254,7 @@ type MsgEnablePackage struct {
 	ChainName      string    `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
 	Approver       int32     `db:"approver" dbtype:"INTEGER" nullable:"false" primary:"false"`
 	PkgPath        string    `db:"pkg_path" dbtype:"TEXT" nullable:"true" primary:"false"`
-	PkgHash        string    `db:"pkg_hash" dbtype:"TEXT" nullable:"true" primary:"false"`
+	PkgHash        []byte    `db:"pkg_hash" dbtype:"bytea" nullable:"true" primary:"false"`
 	Signers        []int32   `db:"signers" dbtype:"INTEGER[]" nullable:"false" primary:"false"`
 	MessageCounter int16     `db:"message_counter" dbtype:"smallint" nullable:"false" primary:"true"`
 }

@@ -1,6 +1,7 @@
 package decoder
 
 import (
+	"encoding/hex"
 	"math/big"
 	"reflect"
 	"strings"
@@ -218,17 +219,28 @@ func init() {
 			return []string{m.Approver.String()}
 		},
 		func(m vm.MsgEnablePackage, c convCtx) ([]s.Message, error) {
+			var pHash []byte
+			var err error
+			// store it as bytea since it will take less space
+			if m.PkgHash == "" {
+				pHash = make([]byte, 0)
+			} else {
+				pHash, err = hex.DecodeString(m.PkgHash)
+				if err != nil {
+					return nil, err
+				}
+			}
 			return []s.Message{&s.MsgEnablePackage{
 				TxHash:         c.txHash,
 				MessageCounter: c.messageCounter,
 				ChainName:      c.chainName,
 				Approver:       c.resolver.GetAddress(m.Approver.String()),
 				PkgPath:        sanitizeUTF8(m.PkgPath),
-				PkgHash:        sanitizeUTF8(m.PkgHash),
+				PkgHash:        pHash,
 				Signers:        c.signerIds,
 				Timestamp:      c.timestamp,
-	        	}}, nil
-        	},
+			}}, nil
+		},
 	)
 
 	register("vm_msg_run",
