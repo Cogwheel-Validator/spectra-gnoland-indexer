@@ -237,6 +237,7 @@ func init() {
 				Approver:       c.resolver.GetAddress(m.Approver.String()),
 				PkgPath:        sanitizeUTF8(m.PkgPath),
 				PkgHash:        pHash,
+				PkgHeight:      m.PkgHeight,
 				Signers:        c.signerIds,
 				Timestamp:      c.timestamp,
 			}}, nil

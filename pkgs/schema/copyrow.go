@@ -160,6 +160,7 @@ func (me MsgEnablePackage) CopyRow() []any {
 		me.Approver,
 		me.PkgPath,
 		me.PkgHash,
+		me.PkgHeight,
 		pgArray(me.Signers),
 		me.MessageCounter,
 	}
