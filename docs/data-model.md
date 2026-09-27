@@ -176,6 +176,26 @@ erDiagram
       INTEGER[] signers
       SMALLINT message_counter
     }
+    vm_msg_enable_package {
+      BYTEA tx_hash
+      TIMESTAMPTZ timestamp
+      chain_name chain_name
+      INTEGER approver
+      TEXT pkg_path
+      BYTEA pkg_hash
+      BIGINT pkg_height
+      INTEGER[] signers
+      SMALLINT message_counter
+    }
+    vm_msg_reject_package {
+      BYTEA tx_hash
+      TIMESTAMPTZ timestamp
+      chain_name chain_name
+      INTEGER sender
+      TEXT pkg_path
+      INTEGER[] signers
+      SMALLINT message_counter
+    }
     bank_msg_multi_send {
       BYTEA tx_hash
       TIMESTAMPTZ timestamp
@@ -190,11 +210,15 @@ erDiagram
     transaction_general ||--o{ vm_msg_call : "contains"
     transaction_general ||--o{ vm_msg_add_package : "contains"
     transaction_general ||--o{ vm_msg_run : "contains"
+    transaction_general ||--o{ vm_msg_enable_package : "contains"
+    transaction_general ||--o{ vm_msg_reject_package : "contains"
     transaction_general ||--o{ bank_msg_multi_send : "contains"
     gno_addresses ||--o{ bank_msg_send : "from/to"
     gno_addresses ||--o{ vm_msg_call : "caller"
     gno_addresses ||--o{ vm_msg_add_package : "creator"
     gno_addresses ||--o{ vm_msg_run : "caller"
+    gno_addresses ||--o{ vm_msg_enable_package : "approver"
+    gno_addresses ||--o{ vm_msg_reject_package : "sender"
     gno_addresses ||--o{ bank_msg_multi_send : "address"
 ```
 
