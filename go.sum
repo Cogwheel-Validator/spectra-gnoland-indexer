@@ -67,6 +67,8 @@ github.com/getsentry/sentry-go v0.35.0 h1:+FJNlnjJsZMG3g0/rmmP7GiKjQoUF5EXfEtBwt
 github.com/getsentry/sentry-go v0.35.0/go.mod h1:C55omcY9ChRQIUcVcGcs+Zdy4ZpQGvNJ7JYHIoSWOtE=
 github.com/gnolang/gno v1.2.0 h1:JbcFhb7S/9sCtvw0q5BYq2sJRQUX9jRIWkGwkvqlA8I=
 github.com/gnolang/gno v1.2.0/go.mod h1:Vby9oL4oRmmpg4W8+lVqiD9uQMf2GnPB8CtsMq0pD/c=
+github.com/gnolang/gno v1.5.0 h1:yIfD2R7qYZgkPLwtZqHAWwGU78xhTqF2y3MO4k1cBlI=
+github.com/gnolang/gno v1.5.0/go.mod h1:Vby9oL4oRmmpg4W8+lVqiD9uQMf2GnPB8CtsMq0pD/c=
 github.com/go-chi/chi/v5 v5.3.2 h1:5YQkICvTCSZ25hoRsyJazN0scjzKGiu4VAUc7H1o1nY=
 github.com/go-chi/chi/v5 v5.3.2/go.mod h1:R+tYY2hNuVUUjxoPtqUdgBqevM9s9njzkTLutVsOCto=
 github.com/go-chi/cors v1.2.2 h1:Jmey33TE+b+rB7fT8MUy1u0I4L+NARQlK6LhzKPSyQE=
