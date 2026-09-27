@@ -78,6 +78,7 @@ type TransactionDbHandler interface {
 	GetBankMultiSend(ctx context.Context, txHash string, chainName string) ([]*database.BankMultiSendRow, error)
 	GetMsgCall(ctx context.Context, txHash string, chainName string) ([]*database.MsgCall, error)
 	GetMsgAddPackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgAddPackage, error)
+	GetMsgEnablePackage(ctx context.Context, txHash string, chainName string) ([]*database.MsgEnablePackage, error)
 	GetMsgRun(ctx context.Context, txHash string, chainName string) ([]*database.MsgRun, error)
 	GetMsgAuthCrSession(ctx context.Context, txHash string, chainName string) ([]*database.MsgAuthCrSession, error)
 	GetMsgAuthRvSession(ctx context.Context, txHash string, chainName string) ([]*database.MsgAuthRvSession, error)

@@ -60,6 +60,11 @@ type TransactionMessage struct {
 	ExpiresAt   *time.Time        `json:"expires_at,omitempty" doc:"Session expiry (only for auth_msg_create_session)"`
 	SpendLimit  []database.Amount `json:"spend_limit,omitempty" doc:"Spend limit (only for auth_msg_create_session)"`
 	SpendPeriod *int64            `json:"spend_period,omitempty" doc:"Spend period in seconds; 0 means infinite (only for auth_msg_create_session)"`
+
+	// Enable package specific fields
+	PkgHeight *int64 `json:"pkg_height,omitempty" doc:"Package height (only for vm_msg_enable_package)"`
+	PkgHash   string `json:"pkg_hash,omitempty" doc:"Package hash (only for vm_msg_enable_package)"`
+	Approver  string `json:"approver,omitempty" doc:"Approver address (only for vm_msg_enable_package)"`
 }
 
 // TransactionMessageGetOutput represents the response containing all messages within a transaction
