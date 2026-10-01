@@ -2,4 +2,4 @@ go 1.26.1
 
 use .
 
-replace github.com/gnolang/gno => github.com/gnolang/gno v0.0.0-20260827075919-c4c72fdd288c
+replace github.com/gnolang/gno => github.com/gnolang/gno v1.5.1-0.20260928125126-5cdbc25fcde0
