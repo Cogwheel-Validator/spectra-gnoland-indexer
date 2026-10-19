@@ -529,3 +529,82 @@ func (t *TimescaleDb) GetAllValidatorSigning24h(
 	}
 	return result, nil
 }
+
+// GetTxStatsSummary summarises the last `hours` hours: counts and gas from the
+// tx_counter aggregate, blocks from block_counter, and per-denom fees plus the
+// busiest block from transaction_general (bounded to the same window). The
+// window starts on an hour boundary so the aggregate and raw parts line up.
+func (t *TimescaleDb) GetTxStatsSummary(
+	ctx context.Context,
+	chainName string,
+	hours int,
+) (*database.TxStatsSummary, error) {
+	from := time.Now().Add(-time.Duration(hours) * time.Hour)
+	summary := &database.TxStatsSummary{Hours: hours, Fees: []database.TxFeeDenomStats{}}
+
+	err := t.pool.QueryRow(ctx, `
+	SELECT
+		coalesce(sum(transaction_count), 0)::bigint,
+		coalesce(sum(failed_count), 0)::bigint,
+		coalesce(sum(gas_used), 0)::text,
+		coalesce(sum(gas_wanted), 0)::text
+	FROM tx_counter
+	WHERE chain_name = $1 AND time_bucket >= time_bucket('1 hour', $2::timestamptz)
+	`, chainName, from).Scan(
+		&summary.TxCount, &summary.FailedCount, &summary.GasUsed, &summary.GasWanted,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("tx_counter summary: %w", err)
+	}
+
+	err = t.pool.QueryRow(ctx, `
+	SELECT coalesce(sum(block_count), 0)::bigint
+	FROM block_counter
+	WHERE chain_name = $1 AND time_bucket >= time_bucket('1 hour', $2::timestamptz)
+	`, chainName, from).Scan(&summary.BlockCount)
+	if err != nil {
+		return nil, fmt.Errorf("block_counter summary: %w", err)
+	}
+
+	rows, err := t.pool.Query(ctx, `
+	SELECT fee_denom, count(*)::bigint, coalesce(sum(fee_amount), 0)::text
+	FROM transaction_general
+	WHERE chain_name = $1 AND timestamp >= time_bucket('1 hour', $2::timestamptz)
+	AND fee_denom IS NOT NULL AND fee_denom <> ''
+	GROUP BY fee_denom
+	ORDER BY 2 DESC
+	`, chainName, from)
+	if err != nil {
+		return nil, fmt.Errorf("fee summary: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var f database.TxFeeDenomStats
+		if err := rows.Scan(&f.Denom, &f.TxCount, &f.Amount); err != nil {
+			return nil, fmt.Errorf("fee summary scan: %w", err)
+		}
+		summary.Fees = append(summary.Fees, f)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("fee summary rows: %w", err)
+	}
+
+	var busiest database.BusiestBlock
+	err = t.pool.QueryRow(ctx, `
+	SELECT block_height, count(*)::bigint
+	FROM transaction_general
+	WHERE chain_name = $1 AND timestamp >= time_bucket('1 hour', $2::timestamptz)
+	GROUP BY block_height
+	ORDER BY 2 DESC, 1 DESC
+	LIMIT 1
+	`, chainName, from).Scan(&busiest.Height, &busiest.TxCount)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+	case err != nil:
+		return nil, fmt.Errorf("busiest block: %w", err)
+	default:
+		summary.BusiestBlock = &busiest
+	}
+
+	return summary, nil
+}

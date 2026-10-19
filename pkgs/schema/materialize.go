@@ -9,10 +9,16 @@ import (
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
 )
 
+// TxCounter is the hourly transaction aggregate. Besides the count it keeps
+// failed txs and summed gas so the API can report failure rate and average
+// gas use without scanning transaction_general.
 type TxCounter struct {
-	TimeBucket time.Time `mt:"time_bucket" fn:"time_bucket('1 hour', timestamp)" gb:"0"`
-	ChainName  string    `mt:"chain_name" gb:"1"`
-	Count      int64     `mt:"transaction_count" fn:"count(*)"`
+	TimeBucket  time.Time `mt:"time_bucket"       fn:"time_bucket('1 hour', timestamp)"    gb:"0"`
+	ChainName   string    `mt:"chain_name"                                                 gb:"1"`
+	Count       int64     `mt:"transaction_count" fn:"count(*)"`
+	FailedCount int64     `mt:"failed_count"      fn:"count(*) FILTER (WHERE NOT success)"`
+	GasUsed     int64     `mt:"gas_used"          fn:"sum(gas_used)"`
+	GasWanted   int64     `mt:"gas_wanted"        fn:"sum(gas_wanted)"`
 }
 
 func (tc TxCounter) TableName() string {

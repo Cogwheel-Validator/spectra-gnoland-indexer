@@ -92,6 +92,7 @@ type TransactionDbHandler interface {
 	GetTotalTxCountByHour(ctx context.Context, chainName string, fromTimestamp time.Time, toTimestamp time.Time, sortOrder database.SortOrder) ([]*database.TxCountTimeRange, error)
 	GetVolumeByDate(ctx context.Context, chainName string, dateFrom date.Date, dateTo date.Date, sortOrder database.SortOrder) (database.VolumeByDenomDaily, error)
 	GetVolumeByHour(ctx context.Context, chainName string, fromTimestamp time.Time, toTimestamp time.Time, sortOrder database.SortOrder) (database.VolumeByDenomHourly, error)
+	GetTxStatsSummary(ctx context.Context, chainName string, hours int) (*database.TxStatsSummary, error)
 }
 
 type InMemoryDbHandler interface {
