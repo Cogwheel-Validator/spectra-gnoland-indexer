@@ -425,6 +425,23 @@ func (or *Orchestrator) processPhase1(
 		l.Info().Msg("Phase 1: ProcessValidatorAddresses completed")
 	})
 
+	if ctx.hasTxs {
+		wg1.Go(func() {
+			l.Info().Msg("Phase 1: Starting ProcessMessages")
+			if err := or.dataProcessor.ProcessMessages(
+				ctx.transactions, ctx.fromHeight, ctx.toHeight,
+			); err != nil {
+				l.Error().Err(err).Msg("Phase 1: ProcessMessages failed")
+			}
+			l.Info().Msg("Phase 1: ProcessMessages completed")
+		})
+		wg1.Go(func() {
+			l.Info().Msg("Phase 1: Starting ProcessTransactions")
+			or.dataProcessor.ProcessTransactions(ctx.transactions, ctx.compressEvents, ctx.fromHeight, ctx.toHeight)
+			l.Info().Msg("Phase 1: ProcessTransactions completed")
+		})
+	}
+
 	wg1.Wait()
 	l.Info().Msg("Phase 1: chunk processing completed")
 }
@@ -448,23 +465,6 @@ func (or *Orchestrator) processPhase2(
 		or.dataProcessor.ProcessValidatorSignings(ctx.commits, ctx.fromHeight, ctx.toHeight)
 		l.Info().Msg("Phase 2: ProcessValidatorSignings completed")
 	})
-
-	if ctx.hasTxs {
-		wg2.Go(func() {
-			l.Info().Msg("Phase 2: Starting ProcessMessages")
-			if err := or.dataProcessor.ProcessMessages(
-				ctx.transactions, ctx.fromHeight, ctx.toHeight,
-			); err != nil {
-				l.Error().Err(err).Msg("Phase 2: ProcessMessages failed")
-			}
-			l.Info().Msg("Phase 2: ProcessMessages completed")
-		})
-		wg2.Go(func() {
-			l.Info().Msg("Phase 2: Starting ProcessTransactions")
-			or.dataProcessor.ProcessTransactions(ctx.transactions, ctx.compressEvents, ctx.fromHeight, ctx.toHeight)
-			l.Info().Msg("Phase 2: ProcessTransactions completed")
-		})
-	}
 
 	wg2.Wait()
 	l.Info().Msg("Phase 2: chunk processing completed")
