@@ -18,6 +18,10 @@ const (
 	blockStreamPingInterval = 15 * time.Second
 	// blockStreamRetryMs tells EventSource how long to wait before reconnecting.
 	blockStreamRetryMs = 3000
+	// maxReplayBlocks caps how many missed blocks one connection may replay from
+	// the database. Replay queries run outside the shared poller, so an
+	// unbounded Last-Event-ID would let one client scan the whole chain.
+	maxReplayBlocks = 500
 )
 
 // BlockStreamDbHandler is the database surface the live block stream needs.
@@ -104,7 +108,7 @@ func (h *BlockStreamHandler) StreamBlocks(
 }
 
 // backfill replays blocks in (lastEventID, upTo] and returns the last height
-// sent. Blocks above upTo are delivered live by the hub. A non-nil error means
+// sent (upTo after a gap event). Blocks above upTo are delivered live by the hub. A non-nil error means
 // the client went away.
 func (h *BlockStreamHandler) backfill(
 	ctx context.Context,
@@ -115,6 +119,15 @@ func (h *BlockStreamHandler) backfill(
 	// very rare it happens
 	if lastEventID == 0 {
 		return lastSent, nil
+	}
+	// Too far behind: say so instead of silently skipping. The gap event's id
+	// is upTo, so the client's next reconnect resumes after it.
+	if upTo > lastEventID && upTo-lastEventID > maxReplayBlocks {
+		gap := humatypes.BlockStreamGap{From: lastEventID + 1, To: upTo}
+		if err := send(sse.Message{ID: int(upTo), Data: gap}); err != nil { // #nosec G115 -- block heights fit in int64
+			return lastSent, err
+		}
+		return upTo, nil
 	}
 	cursor := lastEventID
 	for cursor < upTo {

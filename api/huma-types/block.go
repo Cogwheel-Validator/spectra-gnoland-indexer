@@ -70,5 +70,13 @@ type BlockCountByDateGetOutput struct {
 // BlockStreamInput is the input for the live block stream. Browsers'
 // EventSource sends Last-Event-ID automatically on reconnect.
 type BlockStreamInput struct {
-	LastEventID uint64 `header:"Last-Event-ID" doc:"Last block height the client received; up to 50 newer blocks are replayed first"`
+	LastEventID uint64 `header:"Last-Event-ID" doc:"Last block height the client received; up to 500 newer blocks are replayed first"`
+}
+
+// BlockStreamGap tells a reconnecting client that more blocks were missed than
+// the stream will replay. Blocks From..To were not sent; fetch them from the
+// REST API. The event id is To, so the next reconnect resumes after the gap.
+type BlockStreamGap struct {
+	From uint64 `json:"from" doc:"First block height that was not replayed"`
+	To   uint64 `json:"to" doc:"Last block height that was not replayed"`
 }
