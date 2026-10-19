@@ -199,6 +199,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	addressHandler := handlers.NewAddressHandler(db, conf.ChainName)
 	validatorsHandler := handlers.NewValidatorsHandler(db, conf.ChainName)
 	inMemoryHandler := handlers.NewInMemoryHandler(db, conf.ChainName)
+	blockStreamHandler := handlers.NewBlockStreamHandler(db, conf.ChainName)
 
 	mux.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/x-icon")
@@ -213,7 +214,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	serveHealthCheck(mux)
 
 	v1Group := huma.NewGroup(api, "/v1")
-	routes.RegisterBlocksRoutes(v1Group, blocksHandler, inMemoryHandler)
+	routes.RegisterBlocksRoutes(v1Group, blocksHandler, inMemoryHandler, blockStreamHandler)
 	routes.RegisterTransactionsRoutes(v1Group, transactionsHandler)
 	routes.RegisterAddressesRoutes(v1Group, addressHandler, inMemoryHandler)
 	routes.RegisterValidatorsRoutes(v1Group, validatorsHandler)

@@ -1,11 +1,31 @@
 package routes
 
 import (
+	"net/http"
+
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/handlers"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database"
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/danielgtaylor/huma/v2/sse"
 )
 
-func RegisterBlocksRoutes(api huma.API, h *handlers.BlocksHandler, m *handlers.InMemoryHandler) {
+func RegisterBlocksRoutes(
+	api huma.API,
+	h *handlers.BlocksHandler,
+	m *handlers.InMemoryHandler,
+	s *handlers.BlockStreamHandler,
+) {
+	// Registered before /blocks/{height} so "stream" is never parsed as a height.
+	sse.Register(api, huma.Operation{
+		OperationID: "stream-blocks",
+		Method:      http.MethodGet,
+		Path:        "/blocks/stream",
+		Summary:     "Stream New Blocks",
+		Description: `Server-Sent Events stream of newly indexed blocks. Each "block" event carries the block data and uses the block height as its id.
+		Send Last-Event-ID (EventSource does this on reconnect) to replay up to 50 missed blocks first.`,
+	}, map[string]any{
+		"block": database.BlockData{},
+	}, s.StreamBlocks)
 	huma.Get(api, "/blocks", h.GetLastXBlocks,
 		func(op *huma.Operation) {
 			op.Summary = "Get Last X Blocks"

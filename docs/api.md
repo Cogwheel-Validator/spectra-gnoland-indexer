@@ -22,6 +22,7 @@ There are total of 5 routes available. This are the basic routes that are needed
 - /blocks/stats/count/recent - Get the total number of blocks produced in the last 24 hours.
 - /blocks/stats/count/daily - Get the block count per day within the given date range. Max range is 30 days.
 - /blocks/stats/avg_time - Get Average Block production time.
+- /blocks/stream - Server-Sent Events stream of newly indexed blocks (event "block", id = height). Send Last-Event-ID to replay up to 50 missed blocks.
 
 ### Transactions
 
