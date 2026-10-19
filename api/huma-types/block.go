@@ -40,7 +40,7 @@ type LatestBlockHeightGetOutput struct {
 }
 
 type LastXBlocksGetInput struct {
-	Amount uint64 `query:"amount" doc:"Amount of blocks to get" required:"true" min:"1" max:"100" default:"10"`
+	Amount uint64 `query:"amount" doc:"Amount of blocks to get" required:"true" minimum:"1" maximum:"100" default:"10"`
 }
 
 type LastXBlocksGetOutput struct {
@@ -65,4 +65,10 @@ type BlockCountByDateGetInput struct {
 
 type BlockCountByDateGetOutput struct {
 	Body []*database.BlockCountByDate
+}
+
+// BlockStreamInput is the input for the live block stream. Browsers'
+// EventSource sends Last-Event-ID automatically on reconnect.
+type BlockStreamInput struct {
+	LastEventID uint64 `header:"Last-Event-ID" doc:"Last block height the client received; up to 50 newer blocks are replayed first"`
 }

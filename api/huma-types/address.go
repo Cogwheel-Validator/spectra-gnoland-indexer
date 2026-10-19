@@ -11,7 +11,7 @@ type AddressGetInput struct {
 	Address       string             `path:"address" doc:"Gno address you want to query" required:"true" minLength:"40" maxLength:"40"`
 	FromTimestamp time.Time          `query:"from_timestamp" doc:"From timestamp (inclusive). Must be paired with to_timestamp for timestamp-range mode." format:"date-time"`
 	ToTimestamp   time.Time          `query:"to_timestamp" doc:"To timestamp (inclusive). Must be paired with from_timestamp for timestamp-range mode." format:"date-time"`
-	Limit         uint64             `query:"limit" doc:"Limit of transactions to return" min:"1" max:"100" default:"10"`
+	Limit         uint64             `query:"limit" doc:"Limit of transactions to return" minimum:"1" maximum:"100" default:"10"`
 	Cursor        string             `query:"cursor" doc:"Cursor in the form '<block_height>|<tx_hash_base64url>'. Used in cursor mode only." required:"false"`
 	Direction     database.Direction `query:"direction" doc:"Direction to walk from the cursor. 'next' returns older rows; 'prev' returns newer rows and requires a cursor. Used in cursor mode only." enum:"next,prev" default:"next"`
 }

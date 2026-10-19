@@ -378,3 +378,69 @@ func (t *TimescaleDb) GetAllBlockSigners(
 	}
 	return &blockSigners, nil
 }
+
+// GetLatestBlockHeight returns the highest indexed block height for a chain.
+func (t *TimescaleDb) GetLatestBlockHeight(ctx context.Context, chainName string) (uint64, error) {
+	var height uint64
+	err := t.pool.QueryRow(ctx,
+		`SELECT height FROM blocks WHERE chain_name = $1 ORDER BY height DESC LIMIT 1`,
+		chainName,
+	).Scan(&height)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, fmt.Errorf("no blocks for chain %q: %w", chainName, database.ErrNotFound)
+		}
+		return 0, err
+	}
+	return height, nil
+}
+
+// GetBlocksAfter returns up to limit blocks with height > after, oldest first.
+// It backs the live block stream (both the shared poller and Last-Event-ID
+// backfill). An empty slice (not ErrNotFound) means no new blocks yet.
+func (t *TimescaleDb) GetBlocksAfter(
+	ctx context.Context,
+	chainName string,
+	after uint64,
+	limit uint64,
+) ([]*database.BlockData, error) {
+	query1 := `
+	SELECT encode(hash, 'base64'),
+	b.height as height,
+	b.timestamp as timestamp,
+	b.chain_id as chain_id,
+	gv.address as proposer
+	FROM blocks b
+	JOIN validator_block_signing vb ON b.height = vb.block_height AND b.chain_name = vb.chain_name
+	JOIN gno_validators gv ON vb.proposer = gv.id
+	WHERE b.chain_name = $1 AND b.height > $2
+	ORDER BY b.height ASC
+	LIMIT $3
+	`
+	blocks, err := t.fetchBlocksData(ctx, query1, chainName, after, limit)
+	if err != nil || len(blocks) == 0 {
+		return blocks, err
+	}
+
+	query2 := `
+	SELECT
+	encode(tg.tx_hash, 'base64'),
+	tg.block_height
+	FROM transaction_general tg
+	WHERE tg.chain_name = $1
+	AND tg.block_height >= $2 AND tg.block_height <= $3
+	`
+	txs, err := t.fetchTransactionData(
+		ctx, query2, chainName, blocks[0].Height, blocks[len(blocks)-1].Height,
+	)
+	if err != nil {
+		return nil, err
+	}
+	for _, block := range blocks {
+		if txs[block.Height] != nil {
+			block.Txs = append(block.Txs, txs[block.Height]...)
+		}
+		block.TxCounter = len(block.Txs)
+	}
+	return blocks, nil
+}

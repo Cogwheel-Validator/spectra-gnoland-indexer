@@ -77,7 +77,7 @@ type TransactionMessageGetOutput struct {
 
 type TransactionGeneralListByCursorGetInput struct {
 	Cursor    string             `query:"cursor" doc:"Cursor in the form '<block_height>|<tx_hash_base64url>'. Omit to fetch the most recent page." required:"false"`
-	Limit     uint64             `query:"limit" doc:"Number of transactions to return" required:"false" min:"1" max:"100" default:"25"`
+	Limit     uint64             `query:"limit" doc:"Number of transactions to return" required:"false" minimum:"1" maximum:"100" default:"25"`
 	Direction database.Direction `query:"direction" doc:"Direction to walk from the cursor. 'next' returns older rows; 'prev' returns newer rows and requires a cursor." enum:"next,prev" default:"next"`
 }
 
@@ -98,7 +98,7 @@ type TransactionGeneralListByCursorGetOutput struct {
 }
 
 type LastXTransactionsGetInput struct {
-	Amount uint64 `query:"amount" doc:"Amount of transactions to get" required:"true" min:"1" max:"100" default:"10"`
+	Amount uint64 `query:"amount" doc:"Amount of transactions to get" required:"true" minimum:"1" maximum:"100" default:"10"`
 }
 
 type LastXTransactionsGetOutput struct {
