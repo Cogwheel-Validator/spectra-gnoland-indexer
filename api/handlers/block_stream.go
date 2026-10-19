@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/api/blockstream"
@@ -59,16 +58,19 @@ func (h *BlockStreamHandler) StreamBlocks(
 	input *humatypes.BlockStreamInput,
 	send sse.Sender,
 ) {
-	// Subscribe before backfilling so nothing falls in the gap; duplicates
-	// are skipped via lastSent.
-	sub, unsubscribe := h.hub.Subscribe()
+	// Subscribe before backfilling so nothing falls in the gap: the hub
+	// delivers every block above start live, and backfill covers up to start.
+	sub, start, unsubscribe, err := h.hub.Subscribe(ctx)
+	if err != nil {
+		return
+	}
 	defer unsubscribe()
 
-	if err := send(sse.Message{Retry: blockStreamRetryMs, Comment: "connected"}); err != nil {
+	if sendErr := send(sse.Message{Retry: blockStreamRetryMs, Comment: "connected"}); sendErr != nil {
 		return
 	}
 
-	lastSent, err := h.backfill(ctx, input.LastEventID, send)
+	lastSent, err := h.backfill(ctx, input.LastEventID, start, send)
 	if err != nil {
 		return
 	}
@@ -101,27 +103,38 @@ func (h *BlockStreamHandler) StreamBlocks(
 	}
 }
 
-// backfill replays blocks after lastEventID (if any) and returns the last
-// height sent. A non-nil error means the client went away.
+// backfill replays blocks in (lastEventID, upTo] and returns the last height
+// sent. Blocks above upTo are delivered live by the hub. A non-nil error means
+// the client went away.
 func (h *BlockStreamHandler) backfill(
 	ctx context.Context,
-	lastEventID uint64,
+	lastEventID, upTo uint64,
 	send sse.Sender,
 ) (uint64, error) {
-	if lastEventID == 0 {
-		return 0, nil
-	}
-	blocks, err := h.db.GetBlocksAfter(ctx, h.chainName, lastEventID, blockstream.DefaultBatchLimit)
-	if err != nil {
-		slog.Error("block stream backfill", "err", err)
-		return 0, nil
-	}
 	var lastSent uint64
-	for _, b := range blocks {
-		if err := sendBlock(send, b); err != nil {
+	// very rare it happens
+	if lastEventID == 0 {
+		return lastSent, nil
+	}
+	cursor := lastEventID
+	for cursor < upTo {
+		blocks, err := h.db.GetBlocksAfter(ctx, h.chainName, cursor, blockstream.DefaultBatchLimit)
+		if err != nil {
 			return lastSent, err
 		}
-		lastSent = b.Height
+		if len(blocks) == 0 {
+			break
+		}
+		for _, b := range blocks {
+			if b.Height > upTo {
+				return lastSent, nil
+			}
+			if err := sendBlock(send, b); err != nil {
+				return lastSent, err
+			}
+			lastSent = b.Height
+			cursor = b.Height
+		}
 	}
 	return lastSent, nil
 }

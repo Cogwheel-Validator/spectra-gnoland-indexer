@@ -62,13 +62,13 @@ func TestHub_BroadcastsNewBlocksToAllSubscribers(t *testing.T) {
 	f := &fakeChain{tip: 100}
 	h := newTestHub(f)
 
-	a, unsubA := h.Subscribe()
+	a, _, unsubA, err := h.Subscribe(context.Background())
+	require.NoError(t, err)
 	defer unsubA()
-	b, unsubB := h.Subscribe()
+	b, _, unsubB, err := h.Subscribe(context.Background())
+	require.NoError(t, err)
 	defer unsubB()
 
-	// Let the poller seed from the tip so 100 itself is not re-sent.
-	time.Sleep(20 * time.Millisecond)
 	f.advance(2)
 
 	assert.Equal(t, uint64(101), recv(t, a))
@@ -82,7 +82,8 @@ func TestHub_StopsPollingWithoutSubscribers(t *testing.T) {
 	f := &fakeChain{tip: 1}
 	h := newTestHub(f)
 
-	_, unsub := h.Subscribe()
+	_, _, unsub, err := h.Subscribe(context.Background())
+	require.NoError(t, err)
 	time.Sleep(20 * time.Millisecond)
 	unsub()
 	unsub() // idempotent
@@ -99,7 +100,8 @@ func TestHub_DropsSlowSubscriber(t *testing.T) {
 	f := &fakeChain{tip: 1}
 	h := newTestHub(f)
 
-	slow, unsub := h.Subscribe()
+	slow, _, unsub, err := h.Subscribe(context.Background())
+	require.NoError(t, err)
 	defer unsub()
 	time.Sleep(20 * time.Millisecond)
 	f.advance(500)
@@ -120,4 +122,33 @@ func TestHub_DropsSlowSubscriber(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestHub_SubscribeReturnsStartHeightAndMissesNothing(t *testing.T) {
+	t.Parallel()
+	f := &fakeChain{tip: 100}
+	h := newTestHub(f)
+
+	ch, start, unsub, err := h.Subscribe(context.Background())
+	require.NoError(t, err)
+	defer unsub()
+	assert.Equal(t, uint64(100), start)
+
+	f.advance(1)
+	assert.Equal(t, uint64(101), recv(t, ch))
+}
+
+func TestHub_EmptyChainDoesNotSkipFirstBlocks(t *testing.T) {
+	t.Parallel()
+	f := &fakeChain{}
+	h := newTestHub(f)
+
+	ch, start, unsub, err := h.Subscribe(context.Background())
+	require.NoError(t, err)
+	defer unsub()
+	assert.Equal(t, uint64(0), start)
+
+	f.advance(2)
+	assert.Equal(t, uint64(1), recv(t, ch))
+	assert.Equal(t, uint64(2), recv(t, ch))
 }

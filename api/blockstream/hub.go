@@ -40,6 +40,12 @@ type Hub[T any] struct {
 	mu        sync.Mutex
 	subs      map[chan T]struct{}
 	cancelRun context.CancelFunc
+	// seeded and last describe the current run: once seeded, every block with
+	// height <= last has already been broadcast and every later one will be.
+	// ready is closed when the current run becomes seeded.
+	seeded bool
+	last   uint64
+	ready  chan struct{}
 }
 
 // NewHub creates a hub; name is only used in log lines.
@@ -63,20 +69,24 @@ func NewHub[T any](
 // Subscribe registers a new subscriber and starts the poller if it is the
 // first one. The returned channel is closed if the subscriber falls too far
 // behind; the returned func unsubscribes (safe to call more than once).
-func (h *Hub[T]) Subscribe() (<-chan T, func()) {
+func (h *Hub[T]) Subscribe(ctx context.Context) (<-chan T, uint64, func(), error) {
 	ch := make(chan T, subscriberBuffer)
 
 	h.mu.Lock()
 	h.subs[ch] = struct{}{}
 	if h.cancelRun == nil {
-		ctx, cancel := context.WithCancel(context.Background())
+		runCtx, cancel := context.WithCancel(context.Background())
 		h.cancelRun = cancel
-		go h.run(ctx)
+		h.seeded = false
+		h.last = 0
+		h.ready = make(chan struct{})
+		go h.run(runCtx, h.ready)
 	}
+	ready := h.ready
 	h.mu.Unlock()
 
 	var once sync.Once
-	return ch, func() {
+	unsub := func() {
 		once.Do(func() {
 			h.mu.Lock()
 			defer h.mu.Unlock()
@@ -90,6 +100,20 @@ func (h *Hub[T]) Subscribe() (<-chan T, func()) {
 			}
 		})
 	}
+
+	select {
+	case <-ready:
+	case <-ctx.Done():
+		unsub()
+		return nil, 0, nil, ctx.Err()
+	}
+
+	// Read under the lock: broadcast advances last under the same lock, so the
+	// blocks already delivered to others are exactly those <= start.
+	h.mu.Lock()
+	start := h.last
+	h.mu.Unlock()
+	return ch, start, unsub, nil
 }
 
 // SubscriberCount reports the number of connected subscribers.
@@ -99,13 +123,16 @@ func (h *Hub[T]) SubscriberCount() int {
 	return len(h.subs)
 }
 
-func (h *Hub[T]) run(ctx context.Context) {
-	var last uint64
+func (h *Hub[T]) run(ctx context.Context, ready chan struct{}) {
 	ticker := time.NewTicker(h.interval)
 	defer ticker.Stop()
 
 	for {
-		last = h.poll(ctx, last)
+		if h.isSeeded() {
+			h.poll(ctx)
+		} else {
+			h.seed(ctx, ready)
+		}
 		select {
 		case <-ctx.Done():
 			return
@@ -114,20 +141,38 @@ func (h *Hub[T]) run(ctx context.Context) {
 	}
 }
 
-// poll performs one tick: it seeds the starting height on the first call,
-// afterwards broadcasts every block newer than last. It returns the new last
-// height (unchanged on error, so the next tick retries).
-func (h *Hub[T]) poll(ctx context.Context, last uint64) uint64 {
-	if last == 0 {
-		tip, err := h.latest(ctx)
-		if err != nil {
-			if ctx.Err() == nil {
-				slog.Error("blockstream: latest height", "chain", h.name, "err", err)
-			}
-			return 0
+func (h *Hub[T]) isSeeded() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.seeded
+}
+
+// seed reads the tip as the starting height. A tip of 0 (empty chain) is a
+// valid seed, so the first indexed blocks are not skipped.
+func (h *Hub[T]) seed(ctx context.Context, ready chan struct{}) {
+	tip, err := h.latest(ctx)
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.Error("blockstream: latest height", "chain", h.name, "err", err)
 		}
-		return tip
+		return
 	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if ctx.Err() != nil {
+		return
+	}
+	h.seeded = true
+	h.last = tip
+	close(ready)
+}
+
+// poll performs one tick: it broadcasts every block newer than the last
+// broadcast height. On error the next tick retries from the same height.
+func (h *Hub[T]) poll(ctx context.Context) {
+	h.mu.Lock()
+	last := h.last
+	h.mu.Unlock()
 
 	blocks, err := h.fetch(ctx, last, DefaultBatchLimit)
 	if err != nil && ctx.Err() == nil {
@@ -135,11 +180,7 @@ func (h *Hub[T]) poll(ctx context.Context, last uint64) uint64 {
 	}
 	for _, b := range blocks {
 		h.broadcast(ctx, b)
-		if hb := h.heightOf(b); hb > last {
-			last = hb
-		}
 	}
-	return last
 }
 
 func (h *Hub[T]) broadcast(ctx context.Context, b T) {
@@ -149,6 +190,9 @@ func (h *Hub[T]) broadcast(ctx context.Context, b T) {
 	// subscribers of a newer run.
 	if ctx.Err() != nil {
 		return
+	}
+	if hb := h.heightOf(b); hb > h.last {
+		h.last = hb
 	}
 	for ch := range h.subs {
 		select {
