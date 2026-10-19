@@ -542,7 +542,15 @@ func (t *TimescaleDb) GetTxStatsSummary(
 	from := time.Now().Add(-time.Duration(hours) * time.Hour)
 	summary := &database.TxStatsSummary{Hours: hours, Fees: []database.TxFeeDenomStats{}}
 
-	err := t.pool.QueryRow(ctx, `
+	// One repeatable-read snapshot for all four reads, so a batch the indexer
+	// commits mid-request cannot show up in some totals but not in others.
+	tx, err := t.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return nil, fmt.Errorf("begin summary snapshot: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	err = tx.QueryRow(ctx, `
 	SELECT
 		coalesce(sum(transaction_count), 0)::bigint,
 		coalesce(sum(failed_count), 0)::bigint,
@@ -557,7 +565,7 @@ func (t *TimescaleDb) GetTxStatsSummary(
 		return nil, fmt.Errorf("tx_counter summary: %w", err)
 	}
 
-	err = t.pool.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 	SELECT coalesce(sum(block_count), 0)::bigint
 	FROM block_counter
 	WHERE chain_name = $1 AND time_bucket >= time_bucket('1 hour', $2::timestamptz)
@@ -566,7 +574,7 @@ func (t *TimescaleDb) GetTxStatsSummary(
 		return nil, fmt.Errorf("block_counter summary: %w", err)
 	}
 
-	rows, err := t.pool.Query(ctx, `
+	rows, err := tx.Query(ctx, `
 	SELECT fee_denom, count(*)::bigint, coalesce(sum(fee_amount), 0)::text
 	FROM transaction_general
 	WHERE chain_name = $1 AND timestamp >= time_bucket('1 hour', $2::timestamptz)
@@ -590,7 +598,7 @@ func (t *TimescaleDb) GetTxStatsSummary(
 	}
 
 	var busiest database.BusiestBlock
-	err = t.pool.QueryRow(ctx, `
+	err = tx.QueryRow(ctx, `
 	SELECT block_height, count(*)::bigint
 	FROM transaction_general
 	WHERE chain_name = $1 AND timestamp >= time_bucket('1 hour', $2::timestamptz)
