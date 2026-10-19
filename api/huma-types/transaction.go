@@ -155,3 +155,13 @@ type VolumeByHourGetInput struct {
 type VolumeByHourGetOutput struct {
 	Body database.VolumeByDenomHourly
 }
+
+// TxStatsSummaryGetInput selects the window for the transaction summary.
+type TxStatsSummaryGetInput struct {
+	Hours int `query:"hours" minimum:"1" maximum:"168" default:"24" doc:"Window size in hours (1-168)"`
+}
+
+// TxStatsSummaryGetOutput is the transaction summary response.
+type TxStatsSummaryGetOutput struct {
+	Body *database.TxStatsSummary
+}

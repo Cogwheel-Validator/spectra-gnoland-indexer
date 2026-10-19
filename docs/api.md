@@ -33,6 +33,7 @@ There are total of 5 routes available. This are the basic routes that are needed
 - /transactions/stats/count/hourly - Get the transaction count per hour within the given datetime range. Max range is 7 days.
 - /transactions/stats/volume/daily - Get the transaction volume grouped by denom per day. Max range is 30 days.
 - /transactions/stats/volume/hourly - Get the transaction volume grouped by denom per hour. Max range is 7 days.
+- /transactions/stats/summary - Transaction activity over the last N hours (`hours`, default 24, max 168): transaction and failed counts, total gas used/wanted, blocks produced, the busiest block, and fee totals per denom.
 
 ### Addresses
 

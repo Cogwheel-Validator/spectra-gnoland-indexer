@@ -27,6 +27,7 @@ type MockDatabase struct {
 	msgEnablePackage map[string]*database.MsgEnablePackage
 	msgRejectPackage map[string]*database.MsgRejectPackage
 	msgTypes         map[string][]string
+	txSummary        *database.TxStatsSummary
 
 	shouldError bool
 	errorMsg    string
@@ -380,4 +381,16 @@ func (m *MockDatabase) GetDailyActiveAccount(
 		return nil, m.simulatedError()
 	}
 	return []*database.DailyActiveAccount{}, nil
+}
+
+func (m *MockDatabase) GetTxStatsSummary(
+	ctx context.Context,
+	chainName string,
+	hours int,
+) (*database.TxStatsSummary, error) {
+	if m.shouldError {
+		return nil, m.simulatedError()
+	}
+	fakeData := m.txSummary
+	return fakeData, nil
 }

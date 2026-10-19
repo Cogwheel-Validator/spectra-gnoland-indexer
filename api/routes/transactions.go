@@ -50,4 +50,11 @@ func RegisterTransactionsRoutes(api huma.API, h *handlers.TransactionsHandler) {
 			op.Summary = "Get Transaction Volume by Hour"
 			op.Description = "Retrieve the transaction volume grouped by denom per hour. Max range is 7 days."
 		})
+	huma.Get(api, "/transactions/stats/summary", h.GetTxStatsSummary,
+		func(op *huma.Operation) {
+			op.Summary = "Get Transaction Summary"
+			op.Description = `Transaction activity over the last N hours (default 24): transaction and
+			failed counts, total gas used/wanted, blocks produced, the busiest block, and
+			fee totals per denom with how many transactions paid in each.`
+		})
 }

@@ -323,6 +323,9 @@ erDiagram
     tx_counter {
       TIMESTAMPTZ time_bucket
       BIGINT transaction_count
+      BIGINT failed_count
+      NUMERIC gas_used
+      NUMERIC gas_wanted
       chain_name chain_name
     }
     validator_signing_counter {

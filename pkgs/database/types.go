@@ -306,3 +306,28 @@ type ValInfoPerBlock struct {
 }
 
 type ValidatorSigningsForLastNBlocks []ValInfoPerBlock
+
+// TxStatsSummary summarises transaction activity over a recent window.
+type TxStatsSummary struct {
+	Hours        int               `json:"hours" doc:"Window size in hours"`
+	TxCount      int64             `json:"tx_count" doc:"Transactions in the window"`
+	FailedCount  int64             `json:"failed_count" doc:"Failed transactions in the window"`
+	GasUsed      string            `json:"gas_used" doc:"Total gas used"`
+	GasWanted    string            `json:"gas_wanted" doc:"Total gas wanted"`
+	BlockCount   int64             `json:"block_count" doc:"Blocks produced in the window"`
+	BusiestBlock *BusiestBlock     `json:"busiest_block" doc:"Block with the most transactions in the window, if any"`
+	Fees         []TxFeeDenomStats `json:"fees" doc:"Fee totals per denom, most used first"`
+}
+
+// BusiestBlock is the block with the most transactions in a window.
+type BusiestBlock struct {
+	Height  uint64 `json:"height" doc:"Block height"`
+	TxCount int64  `json:"tx_count" doc:"Transactions in that block"`
+}
+
+// TxFeeDenomStats is how many transactions paid fees in a denom, and how much.
+type TxFeeDenomStats struct {
+	Denom   string `json:"denom" doc:"Fee denom"`
+	TxCount int64  `json:"tx_count" doc:"Transactions that paid fees in this denom"`
+	Amount  string `json:"amount" doc:"Total fee amount in base units (decimal string)"`
+}
