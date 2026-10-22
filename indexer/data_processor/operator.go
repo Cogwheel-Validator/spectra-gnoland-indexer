@@ -78,10 +78,7 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 
 	// Retry 3 times just for the sake of it
 	d.validatorCache.AddressSolver(addresses, d.chainName, true, 3, nil)
-	l.Info().
-		Msgf(
-			"Validator addresses processed from %d to %d", fromHeight, toHeight,
-		)
+	l.Info(fmt.Sprintf("Validator addresses processed from %d to %d", fromHeight, toHeight))
 }
 
 // extractAddresses is a helper function to extract the addresses from a map[string]struct{}
@@ -161,17 +158,9 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 	defer cancel()
 	err := d.dbPool.InsertRows(ctx, s.AsInsertable(blocksData))
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Failed to insert blocks: %v", err,
-			)
+		l.Error(fmt.Sprintf("Failed to insert blocks: %v", err))
 	}
-	l.Info().
-		Msgf(
-			"Blocks processed from %d to %d", fromHeight, toHeight,
-		)
+	l.Info(fmt.Sprintf("Blocks processed from %d to %d", fromHeight, toHeight))
 }
 
 // processBlock is a helper method to process a block and store it at a pre-allocated slice.
@@ -184,22 +173,12 @@ func (d *DataProcessor) processBlock(
 	defer wg.Done()
 	hash, err := base64.StdEncoding.DecodeString(block.Result.BlockMeta.BlockID.Hash)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Failed to decode block hash %s: %v", block.Result.BlockMeta.BlockID.Hash, err,
-			)
+		l.Error(fmt.Sprintf("Failed to decode block hash %s: %v", block.Result.BlockMeta.BlockID.Hash, err))
 		return
 	}
 	height, err := strconv.ParseUint(block.Result.Block.Header.Height, 10, 64)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Failed to parse block height %s: %v", block.Result.Block.Header.Height, err,
-			)
+		l.Error(fmt.Sprintf("Failed to parse block height %s: %v", block.Result.Block.Header.Height, err))
 		return
 	}
 	blocksData[idx] = s.Blocks{
@@ -255,18 +234,10 @@ func (d *DataProcessor) ProcessTransactions(
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	if err := d.dbPool.InsertRows(ctx, s.AsInsertable(result)); err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Failed to insert transactions: %v", err,
-			)
+		l.Error(fmt.Sprintf("Failed to insert transactions: %v", err))
 		return
 	}
-	l.Info().
-		Msgf(
-			"Transactions processed from %d to %d", fromHeight, toHeight,
-		)
+	l.Info(fmt.Sprintf("Transactions processed from %d to %d", fromHeight, toHeight))
 }
 
 // processTransaction is a helper method to process a transaction and store it at a pre-allocated index.
@@ -291,33 +262,18 @@ func (d *DataProcessor) processTransaction(
 
 	gasWanted, err := strconv.ParseUint(txResult.GasWanted, 10, 64)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Failed to parse gas wanted %s: %v", txResult.GasWanted, err,
-			)
+		l.Error(fmt.Sprintf("Failed to parse gas wanted %s: %v", txResult.GasWanted, err))
 		return
 	}
 	gasUsed, err := strconv.ParseUint(txResult.GasUsed, 10, 64)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Failed to parse gas used %s: %v", txResult.GasUsed, err,
-			)
+		l.Error(fmt.Sprintf("Failed to parse gas used %s: %v", txResult.GasUsed, err))
 		return
 	}
 
 	events, err := EventSolver(transaction.Response, compressEvents)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Failed to solve events: %v", err,
-			)
+		l.Error(fmt.Sprintf("Failed to solve events: %v", err))
 		return
 	}
 
@@ -374,11 +330,7 @@ func (d *DataProcessor) ProcessMessages(
 
 	if len(allAddresses) > 0 {
 		d.addressCache.AddressSolver(allAddresses, d.chainName, false, 3, nil)
-		l.Info().
-			Msgf(
-				"Resolved %d unique addresses for messages from %d to %d",
-				len(allAddresses), fromHeight, toHeight,
-			)
+		l.Info(fmt.Sprintf("Resolved %d unique addresses for messages from %d to %d", len(allAddresses), fromHeight, toHeight))
 	}
 
 	// Phase 2: Process message groups, each goroutine writes to its own index slot.
@@ -436,8 +388,7 @@ func (d *DataProcessor) ProcessMessages(
 	for i, batch := range batches {
 		counts[i] = fmt.Sprintf("%s=%d", batch.Rows[0].TableName(), len(batch.Rows))
 	}
-	l.Info().Msgf("Messages processed from %d to %d: %s",
-		fromHeight, toHeight, strings.Join(counts, ", "))
+	l.Info(fmt.Sprintf("Messages processed from %d to %d: %s", fromHeight, toHeight, strings.Join(counts, ", ")))
 
 	return nil
 }
@@ -474,13 +425,7 @@ func decodeTx(
 	defer wg.Done()
 	decodedMsg := decoder.NewDecodedMsg(transaction.Response.Result.Tx)
 	if decodedMsg == nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"The transaction couldn't be decoded, tx hash: %s",
-				transaction.Response.GetHash(),
-			)
+		l.Error(fmt.Sprintf("The transaction couldn't be decoded, tx hash: %s", transaction.Response.GetHash()))
 		return
 	}
 	// Collect addresses from this transaction and store in map[string]struct{}
@@ -507,13 +452,7 @@ func (d *DataProcessor) processMessageGroup(
 	defer wg.Done()
 
 	if decodedMsg == nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"The transaction couldn't be decoded, tx hash: %s",
-				transaction.Response.GetHash(),
-			)
+		l.Error(fmt.Sprintf("The transaction couldn't be decoded, tx hash: %s", transaction.Response.GetHash()))
 		return
 	}
 
@@ -521,14 +460,7 @@ func (d *DataProcessor) processMessageGroup(
 		d.addressCache, decodedMsg.GetBasicData().TxHash, d.chainName, transaction.Timestamp, decodedMsg.GetSigners(),
 	)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Failed to convert messages for tx %s: %v",
-				transaction.Response.GetHash(),
-				err,
-			)
+		l.Error(fmt.Sprintf("Failed to convert messages for tx %s: %v", transaction.Response.GetHash(), err))
 		errs[idx] = fmt.Errorf("tx %s: %w", transaction.Response.GetHash(), err)
 		return
 	}
@@ -598,15 +530,9 @@ func (d *DataProcessor) ProcessValidatorSignings(
 	err := d.dbPool.InsertRows(ctx, s.AsInsertable(result))
 	cancel()
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Failed to insert validator commit signings: %v", err,
-			)
+		l.Error(fmt.Sprintf("Failed to insert validator commit signings: %v", err))
 	}
-	l.Info().
-		Msgf("Validator commit signings processed from %d to %d", fromHeight, toHeight)
+	l.Info(fmt.Sprintf("Validator commit signings processed from %d to %d", fromHeight, toHeight))
 }
 
 // processValidatorSigning processes a single commit and stores it at a pre-allocated index.
@@ -630,12 +556,7 @@ func (d *DataProcessor) processValidatorSigning(
 
 	height, err := commit.GetHeight()
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Msgf(
-				"Failed to get commit height: %v", err,
-			)
+		l.Error(fmt.Sprintf("Failed to get commit height: %v", err))
 		return
 	}
 

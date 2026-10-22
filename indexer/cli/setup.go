@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"time"
 
@@ -79,11 +80,11 @@ through a lot of steps to create the database and insert the tables and data.`,
 
 func createDatabaseSetup(cmd *cobra.Command) error {
 	l := logger.Get()
-	l.Info().Msg("initiating database setup for the indexer")
+	l.Info("initiating database setup for the indexer")
 
 	params, err := parseCommonFlags(cmd, "postgres")
 	if err != nil {
-		l.Error().Err(err).Msg("failed to parse flags")
+		l.Error("failed to parse flags", "error", err)
 		return err
 	}
 
@@ -92,7 +93,7 @@ func createDatabaseSetup(cmd *cobra.Command) error {
 
 	params.password, err = promptPassword()
 	if err != nil {
-		l.Error().Err(err).Msg("failed to read password")
+		l.Error("failed to read password", "error", err)
 		return err
 	}
 
@@ -103,13 +104,13 @@ func createDatabaseSetup(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	l.Info().Str("db", currentDb).Msg("logged into database")
+	l.Info("logged into database", "db", currentDb)
 
 	if currentDb != newDbName {
 		return initializeNewDatabase(db, dbConfig, newDbName, chainName)
 	}
 
-	l.Info().Str("db", currentDb).Msg("database already exists, skipping creation")
+	l.Info("database already exists, skipping creation", "db", currentDb)
 	return nil
 }
 
@@ -130,15 +131,15 @@ func checkCurrentDatabase(db *timescaledb.TimescaleDb) (string, error) {
 func initializeNewDatabase(db *timescaledb.TimescaleDb, dbConfig timescaledb.DatabasePoolConfig, newDbName, chainName string) error {
 	l := logger.Get()
 
-	l.Info().Str("db", newDbName).Msg("creating new database")
+	l.Info("creating new database", "db", newDbName)
 	if err := timescaledb.CreateDatabase(db, newDbName); err != nil {
-		l.Error().Err(err).Msg("failed to create database")
+		l.Error("failed to create database", "error", err)
 		return err
 	}
 
-	l.Info().Str("db", newDbName).Msg("switching to new database")
+	l.Info("switching to new database", "db", newDbName)
 	if err := timescaledb.SwitchDatabase(db, dbConfig, newDbName); err != nil {
-		l.Error().Err(err).Msg("failed to switch database")
+		l.Error("failed to switch database", "error", err)
 		return err
 	}
 
@@ -164,7 +165,7 @@ func initializeNewDatabase(db *timescaledb.TimescaleDb, dbConfig timescaledb.Dat
 		return err
 	}
 
-	l.Info().Str("chain", chainName).Msg("successfully created all hypertables and continuous aggregates")
+	l.Info("successfully created all hypertables and continuous aggregates", "chain", chainName)
 	return nil
 }
 
@@ -177,18 +178,18 @@ func createDatabaseTypes(dbInit *dbinit.DBInitializer, chainName string) error {
 		s.Event{},
 	}
 
-	l.Info().Str("chain", chainName).Msg("inserting special types")
+	l.Info("inserting special types", "chain", chainName)
 	for _, specialType := range specialTypes {
 		if err := dbInit.CreateSpecialTypeFromStruct(specialType, specialType.TypeName()); err != nil {
-			l.Error().Err(err).Str("type", specialType.TypeName()).Msg("failed to create special type")
+			l.Error("failed to create special type", "error", err, "type", specialType.TypeName())
 			return err
 		}
 	}
 
 	typeEnums := []string{chainName}
-	l.Info().Str("chain", chainName).Msg("inserting type enums")
+	l.Info("inserting type enums", "chain", chainName)
 	if err := dbInit.CreateChainTypeEnum(typeEnums); err != nil {
-		l.Error().Err(err).Strs("enums", typeEnums).Msg("failed to create type enum")
+		l.Error("failed to create type enum", "error", err, "enums", typeEnums)
 		return err
 	}
 
@@ -198,10 +199,10 @@ func createDatabaseTypes(dbInit *dbinit.DBInitializer, chainName string) error {
 func createRegularTables(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
-	l.Info().Str("chain", chainName).Msg("inserting regular tables")
+	l.Info("inserting regular tables", "chain", chainName)
 	for _, dataType := range s.RegularTables() {
 		if err := dbInit.CreateTableFromStruct(dataType, dataType.TableName()); err != nil {
-			l.Error().Err(err).Str("table", dataType.TableName()).Msg("failed to create table")
+			l.Error("failed to create table", "error", err, "table", dataType.TableName())
 			return err
 		}
 	}
@@ -212,10 +213,10 @@ func createRegularTables(dbInit *dbinit.DBInitializer, chainName string) error {
 func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
-	l.Info().Str("chain", chainName).Msg("inserting hypertables")
+	l.Info("inserting hypertables", "chain", chainName)
 	for _, ht := range s.Hypertables() {
 		if err := dbInit.CreateHypertableFromStruct(ht.Table, ht.Table.TableName(), ht.Params); err != nil {
-			l.Error().Err(err).Str("table", ht.Table.TableName()).Msg("failed to create hypertable")
+			l.Error("failed to create hypertable", "error", err, "table", ht.Table.TableName())
 			return err
 		}
 	}
@@ -226,10 +227,10 @@ func createHypertables(dbInit *dbinit.DBInitializer, chainName string) error {
 func createIndexes(dbInit *dbinit.DBInitializer, chainName string) error {
 	l := logger.Get()
 
-	l.Info().Str("chain", chainName).Msg("creating indexes")
+	l.Info("creating indexes", "chain", chainName)
 	for _, idx := range s.Indexes() {
 		if err := dbInit.CreateIndex(idx); err != nil {
-			l.Error().Err(err).Str("index", idx.Name).Msg("failed to create index")
+			l.Error("failed to create index", "error", err, "index", idx.Name)
 			return err
 		}
 	}
@@ -252,38 +253,38 @@ func createContinuousAggregates(dbInit *dbinit.DBInitializer, chainName string) 
 		{s.BlockCounter{}, []string{"chain_name"}, oneMonth},
 	}
 
-	l.Info().Str("chain", chainName).Msg("creating continuous aggregate views")
+	l.Info("creating continuous aggregate views", "chain", chainName)
 	for _, v := range views {
 		viewName := v.agg.TableName()
 
 		if err := dbInit.CreateContinuousAggregate(v.agg); err != nil {
-			l.Error().Err(err).Str("view", viewName).Msg("failed to create continuous aggregate")
+			l.Error("failed to create continuous aggregate", "error", err, "view", viewName)
 			return err
 		}
 
 		if err := dbInit.AlterContinuousAggregateColumnstore(viewName, v.segmentByCols); err != nil {
-			l.Error().Err(err).Str("view", viewName).Msg("failed to enable columnstore on continuous aggregate")
+			l.Error("failed to enable columnstore on continuous aggregate", "error", err, "view", viewName)
 			return err
 		}
 
 		_, startOffset, endOffset, scheduleInterval := v.agg.AggregatePolicy(nil, nil, nil)
 		if err := dbInit.AddContinuousAggregatePolicy(viewName, startOffset, endOffset, scheduleInterval); err != nil {
-			l.Error().Err(err).Str("view", viewName).Msg("failed to add continuous aggregate policy")
+			l.Error("failed to add continuous aggregate policy", "error", err, "view", viewName)
 			return err
 		}
 
 		if err := dbInit.AddColumnstoreInterval(viewName, v.chunkInterval); err != nil {
-			l.Error().Err(err).Str("view", viewName).Msg("failed to add columnstore interval")
+			l.Error("failed to add columnstore interval", "error", err, "view", viewName)
 			return err
 		}
 
 		if err := dbInit.EnableRealTimeAggregation(viewName); err != nil {
-			l.Error().Err(err).Str("view", viewName).Msg("failed to enable real-time aggregation")
+			l.Error("failed to enable real-time aggregation", "error", err, "view", viewName)
 			return err
 		}
 	}
 
-	l.Info().Str("chain", chainName).Msg("successfully created all continuous aggregate views")
+	l.Info("successfully created all continuous aggregate views", "chain", chainName)
 	return nil
 }
 
@@ -322,13 +323,13 @@ user does not have the required privileges.`,
 
 		params, err := parseCommonFlags(cmd, "gnoland")
 		if err != nil {
-			l.Error().Err(err).Msg("failed to parse flags")
+			l.Error("failed to parse flags", "error", err)
 			return err
 		}
 
 		params.password, err = promptPassword()
 		if err != nil {
-			l.Error().Err(err).Msg("failed to read password")
+			l.Error("failed to read password", "error", err)
 			return err
 		}
 
@@ -338,18 +339,18 @@ user does not have the required privileges.`,
 
 		views := s.AllAggregates()
 
-		l.Info().Msg("refreshing all continuous aggregate views")
+		l.Info("refreshing all continuous aggregate views")
 		for _, v := range views {
 			viewName := v.TableName()
-			l.Info().Str("view", viewName).Msg("refreshing view")
+			l.Info("refreshing view", "view", viewName)
 			if err := dbInit.RefreshContinuousAggregate(viewName); err != nil {
-				l.Error().Err(err).Str("view", viewName).Msg("failed to refresh view")
+				l.Error("failed to refresh view", "error", err, "view", viewName)
 				return err
 			}
-			l.Info().Str("view", viewName).Msg("view refreshed")
+			l.Info("view refreshed", "view", viewName)
 		}
 
-		l.Info().Msg("all continuous aggregate views refreshed successfully")
+		l.Info("all continuous aggregate views refreshed successfully")
 		return nil
 	},
 }
@@ -363,41 +364,41 @@ then insert the password for the user you want to add.`,
 	ValidArgs: []string{"writer", "reader", "keymgr"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.Get()
-		l.Info().Msgf("%v", args)
+		l.Info(fmt.Sprintf("%v", args))
 
 		// Parse and validate common database flags
 		params, err := parseCommonFlags(cmd, "gnoland")
 		if err != nil {
-			l.Fatal().Err(err).Msg("failed to parse flags")
+			l.Fatal("failed to parse flags", "error", err)
 			return err
 		}
 
 		if len(args) < 2 {
-			l.Fatal().Msg("user name and privilege are required")
+			l.Fatal("user name and privilege are required")
 			return cmd.Usage()
 		}
 
 		// Get privilege flag
 		privilege := args[1]
 		if privilege == "" {
-			l.Fatal().Msg("privilege is required")
+			l.Fatal("privilege is required")
 			return cmd.Usage()
 		} else if !slices.Contains(allowedUserPrivileges, privilege) {
-			l.Fatal().Str("privilege", privilege).Msg("invalid privilege, must be reader, writer, or keymgr")
+			l.Fatal("invalid privilege, must be reader, writer, or keymgr", "privilege", privilege)
 			return cmd.Usage()
 		}
 
 		// get the user name from the flags
 		userName := args[0]
 		if userName == "" {
-			l.Fatal().Msg("user name is required")
+			l.Fatal("user name is required")
 			return cmd.Usage()
 		}
 
 		// Prompt for password
 		params.password, err = promptPassword()
 		if err != nil {
-			l.Fatal().Err(err).Msg("failed to read password")
+			l.Fatal("failed to read password", "error", err)
 			return err
 		}
 
@@ -409,7 +410,7 @@ then insert the password for the user you want to add.`,
 		// Create a new user
 		err = dbInit.CreateUser(userName)
 		if err != nil {
-			l.Fatal().Err(err).Str("user", userName).Msg("failed to create user")
+			l.Fatal("failed to create user", "error", err, "user", userName)
 			return err
 		}
 
@@ -421,11 +422,11 @@ then insert the password for the user you want to add.`,
 		// Appoint privileges to the user
 		err = dbInit.AppointPrivileges(userName, privilege, tableNames)
 		if err != nil {
-			l.Fatal().Err(err).Str("user", userName).Str("privilege", privilege).Msg("failed to appoint privileges")
+			l.Fatal("failed to appoint privileges", "error", err, "user", userName, "privilege", privilege)
 			return err
 		}
 
-		l.Info().Str("user", userName).Str("privilege", privilege).Msg("successfully created user")
+		l.Info("successfully created user", "user", userName, "privilege", privilege)
 		return nil
 	},
 }
@@ -448,7 +449,7 @@ You can add --overwrite to overwrite the existing config file. And you can use -
 		if err := createConfig(overwrite, configFileName); err != nil {
 			return err
 		}
-		l.Info().Str("file", configFileName).Msg("successfully created config file")
+		l.Info("successfully created config file", "file", configFileName)
 		return nil
 	},
 }
@@ -472,7 +473,7 @@ var addChainNameCmd = &cobra.Command{
 
 		params.password, err = promptPassword()
 		if err != nil {
-			l.Error().Err(err).Msg("failed to read password")
+			l.Error("failed to read password", "error", err)
 			return err
 		}
 
@@ -485,7 +486,7 @@ var addChainNameCmd = &cobra.Command{
 		if err := dbInit.AddEnumValue(chainName, "chain_name", ctx); err != nil {
 			return err
 		}
-		l.Info().Str("chain_name", chainName).Msg("successfully added chain name")
+		l.Info("successfully added chain name", "chain_name", chainName)
 		return nil
 	},
 }

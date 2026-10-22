@@ -55,7 +55,7 @@ func (or *Orchestrator) HistoricProcess(
 	toHeight uint64,
 	compressEvents bool,
 ) {
-	l.Info().Msgf("Starting historic process from %d to %d", fromHeight, toHeight)
+	l.Info(fmt.Sprintf("Starting historic process from %d to %d", fromHeight, toHeight))
 	startTime := time.Now()
 
 	// Track processing state
@@ -63,20 +63,20 @@ func (or *Orchestrator) HistoricProcess(
 	or.currentProcessingHeight = fromHeight
 	defer func() {
 		or.isProcessing = false
-		l.Info().Msgf("Historic processing completed at height %d", or.currentProcessingHeight)
+		l.Info(fmt.Sprintf("Historic processing completed at height %d", or.currentProcessingHeight))
 	}()
 
 	for startHeight := fromHeight; startHeight <= toHeight; {
 		select {
 		case <-ctx.Done():
-			l.Info().Msgf("Historic process interrupted by context cancellation at height %d", startHeight)
+			l.Info(fmt.Sprintf("Historic process interrupted by context cancellation at height %d", startHeight))
 			return
 		default:
 		}
 
 		chunkEndHeight := min(startHeight+or.config.MaxBlockChunkSize-1, toHeight)
 
-		l.Info().Msgf("Processing chunk from %d to %d", startHeight, chunkEndHeight)
+		l.Info(fmt.Sprintf("Processing chunk from %d to %d", startHeight, chunkEndHeight))
 
 		// Update current processing height
 		or.currentProcessingHeight = startHeight
@@ -84,13 +84,7 @@ func (or *Orchestrator) HistoricProcess(
 		// Process the chunk
 		err := or.processChunk(startHeight, chunkEndHeight, compressEvents)
 		if err != nil {
-			l.Error().
-				Caller().
-				Stack().
-				Err(err).
-				Msgf(
-					"Error processing chunk %d-%d", startHeight, chunkEndHeight,
-				)
+			l.Error(fmt.Sprintf("Error processing chunk %d-%d", startHeight, chunkEndHeight), "error", err)
 
 		}
 
@@ -101,11 +95,11 @@ func (or *Orchestrator) HistoricProcess(
 	}
 
 	totalDuration := time.Since(startTime)
-	l.Info().Msgf("Historic process completed from %d to %d in %v", fromHeight, toHeight, totalDuration)
+	l.Info(fmt.Sprintf("Historic process completed from %d to %d in %v", fromHeight, toHeight, totalDuration))
 }
 
 func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool, compressEvents bool) {
-	l.Info().Msg("Starting live block processing")
+	l.Info("Starting live block processing")
 
 	var lastProcessedHeight uint64
 	var err error
@@ -115,7 +109,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 	or.currentProcessingHeight = 0
 	defer func() {
 		or.isProcessing = false
-		l.Info().Msgf("Live processing stopped at height %d", or.currentProcessingHeight)
+		l.Info(fmt.Sprintf("Live processing stopped at height %d", or.currentProcessingHeight))
 	}()
 
 	// Initial setup - get starting height
@@ -124,22 +118,20 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		defer cancel()
 		lastProcessedHeight, err = or.db.GetLastBlockHeight(ctx, or.chainName)
 		if err != nil {
-			l.Error().
-				Caller().Stack().Err(err).Msgf("Failed to get last block height from database: %v", err)
-			l.Info().Msg("Database might not work or hasn't been initialized with necessary table schemas.")
-			l.Fatal().Msg("Shutting down indexer...")
+			l.Error(fmt.Sprintf("Failed to get last block height from database: %v", err), "error", err)
+			l.Info("Database might not work or hasn't been initialized with necessary table schemas.")
+			l.Fatal("Shutting down indexer...")
 		}
-		l.Info().Msgf("Retrieved last processed height from database: %d", lastProcessedHeight)
+		l.Info(fmt.Sprintf("Retrieved last processed height from database: %d", lastProcessedHeight))
 	} else {
 		// Get latest block height from chain
 		latestHeight, rpcErr := or.gnoRpcClient.GetLatestBlockHeight()
 		if rpcErr != nil {
-			l.Error().
-				Caller().Stack().Err(rpcErr).Msgf("Failed to get latest block height from chain: %v", rpcErr)
+			l.Error(fmt.Sprintf("Failed to get latest block height from chain: %v", rpcErr), "error", rpcErr)
 			return
 		}
 		lastProcessedHeight = latestHeight
-		l.Info().Msgf("Starting from latest chain height: %d (skipping database check)", lastProcessedHeight)
+		l.Info(fmt.Sprintf("Starting from latest chain height: %d (skipping database check)", lastProcessedHeight))
 	}
 
 	or.currentProcessingHeight = lastProcessedHeight
@@ -149,7 +141,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 	for {
 		select {
 		case <-ctx.Done():
-			l.Info().Msg("Live process interrupted by context cancellation")
+			l.Info("Live process interrupted by context cancellation")
 			or.saveProcessingState(lastProcessedHeight, "live_interrupted")
 			return
 		default:
@@ -158,11 +150,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		// Get the latest block height from the chain
 		latestHeight, rpcErr := or.gnoRpcClient.GetLatestBlockHeight()
 		if rpcErr != nil {
-			l.Error().
-				Caller().
-				Stack().
-				Err(rpcErr).
-				Msgf("Error fetching latest block height")
+			l.Error("Error fetching latest block height", "error", rpcErr)
 			time.Sleep(or.config.LivePooling)
 			continue
 		}
@@ -171,7 +159,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 
 		// If caught up, wait and continue
 		if blocksBehind <= 0 {
-			l.Info().Msgf("Caught up to height %d. Waiting %d seconds...", latestHeight, or.config.LivePooling/time.Second)
+			l.Info(fmt.Sprintf("Caught up to height %d. Waiting %d seconds...", latestHeight, or.config.LivePooling/time.Second))
 			time.Sleep(or.config.LivePooling)
 			continue
 		}
@@ -182,7 +170,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		chunkStart := lastProcessedHeight + 1
 		chunkEnd := min(chunkStart+currentChunkSize-1, latestHeight)
 
-		l.Info().Msgf("Processing live chunk %d-%d (behind by %d blocks)", chunkStart, chunkEnd, blocksBehind)
+		l.Info(fmt.Sprintf("Processing live chunk %d-%d (behind by %d blocks)", chunkStart, chunkEnd, blocksBehind))
 
 		// Update current processing height
 		or.currentProcessingHeight = chunkStart
@@ -190,11 +178,7 @@ func (or *Orchestrator) LiveProcess(ctx context.Context, skipInitialDbCheck bool
 		// Process this chunk
 		err = or.processChunk(chunkStart, chunkEnd, compressEvents)
 		if err != nil {
-			l.Error().
-				Caller().
-				Stack().
-				Err(err).
-				Msgf("Error processing live chunk %d-%d", chunkStart, chunkEnd)
+			l.Error(fmt.Sprintf("Error processing live chunk %d-%d", chunkStart, chunkEnd), "error", err)
 			time.Sleep(or.config.LivePooling)
 			continue
 		}
@@ -237,17 +221,17 @@ func (or *Orchestrator) processChunk(chunkStart, chunkEnd uint64, compressEvents
 	}
 
 	fetchDuration := time.Since(chunkStartTime)
-	l.Debug().Msgf("Chunk %d-%d fetched in %v", chunkStart, chunkEnd, fetchDuration)
+	l.Debug(fmt.Sprintf("Chunk %d-%d fetched in %v", chunkStart, chunkEnd, fetchDuration))
 
 	if len(blocks) == 0 && len(commits) == 0 {
-		l.Info().Msgf("No valid blocks in live chunk %d-%d", chunkStart, chunkEnd)
+		l.Info(fmt.Sprintf("No valid blocks in live chunk %d-%d", chunkStart, chunkEnd))
 		return nil
 	}
 
 	// Step 2: Collect all transactions from all blocks in this chunk
 	allTransactions := or.collectTransactionsFromBlocks(blocks)
 
-	l.Info().Msgf("Collected %d transactions from %d blocks in live chunk", len(allTransactions), len(blocks))
+	l.Info(fmt.Sprintf("Collected %d transactions from %d blocks in live chunk", len(allTransactions), len(blocks)))
 
 	// Step 3: Process all data
 	if err := or.processAll(blocks, commits, allTransactions, compressEvents, chunkStart, chunkEnd); err != nil {
@@ -255,10 +239,10 @@ func (or *Orchestrator) processChunk(chunkStart, chunkEnd uint64, compressEvents
 	}
 
 	processDuration := time.Since(chunkStartTime) - fetchDuration
-	l.Debug().Msgf("Chunk %d-%d processed in %v", chunkStart, chunkEnd, processDuration)
+	l.Debug(fmt.Sprintf("Chunk %d-%d processed in %v", chunkStart, chunkEnd, processDuration))
 
 	chunkDuration := time.Since(chunkStartTime)
-	l.Info().Msgf("Chunk %d-%d completed in %v", chunkStart, chunkEnd, chunkDuration)
+	l.Info(fmt.Sprintf("Chunk %d-%d completed in %v", chunkStart, chunkEnd, chunkDuration))
 
 	return nil
 }
@@ -274,8 +258,7 @@ func (or *Orchestrator) updateProgressMetrics(
 	// Log progress every 30 seconds or significant milestones
 	if timeSinceLastProgress >= 30*time.Second || blocksBehind <= 10 {
 		blocksProcessed := chunkEnd - chunkStart + 1
-		l.Info().Msgf("Live progress: processed %d blocks (%d-%d), %d blocks behind, last update: %v ago",
-			blocksProcessed, chunkStart, chunkEnd, blocksBehind, timeSinceLastProgress.Round(time.Second))
+		l.Info(fmt.Sprintf("Live progress: processed %d blocks (%d-%d), %d blocks behind, last update: %v ago", blocksProcessed, chunkStart, chunkEnd, blocksBehind, timeSinceLastProgress.Round(time.Second)))
 		*lastProgressTime = now
 	}
 }
@@ -321,11 +304,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 			txHashFinal := base64.StdEncoding.EncodeToString(txHashSha256[:])
 			blockHeight, err := block.GetHeight()
 			if err != nil {
-				l.Error().
-					Caller().
-					Stack().
-					Err(err).
-					Msgf("Failed to get block height")
+				l.Error("Failed to get block height", "error", err)
 				continue
 			}
 			allTxHashes = append(allTxHashes, txHashFinal)
@@ -345,7 +324,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 		return make([]dataprocessor.TransactionsData, 0)
 	}
 
-	l.Info().Msgf("Fetching %d transactions", len(allTxHashes))
+	l.Info(fmt.Sprintf("Fetching %d transactions", len(allTxHashes)))
 
 	// Query all transactions
 	transactions := or.queryOperator.GetTransactions(allTxHashes)
@@ -366,7 +345,7 @@ func (or *Orchestrator) collectTransactionsFromBlocks(blocks []*rpcClient.BlockR
 		}
 	}
 
-	l.Info().Msgf("Successfully collected %d valid transactions", len(txData))
+	l.Info(fmt.Sprintf("Successfully collected %d valid transactions", len(txData)))
 	return txData
 }
 
@@ -409,7 +388,7 @@ func (or *Orchestrator) processAll(
 	go or.processPhase2(phase1Done, phase2Done, ctx)
 	<-phase2Done
 
-	l.Info().Msgf("All processing completed successfully from %d to %d", fromHeight, toHeight)
+	l.Info(fmt.Sprintf("All processing completed successfully from %d to %d", fromHeight, toHeight))
 	return nil
 }
 
@@ -420,30 +399,30 @@ func (or *Orchestrator) processPhase1(
 	defer close(phase1Done)
 	var wg1 sync.WaitGroup
 	wg1.Go(func() {
-		l.Info().Msg("Phase 1: Starting ProcessValidatorAddresses")
+		l.Info("Phase 1: Starting ProcessValidatorAddresses")
 		or.dataProcessor.ProcessValidatorAddresses(ctx.blocks, ctx.fromHeight, ctx.toHeight)
-		l.Info().Msg("Phase 1: ProcessValidatorAddresses completed")
+		l.Info("Phase 1: ProcessValidatorAddresses completed")
 	})
 
 	if ctx.hasTxs {
 		wg1.Go(func() {
-			l.Info().Msg("Phase 1: Starting ProcessMessages")
+			l.Info("Phase 1: Starting ProcessMessages")
 			if err := or.dataProcessor.ProcessMessages(
 				ctx.transactions, ctx.fromHeight, ctx.toHeight,
 			); err != nil {
-				l.Error().Err(err).Msg("Phase 1: ProcessMessages failed")
+				l.Error("Phase 1: ProcessMessages failed", "error", err)
 			}
-			l.Info().Msg("Phase 1: ProcessMessages completed")
+			l.Info("Phase 1: ProcessMessages completed")
 		})
 		wg1.Go(func() {
-			l.Info().Msg("Phase 1: Starting ProcessTransactions")
+			l.Info("Phase 1: Starting ProcessTransactions")
 			or.dataProcessor.ProcessTransactions(ctx.transactions, ctx.compressEvents, ctx.fromHeight, ctx.toHeight)
-			l.Info().Msg("Phase 1: ProcessTransactions completed")
+			l.Info("Phase 1: ProcessTransactions completed")
 		})
 	}
 
 	wg1.Wait()
-	l.Info().Msg("Phase 1: chunk processing completed")
+	l.Info("Phase 1: chunk processing completed")
 }
 
 func (or *Orchestrator) processPhase2(
@@ -455,19 +434,19 @@ func (or *Orchestrator) processPhase2(
 	defer close(phase2Done)
 	var wg2 sync.WaitGroup
 	wg2.Go(func() {
-		l.Info().Msg("Phase 2: Starting ProcessBlocks")
+		l.Info("Phase 2: Starting ProcessBlocks")
 		or.dataProcessor.ProcessBlocks(ctx.blocks, ctx.fromHeight, ctx.toHeight)
-		l.Info().Msg("Phase 2: ProcessBlocks completed")
+		l.Info("Phase 2: ProcessBlocks completed")
 	})
 
 	wg2.Go(func() {
-		l.Info().Msg("Phase 2: Starting ProcessValidatorSignings")
+		l.Info("Phase 2: Starting ProcessValidatorSignings")
 		or.dataProcessor.ProcessValidatorSignings(ctx.commits, ctx.fromHeight, ctx.toHeight)
-		l.Info().Msg("Phase 2: ProcessValidatorSignings completed")
+		l.Info("Phase 2: ProcessValidatorSignings completed")
 	})
 
 	wg2.Wait()
-	l.Info().Msg("Phase 2: chunk processing completed")
+	l.Info("Phase 2: chunk processing completed")
 }
 
 // saveProcessingState is a private method that saves
@@ -496,11 +475,7 @@ func (or *Orchestrator) saveProcessingState(height uint64, reason string) {
 	// Create state directory if it doesn't exist
 	stateDir := "state_dumps"
 	if err := os.MkdirAll(stateDir, 0755); err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Err(err).
-			Msgf("Failed to create state directory")
+		l.Error("Failed to create state directory", "error", err)
 		return
 	}
 
@@ -512,25 +487,17 @@ func (or *Orchestrator) saveProcessingState(height uint64, reason string) {
 	// Marshal to JSON
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Err(err).
-			Msgf("Failed to marshal processing state")
+		l.Error("Failed to marshal processing state", "error", err)
 		return
 	}
 
 	// Write to file
 	if err := os.WriteFile(filepath, data, 0644); err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Err(err).
-			Msgf("Failed to write processing state")
+		l.Error("Failed to write processing state", "error", err)
 		return
 	}
 
-	l.Info().Msgf("Processing state saved to %s", filepath)
+	l.Info(fmt.Sprintf("Processing state saved to %s", filepath))
 }
 
 // Cleanup performs cleanup operations for the orchestrator
@@ -538,18 +505,18 @@ func (or *Orchestrator) saveProcessingState(height uint64, reason string) {
 // Returns:
 //   - error: if cleanup fails
 func (or *Orchestrator) Cleanup() error {
-	l.Info().Msg("Starting orchestrator cleanup...")
+	l.Info("Starting orchestrator cleanup...")
 
 	// Save current state before cleanup
 	or.saveProcessingState(or.currentProcessingHeight, "cleanup_requested")
-	l.Info().Msg("Orchestrator cleanup completed - state saved successfully")
+	l.Info("Orchestrator cleanup completed - state saved successfully")
 
 	return nil
 }
 
 // DumpState creates an emergency state dump with current processing information
 func (or *Orchestrator) DumpState() error {
-	l.Info().Msg("Creating emergency state dump...")
+	l.Info("Creating emergency state dump...")
 
 	// Save processing state
 	or.saveProcessingState(or.currentProcessingHeight, "emergency_dump")
@@ -592,6 +559,6 @@ func (or *Orchestrator) DumpState() error {
 		return fmt.Errorf("failed to write diagnostics: %w", err)
 	}
 
-	l.Info().Msgf("Emergency state dump saved to %s", filepath)
+	l.Info(fmt.Sprintf("Emergency state dump saved to %s", filepath))
 	return nil
 }

@@ -34,12 +34,12 @@ func InitMainOperator(
 	// load config
 	conf, err := config.LoadConfig(configPath)
 	if err != nil {
-		l.Fatal().Caller().Stack().Err(err).Msg("failed to load config")
+		l.Fatal("failed to load config", "error", err)
 	}
 	// load environment
 	env, err := config.LoadEnvironment(envPath)
 	if err != nil {
-		l.Fatal().Caller().Stack().Err(err).Msg("failed to load environment")
+		l.Fatal("failed to load environment", "error", err)
 	}
 
 	// get the chain name
@@ -55,40 +55,40 @@ func InitMainOperator(
 	// Setup signal handling with proper cleanup and state dump functions
 	signalHandler := contextHook.NewSignalHandler(
 		func() error {
-			l.Info().Msg("Starting main operator cleanup...")
+			l.Info("Starting main operator cleanup...")
 			// Cleanup orchestrator first
 			if err := orch.Cleanup(); err != nil {
-				l.Error().Caller().Stack().Err(err).Msg("Orchestrator cleanup failed")
+				l.Error("Orchestrator cleanup failed", "error", err)
 			}
 
 			// Cleanup major constructors
 			if err := mc.cleanup(); err != nil {
-				l.Error().Caller().Stack().Err(err).Msg("Major constructors cleanup failed")
+				l.Error("Major constructors cleanup failed", "error", err)
 			}
 
-			l.Info().Msg("Main operator cleanup completed")
+			l.Info("Main operator cleanup completed")
 			return nil
 		},
 		func() error {
-			l.Info().Msg("Creating emergency state dump...")
+			l.Info("Creating emergency state dump...")
 			// Dump orchestrator state
 			if err := orch.DumpState(); err != nil {
-				l.Error().Caller().Stack().Err(err).Msg("Orchestrator state dump failed")
+				l.Error("Orchestrator state dump failed", "error", err)
 			}
 
 			// Dump major constructors state if needed
 			if err := mc.dumpState(); err != nil {
-				l.Error().Caller().Stack().Err(err).Msg("Major constructors state dump failed")
+				l.Error("Major constructors state dump failed", "error", err)
 			}
 
-			l.Info().Msg("Emergency state dump completed")
+			l.Info("Emergency state dump completed")
 			return nil
 		},
 	)
 
 	// Start signal listening
 	signalHandler.StartListening()
-	l.Info().Msg("Signal handler started, listening for termination signals")
+	l.Info("Signal handler started, listening for termination signals")
 
 	// let the orchestrator do it's thing
 	switch runningFlags.RunningMode {
@@ -99,16 +99,16 @@ func InitMainOperator(
 		signalHandler.OperationComplete()
 	case "historic":
 		if runningFlags.FromHeight == 0 || runningFlags.ToHeight == 0 {
-			l.Fatal().Caller().Stack().Msg("from height and to height are required for historic mode")
+			l.Fatal("from height and to height are required for historic mode")
 		} else if runningFlags.FromHeight > runningFlags.ToHeight {
-			l.Fatal().Caller().Stack().Msg("from height must be less than to height")
+			l.Fatal("from height must be less than to height")
 		}
 		go InitDebug(signalHandler.Context())
 		signalHandler.RegisterOperation()
 		orch.HistoricProcess(signalHandler.Context(), runningFlags.FromHeight, runningFlags.ToHeight, runningFlags.CompressEvents)
 		signalHandler.OperationComplete()
 	default:
-		l.Fatal().Caller().Stack().Msg("invalid running mode, please choose between live and historic")
+		l.Fatal("invalid running mode, please choose between live and historic")
 	}
 }
 
@@ -126,7 +126,7 @@ func initializeDatabase(conf *config.Config, env *config.Environment) *timescale
 	// check if the config has any null
 	// if rpc is null throw an error and exit
 	if conf.RpcUrl == "" {
-		l.Fatal().Caller().Stack().Msg("rpc url is required")
+		l.Fatal("rpc url is required")
 	}
 	// if pool max connections is 0 or nil set a default of 100
 	if conf.PoolMaxConns == 0 {
@@ -207,7 +207,7 @@ func initializeMajorConstructors(
 		// set it to a default of 1 minute
 		rpcFlags.TimeWindow = 1 * time.Minute
 	} else if rpcFlags.TimeWindow <= 0 {
-		l.Fatal().Caller().Stack().Msg("time window must be greater than 0")
+		l.Fatal("time window must be greater than 0")
 	}
 
 	// init all of the major constructors
@@ -220,7 +220,7 @@ func initializeMajorConstructors(
 		conf.RpcUrl, nil, rpcFlags.RequestsPerWindow, rpcFlags.TimeWindow, conf.UserAgent,
 	)
 	if err != nil {
-		l.Fatal().Caller().Stack().Err(err).Msg("failed to initialize rpc client")
+		l.Fatal("failed to initialize rpc client", "error", err)
 	}
 
 	// initialize the validator cache
@@ -249,33 +249,33 @@ func initializeMajorConstructors(
 
 // cleanup performs cleanup operations on all major constructors
 func (mc *MajorConstructors) cleanup() error {
-	l.Info().Msg("Starting major constructors cleanup...")
+	l.Info("Starting major constructors cleanup...")
 
 	// Close database connection pool
 	if mc.db != nil {
-		l.Info().Msg("Closing database connection pool...")
+		l.Info("Closing database connection pool...")
 		mc.db.Close()
-		l.Info().Msg("Database connection pool closed successfully")
+		l.Info("Database connection pool closed successfully")
 	}
 
 	// Close RPC client (closes the rate limiter)
 	if mc.gnoRpcClient != nil {
-		l.Info().Msg("Closing RPC client...")
+		l.Info("Closing RPC client...")
 		mc.gnoRpcClient.Close()
-		l.Info().Msg("RPC client closed successfully")
+		l.Info("RPC client closed successfully")
 	}
 
 	// Other components (caches, data processor, query operator) don't need explicit cleanup
 	// as they rely on the database and RPC client connections that we've already closed
-	l.Info().Msg("Address caches, data processor, and query operator don't require explicit cleanup")
+	l.Info("Address caches, data processor, and query operator don't require explicit cleanup")
 
-	l.Info().Msg("Major constructors cleanup completed successfully")
+	l.Info("Major constructors cleanup completed successfully")
 	return nil
 }
 
 // dumpState creates a state dump of the major constructors
 func (mc *MajorConstructors) dumpState() error {
-	l.Info().Msg("Creating major constructors state dump...")
+	l.Info("Creating major constructors state dump...")
 
 	// Create basic state information
 	state := map[string]any{
@@ -319,6 +319,6 @@ func (mc *MajorConstructors) dumpState() error {
 		return fmt.Errorf("failed to write major constructors state: %w", err)
 	}
 
-	l.Info().Msgf("Major constructors state dump saved to %s", filepath)
+	l.Info(fmt.Sprintf("Major constructors state dump saved to %s", filepath))
 	return nil
 }

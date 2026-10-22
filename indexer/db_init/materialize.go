@@ -123,11 +123,7 @@ func (init *DBInitializer) CreateContinuousAggregate(
 	sql := GenerateContinuousAggregateSQL(agg)
 	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Str("view", agg.TableName()).
-			Msgf("failed to create continuous aggregate: %v", err)
+		l.Error(fmt.Sprintf("failed to create continuous aggregate: %v", err), "view", agg.TableName())
 		return err
 	}
 	return nil
@@ -151,11 +147,7 @@ func (init *DBInitializer) AlterContinuousAggregateColumnstore(
 	)
 	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Str("view", viewName).
-			Msgf("failed to alter continuous aggregate columnstore: %v", err)
+		l.Error(fmt.Sprintf("failed to alter continuous aggregate columnstore: %v", err), "view", viewName)
 		return err
 	}
 
@@ -174,11 +166,7 @@ func (init *DBInitializer) AddColumnstoreInterval(
 	)
 	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Str("view", viewName).
-			Msgf("failed to add columnstore policy: %v", err)
+		l.Error(fmt.Sprintf("failed to add columnstore policy: %v", err), "view", viewName)
 		return err
 	}
 	return nil
@@ -198,11 +186,7 @@ func (init *DBInitializer) RefreshContinuousAggregate(viewName string) error {
 	sql := fmt.Sprintf("CALL refresh_continuous_aggregate('%s', NULL, NOW())", viewName)
 	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Str("view", viewName).
-			Msgf("failed to refresh continuous aggregate: %v", err)
+		l.Error(fmt.Sprintf("failed to refresh continuous aggregate: %v", err), "view", viewName)
 		return err
 	}
 	return nil
@@ -230,11 +214,7 @@ func (init *DBInitializer) AddContinuousAggregatePolicy(viewName, startOffset, e
 	)
 	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Str("view", viewName).
-			Msgf("failed to add continuous aggregate policy: %v", err)
+		l.Error(fmt.Sprintf("failed to add continuous aggregate policy: %v", err), "view", viewName)
 		return err
 	}
 	return nil
@@ -246,11 +226,7 @@ func (init *DBInitializer) EnableRealTimeAggregation(viewName string) error {
 	sql := fmt.Sprintf("ALTER MATERIALIZED VIEW %s SET (timescaledb.materialized_only = FALSE)", viewName)
 	_, err := init.pool.Exec(context.Background(), sql)
 	if err != nil {
-		l.Error().
-			Caller().
-			Stack().
-			Str("view", viewName).
-			Msgf("failed to enable real-time aggregation: %v", err)
+		l.Error(fmt.Sprintf("failed to enable real-time aggregation: %v", err), "view", viewName)
 		return err
 	}
 	return nil

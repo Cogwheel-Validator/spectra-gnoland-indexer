@@ -8,8 +8,8 @@ import (
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/cli"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
-	"go.opentelemetry.io/otel/log/global"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 )
 
@@ -25,13 +25,13 @@ func main() {
 			provider := sdklog.NewLoggerProvider(
 				sdklog.WithProcessor(sdklog.NewBatchProcessor(exp)),
 			)
-			global.SetLoggerProvider(provider)
+			otel.SetLoggerProvider(provider)
 			defer provider.Shutdown(ctx) //nolint:errcheck
 		}
 	}
 
 	cmd := cli.RootCmd()
 	if err := cmd.ExecuteContext(ctx); err != nil {
-		logger.Get().Fatal().Err(err).Msg("failed to execute command")
+		logger.Get().Fatal("failed to execute command", "error", err)
 	}
 }

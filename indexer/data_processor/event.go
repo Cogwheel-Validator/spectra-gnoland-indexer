@@ -26,7 +26,7 @@ func init() {
 	var err error
 	zstdWriter, err = zstd.NewWriter(nil, zstdDict, zstdLvl)
 	if err != nil {
-		l.Fatal().Err(err).Msg("failed to initialize zstd writer")
+		l.Fatal("failed to initialize zstd writer", "error", err)
 	}
 }
 

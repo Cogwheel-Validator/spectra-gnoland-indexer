@@ -20,7 +20,7 @@ var historicCmd = &cobra.Command{
 	`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.Get()
-		l.Info().Msg("running in historic mode")
+		l.Info("running in historic mode")
 
 		configPath, rateLimitFlags, compressEvents, err := parseCommonRunFlags(cmd)
 		if err != nil {
@@ -29,12 +29,12 @@ var historicCmd = &cobra.Command{
 
 		fromHeight, err := cmd.Flags().GetUint64("from-height")
 		if err != nil {
-			l.Error().Err(err).Msg("failed to get from height")
+			l.Error("failed to get from height", "error", err)
 			return err
 		}
 		toHeight, err := cmd.Flags().GetUint64("to-height")
 		if err != nil {
-			l.Error().Err(err).Msg("failed to get to height")
+			l.Error("failed to get to height", "error", err)
 			return err
 		}
 

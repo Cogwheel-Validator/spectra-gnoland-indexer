@@ -123,11 +123,7 @@ func (q *QueryOperator) GetFromToBlocks(fromHeight uint64, toHeight uint64) []*r
 						wg.Done()
 					},
 					func(retryErr error) {
-						l.Error().
-							Caller().
-							Stack().
-							Err(retryErr).
-							Msgf("failed to get block %d after retries", height)
+						l.Error(fmt.Sprintf("failed to get block %d after retries", height), "error", retryErr)
 						mu.Lock()
 						blocks[idx] = nil
 						mu.Unlock()
@@ -190,7 +186,7 @@ func (q *QueryOperator) fetchCommit(height uint64, idx int, commits []*rc.Commit
 	if err != nil || !canonical {
 		// Use retry mechanism with callback pattern
 		if !canonical {
-			l.Info().Msgf("commit %d is not canonical, retrying", height)
+			l.Info(fmt.Sprintf("commit %d is not canonical, retrying", height))
 		}
 		retry.RetryWithContext(
 			q.retryAmount,
@@ -213,11 +209,7 @@ func (q *QueryOperator) fetchCommit(height uint64, idx int, commits []*rc.Commit
 				wg.Done()
 			},
 			func(retryErr error) {
-				l.Error().
-					Caller().
-					Stack().
-					Err(retryErr).
-					Msgf("failed to get commit %d after retries", height)
+				l.Error(fmt.Sprintf("failed to get commit %d after retries", height), "error", retryErr)
 				commits[idx] = nil
 				wg.Done()
 			},
@@ -288,11 +280,7 @@ func (q *QueryOperator) GetTransactions(txs []string) []*rc.TxResponse {
 						wg.Done()
 					},
 					func(retryErr error) {
-						l.Error().
-							Caller().
-							Stack().
-							Err(retryErr).
-							Msgf("failed to get tx %s after retries", tx)
+						l.Error(fmt.Sprintf("failed to get tx %s after retries", tx), "error", retryErr)
 						mu.Lock()
 						transactions[idx] = nil
 						mu.Unlock()

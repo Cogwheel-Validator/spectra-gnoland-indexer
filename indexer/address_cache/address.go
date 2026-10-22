@@ -2,6 +2,7 @@ package addresscache
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"time"
 
@@ -27,7 +28,7 @@ var l = logger.Get()
 func NewAddressCache(chainName string, db DatabaseForAddresses, loadVal bool) *AddressCache {
 	addresses, maxIndex, err := loadAddresses(chainName, loadVal, db)
 	if err != nil {
-		l.Fatal().Caller().Stack().Err(err).Msg("failed to load addresses")
+		l.Fatal("failed to load addresses", "error", err)
 	}
 	return &AddressCache{
 		address:      addresses,
@@ -151,7 +152,7 @@ func (a *AddressCache) insertOneByOne(addresses []string, chainName string, inse
 
 		if err := a.db.InsertAddresses(ctx, []string{addr}, chainName, insertValidators); err != nil {
 			cancel()
-			l.Error().Caller().Stack().Err(err).Msgf("error inserting address: %s", addr)
+			l.Error(fmt.Sprintf("error inserting address: %s", addr), "error", err)
 		}
 		cancel()
 	}
@@ -169,7 +170,7 @@ func (a *AddressCache) fetchAndCacheInserted(addresses []string, chainName strin
 
 	newAddrMap, err := a.db.FindExistingAccounts(ctx, addresses, chainName, insertValidators)
 	if err != nil {
-		l.Error().Caller().Stack().Err(err).Msg("error finding existing accounts")
+		l.Error("error finding existing accounts", "error", err)
 		return
 	}
 	a.addAddresses(newAddrMap)

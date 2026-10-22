@@ -22,27 +22,27 @@ func parseCommonRunFlags(cmd *cobra.Command) (configPath string, rpcFlags mainTy
 
 	configPath, err = cmd.Flags().GetString("config")
 	if err != nil {
-		l.Error().Err(err).Msg("failed to get config path")
+		l.Error("failed to get config path", "error", err)
 		return "", mainTypes.RpcFlags{}, false, err
 	}
 	maxRequestsPerWindow, err := cmd.Flags().GetInt("max-req-per-window")
 	if err != nil {
-		l.Error().Err(err).Msg("failed to get max requests per window")
+		l.Error("failed to get max requests per window", "error", err)
 		return "", mainTypes.RpcFlags{}, false, err
 	}
 	rateLimitWindow, err := cmd.Flags().GetDuration("rate-limit-window")
 	if err != nil {
-		l.Error().Err(err).Msg("failed to get rate limit window")
+		l.Error("failed to get rate limit window", "error", err)
 		return "", mainTypes.RpcFlags{}, false, err
 	}
 	timeout, err := cmd.Flags().GetDuration("timeout")
 	if err != nil {
-		l.Error().Err(err).Msg("failed to get timeout")
+		l.Error("failed to get timeout", "error", err)
 		return "", mainTypes.RpcFlags{}, false, err
 	}
 	compressEvents, err = cmd.Flags().GetBool("compress-events")
 	if err != nil {
-		l.Error().Err(err).Msg("failed to get compress events")
+		l.Error("failed to get compress events", "error", err)
 		return "", mainTypes.RpcFlags{}, false, err
 	}
 
@@ -57,9 +57,9 @@ func parseCommonRunFlags(cmd *cobra.Command) (configPath string, rpcFlags mainTy
 // launchIndexer logs startup state and starts the main operator for either run mode.
 func launchIndexer(configPath string, rpcFlags mainTypes.RpcFlags, runningFlags mainTypes.RunningFlags) {
 	l := logger.Get()
-	l.Info().Msg("indexer started")
+	l.Info("indexer started")
 	if runningFlags.CompressEvents {
-		l.Warn().Msg("compress events is enabled, this is experimental and it might slow down the data processing speed")
+		l.Warn("compress events is enabled, this is experimental and it might slow down the data processing speed")
 	}
 	mainOperator.InitMainOperator(configPath, ".", rpcFlags, runningFlags)
 }

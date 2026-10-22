@@ -2,9 +2,9 @@ package cli
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
 
@@ -13,12 +13,12 @@ var (
 	Version = "unknown" // Set via ldflags at build time
 )
 
-var allowedLogLevels = map[string]zerolog.Level{
-	"debug": zerolog.DebugLevel,
-	"info":  zerolog.InfoLevel,
-	"warn":  zerolog.WarnLevel,
-	"error": zerolog.ErrorLevel,
-	"fatal": zerolog.FatalLevel,
+var allowedLogLevels = map[string]slog.Level{
+	"debug": slog.LevelDebug,
+	"info":  slog.LevelInfo,
+	"warn":  slog.LevelWarn,
+	"error": slog.LevelError,
+	"fatal": logger.LevelFatal,
 }
 
 var rootCmd = &cobra.Command{

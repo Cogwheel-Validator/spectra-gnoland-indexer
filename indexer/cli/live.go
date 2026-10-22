@@ -20,7 +20,7 @@ var liveCmd = &cobra.Command{
 	`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.Get()
-		l.Info().Msg("running in live mode")
+		l.Info("running in live mode")
 
 		configPath, rateLimitFlags, compressEvents, err := parseCommonRunFlags(cmd)
 		if err != nil {
@@ -29,7 +29,7 @@ var liveCmd = &cobra.Command{
 
 		skipDbCheck, err := cmd.Flags().GetBool("skip-db-check")
 		if err != nil {
-			l.Error().Err(err).Msg("failed to get skip db check")
+			l.Error("failed to get skip db check", "error", err)
 			return err
 		}
 

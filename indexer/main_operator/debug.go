@@ -12,21 +12,21 @@ import (
 )
 
 func InitDebug(ctx context.Context) {
-	l.Info().Msg("Debug mode started")
+	l.Info("Debug mode started")
 	go printMemStats(ctx, 5*time.Second)
 
 	server := &http.Server{Addr: ":6060"}
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			l.Error().Err(err).Msg("debug pprof server failed")
+			l.Error("debug pprof server failed", "error", err)
 		}
 	}()
 
 	<-ctx.Done()
 	if err := server.Shutdown(context.Background()); err != nil {
-		l.Error().Err(err).Msg("failed to shut down debug pprof server")
+		l.Error("failed to shut down debug pprof server", "error", err)
 	}
-	l.Info().Msg("Debug mode stopped")
+	l.Info("Debug mode stopped")
 }
 
 func printMemStats(ctx context.Context, interval time.Duration) {

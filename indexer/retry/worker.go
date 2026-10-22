@@ -2,6 +2,7 @@ package retry
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
@@ -69,13 +70,9 @@ func GenericRetryQuery[T any](
 			lastErr = err
 			notReady := errors.Is(err, ErrNotReady)
 			if notReady {
-				l.Info().Msgf("Retry attempt %d: result not ready yet", i+1)
+				l.Info(fmt.Sprintf("Retry attempt %d: result not ready yet", i+1))
 			} else {
-				l.Error().
-					Caller().
-					Stack().
-					Err(err).
-					Msgf("Retry attempt %d failed", i+1)
+				l.Error(fmt.Sprintf("Retry attempt %d failed", i+1), "error", err)
 			}
 
 			// Don't sleep on the last retry attempt
@@ -129,13 +126,9 @@ func RetryWithContext[T any](
 			onSuccess(result.Value)
 		} else {
 			if errors.Is(result.Error, ErrNotReady) {
-				l.Warn().Err(result.Error).Msg("Retry attempts exhausted, result still not ready")
+				l.Warn("Retry attempts exhausted, result still not ready", "error", result.Error)
 			} else if result.Error != nil {
-				l.Error().
-					Caller().
-					Stack().
-					Err(result.Error).
-					Msgf("Error: All retry attempts failed")
+				l.Error("Error: All retry attempts failed", "error", result.Error)
 			}
 			onFailure(result.Error)
 		}

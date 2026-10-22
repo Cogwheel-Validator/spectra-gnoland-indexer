@@ -110,6 +110,6 @@ func (db *DBInitializer) CreateIndex(idx IndexDef) error {
 		return fmt.Errorf("failed to create index %s on %s: %w", idx.Name, idx.Table, err)
 	}
 
-	l.Info().Msgf("Successfully created index: %s", idx.Name)
+	l.Info(fmt.Sprintf("Successfully created index: %s", idx.Name))
 	return nil
 }

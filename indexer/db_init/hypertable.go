@@ -101,12 +101,7 @@ func (init *DBInitializer) AddColumnstorePolicy(tables map[string]string) {
 			`, tableName, interval)
 		_, err := init.pool.Exec(context.Background(), sql)
 		if err != nil {
-			l.Error().
-				Caller().
-				Stack().
-				Msgf(
-					"failed to add columnstore policy for table %s: %v", tableName, err,
-				)
+			l.Error(fmt.Sprintf("failed to add columnstore policy for table %s: %v", tableName, err))
 		}
 	}
 }

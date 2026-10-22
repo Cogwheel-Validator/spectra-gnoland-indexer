@@ -405,17 +405,17 @@ func (db *DBInitializer) CreateHypertableFromStruct(
 	version, err := db.GetTimescaleDBVersion()
 	if err != nil {
 		// If we can't detect version, kill it something is wrong then
-		l.Fatal().Err(err).Msg("failed to get TimescaleDB version")
+		l.Fatal("failed to get TimescaleDB version", "error", err)
 		return fmt.Errorf("failed to get TimescaleDB version: %w", err)
 	}
 
 	// Use modern syntax for 2.19.3+
 	if version.IsModernVersion() {
-		l.Info().Msgf("Using modern hypertable syntax for TimescaleDB %d.%d.%d", version.Major, version.Minor, version.Patch)
+		l.Info(fmt.Sprintf("Using modern hypertable syntax for TimescaleDB %d.%d.%d", version.Major, version.Minor, version.Patch))
 		return db.createHypertableModern(tableInfo, params)
 	} else {
 		// Deprecate the legacy, anything below 2.19.3+ should be considered unsupported
-		l.Fatal().Msg("TimescaleDB version is below 2.19.3, which is no longer supported")
+		l.Fatal("TimescaleDB version is below 2.19.3, which is no longer supported")
 		return fmt.Errorf("TimescaleDB version is below 2.19.3, which is no longer supported")
 	}
 }
@@ -437,7 +437,7 @@ func (db *DBInitializer) createHypertableModern(tableInfo *TableInfo, params Hyp
 		return fmt.Errorf("failed to create hypertable %s using modern syntax: %w", tableInfo.TableName, err)
 	}
 
-	l.Info().Msgf("Successfully created hypertable: %s", tableInfo.TableName)
+	l.Info(fmt.Sprintf("Successfully created hypertable: %s", tableInfo.TableName))
 	return nil
 }
 
@@ -520,11 +520,11 @@ func buildPrivilegesSQL(userName, privilege string, tableNames []string) (string
 }
 
 func (db *DBInitializer) CreateUser(userName string) error {
-	l.Info().Msgf("Creating user %s.....\n", userName)
+	l.Info(fmt.Sprintf("Creating user %s.....\n", userName))
 	fmt.Print("Enter the password for the new user: ")
 	bytePassword, err := term.ReadPassword(int(syscall.Stdin))
 	if err != nil {
-		l.Error().Err(err).Msg("failed to read password")
+		l.Error("failed to read password", "error", err)
 		return fmt.Errorf("failed to read password: %w", err)
 	}
 	password := string(bytePassword)
@@ -537,7 +537,7 @@ func (db *DBInitializer) CreateUser(userName string) error {
 	// if error is related to user already existing mark it as a warning and continue
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
-			l.Warn().Msgf("User %s already exists, skipping creation", userName)
+			l.Warn(fmt.Sprintf("User %s already exists, skipping creation", userName))
 			return nil
 		} else {
 			return fmt.Errorf("failed to create user %s: %w", userName, err)

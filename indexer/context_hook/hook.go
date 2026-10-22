@@ -2,6 +2,7 @@ package contexthook
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -66,14 +67,14 @@ func (sh *SignalHandler) StartListening() {
 
 	go func() {
 		sig := <-signalChan
-		l.Info().Msgf("Received signal: %v", sig)
+		l.Info(fmt.Sprintf("Received signal: %v", sig))
 
 		switch sig {
 		case os.Interrupt, syscall.SIGTERM:
-			l.Info().Msg("Starting graceful shutdown...")
+			l.Info("Starting graceful shutdown...")
 			sh.gracefulShutdown()
 		case syscall.SIGQUIT:
-			l.Info().Msg("Emergency shutdown requested, dumping state...")
+			l.Info("Emergency shutdown requested, dumping state...")
 			sh.emergencyShutdown()
 		}
 	}()
@@ -92,7 +93,7 @@ func (sh *SignalHandler) gracefulShutdown() {
 
 	// Give operations time to finish gracefully
 	shutdownTimeout := 30 * time.Second
-	l.Info().Msgf("Waiting up to %v for operations to complete...", shutdownTimeout)
+	l.Info(fmt.Sprintf("Waiting up to %v for operations to complete...", shutdownTimeout))
 
 	done := make(chan struct{})
 	go func() {
@@ -102,22 +103,22 @@ func (sh *SignalHandler) gracefulShutdown() {
 
 	select {
 	case <-done:
-		l.Info().Msg("All operations completed successfully")
+		l.Info("All operations completed successfully")
 	case <-time.After(shutdownTimeout):
-		l.Info().Msg("Timeout reached, forcing shutdown")
+		l.Info("Timeout reached, forcing shutdown")
 	}
 
 	// Run cleanup function if provided
 	if sh.cleanup != nil {
-		l.Info().Msg("Running cleanup operations...")
+		l.Info("Running cleanup operations...")
 		if err := sh.cleanup(); err != nil {
-			l.Error().Caller().Stack().Err(err).Msgf("Error during cleanup")
+			l.Error("Error during cleanup", "error", err)
 		} else {
-			l.Info().Msg("Cleanup completed successfully")
+			l.Info("Cleanup completed successfully")
 		}
 	}
 
-	l.Info().Msg("Graceful shutdown complete")
+	l.Info("Graceful shutdown complete")
 	os.Exit(0)
 }
 
@@ -133,15 +134,15 @@ func (sh *SignalHandler) emergencyShutdown() {
 
 	// Dump state if function is provided
 	if sh.stateDump != nil {
-		l.Info().Msg("Dumping application state...")
+		l.Info("Dumping application state...")
 		if err := sh.stateDump(); err != nil {
-			l.Error().Caller().Stack().Err(err).Msgf("Error dumping state")
+			l.Error("Error dumping state", "error", err)
 		} else {
-			l.Info().Msg("State dump completed")
+			l.Info("State dump completed")
 		}
 	}
 
-	l.Info().Msg("Emergency shutdown complete")
+	l.Info("Emergency shutdown complete")
 	os.Exit(1)
 }
 

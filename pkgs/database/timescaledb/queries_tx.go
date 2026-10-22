@@ -26,7 +26,7 @@ func init() {
 	var err error
 	zstdReader, err = zstd.NewReader(nil, zstdDict)
 	if err != nil {
-		l.Fatal().Caller().Stack().Err(err).Msg("failed to initialize zstd reader")
+		l.Fatal("failed to initialize zstd reader", "error", err)
 	}
 }
 

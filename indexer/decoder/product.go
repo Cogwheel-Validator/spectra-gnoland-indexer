@@ -25,7 +25,7 @@ func NewDecodedMsg(encodedTx string) *DecodedMsg {
 	basicData, messages, err := decoder.GetMessageFromStdTx()
 	if err != nil {
 		// It should never happen, but we need some way to halt the program.
-		l.Fatal().Stack().Msgf("failed to decode message %s", err)
+		l.Fatal(fmt.Sprintf("failed to decode message %s", err))
 		return nil
 	}
 	return &DecodedMsg{
