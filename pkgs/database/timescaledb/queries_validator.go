@@ -12,7 +12,7 @@ func (t *TimescaleDb) GetAllValidators(ctx context.Context, chainName string) (*
 	SELECT
 	address
 	FROM gno_validators
-	WHERE chain_name = $1
+	WHERE $1::chain_name = ANY(chains)
 	ORDER BY id ASC
 	`
 	var validators = make([]string, 0)
@@ -61,7 +61,7 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
 	FROM
 	    gno_validators
 	WHERE
-	    address = $1 AND chain_name = $2
+	    address = $1 AND $2::chain_name = ANY(chains)
 	`
 
 	var validatorId uint64
@@ -102,7 +102,7 @@ func (t *TimescaleDb) GetValidatorLastNSigning(
         COALESCE(v.signed_vals @> '{%d}', false) AS signed,
         COALESCE(gv.id = v.proposer, false) AS proposed
     FROM validator_block_signing v
-    JOIN gno_validators gv ON gv.id = $1 AND gv.chain_name = $2
+    JOIN gno_validators gv ON gv.id = $1
     WHERE v.block_height BETWEEN $3 AND $4 AND v.chain_name = $2
     ORDER BY height %s
 	    `, validatorId, order)

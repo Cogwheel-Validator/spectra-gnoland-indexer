@@ -43,13 +43,16 @@ func (ta *TxAddresses) GetAddressList() []int32 {
 // Stores:
 // - Address (string)
 // - ID (int32)
-// - Chain ID (string)
-// PRIMARY KEY (id), UNIQUE (address, chain_id)
+// - Chains (chain_name[])
+// PRIMARY KEY (id), UNIQUE (address)
+//
+// The table is shared by every chain in the database, the same address used on
+// two chains keeps one id. Chains lists every chain the address was seen on.
 type GnoAddress struct {
 	// any of the values can't be a null value and there shouldn't be any duplicates
-	Address   string `db:"address" dbtype:"TEXT" nullable:"false" primary:"false" unique:"true"`
-	ID        int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"true"`
-	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false" unique:"true"`
+	Address string   `db:"address" dbtype:"TEXT" nullable:"false" primary:"false" unique:"true"`
+	ID      int32    `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"true"`
+	Chains  []string `db:"chains" dbtype:"chain_name[] DEFAULT '{}'" nullable:"false" primary:"false"`
 }
 
 // TableName returns the name of the table for the GnoAddress struct
@@ -67,12 +70,12 @@ func (g GnoAddress) GetTableInfo() (*dbinit.TableInfo, error) {
 // Stores:
 // - Address (string)
 // - ID (int32)
-// - Chain Name (string)
-// PRIMARY KEY (id), UNIQUE (address, chain_name)
+// - Chains (chain_name[])
+// PRIMARY KEY (id), UNIQUE (address)
 type GnoValidatorAddress struct {
-	Address   string `db:"address" dbtype:"TEXT" nullable:"false" primary:"false" unique:"true"`
-	ID        int32  `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"true"`
-	ChainName string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"false" unique:"true"`
+	Address string   `db:"address" dbtype:"TEXT" nullable:"false" primary:"false" unique:"true"`
+	ID      int32    `db:"id" dbtype:"INTEGER GENERATED ALWAYS AS IDENTITY" nullable:"false" primary:"true"`
+	Chains  []string `db:"chains" dbtype:"chain_name[] DEFAULT '{}'" nullable:"false" primary:"false"`
 }
 
 // TableName returns the name of the table for the GnoValidatorAddress struct
@@ -83,6 +86,31 @@ func (gv GnoValidatorAddress) TableName() string {
 // GetTableInfo returns the table info for the GnoValidatorAddress struct
 func (gv GnoValidatorAddress) GetTableInfo() (*dbinit.TableInfo, error) {
 	return dbinit.GetTableInfo(gv, gv.TableName())
+}
+
+// ChainStats holds running totals per chain.
+// Stores:
+// - Chain Name (chain_name)
+// - Address Count (int64)
+// - Validator Count (int64)
+// PRIMARY KEY (chain_name)
+//
+// The counts go up whenever an address is first seen on the chain, which is the
+// moment the chain is added to its chains column, so reading them needs no count(*).
+type ChainStats struct {
+	ChainName      string `db:"chain_name" dbtype:"chain_name" nullable:"false" primary:"true"`
+	AddressCount   int64  `db:"address_count" dbtype:"BIGINT DEFAULT 0" nullable:"false" primary:"false"`
+	ValidatorCount int64  `db:"validator_count" dbtype:"BIGINT DEFAULT 0" nullable:"false" primary:"false"`
+}
+
+// TableName returns the name of the table for the ChainStats struct
+func (cs ChainStats) TableName() string {
+	return "chain_stats"
+}
+
+// GetTableInfo returns the table info for the ChainStats struct
+func (cs ChainStats) GetTableInfo() (*dbinit.TableInfo, error) {
+	return dbinit.GetTableInfo(cs, cs.TableName())
 }
 
 // DBTable is an interface for structs that represent database tables
@@ -159,6 +187,7 @@ func RegularTables() []DBTable {
 	return []DBTable{
 		GnoAddress{},
 		GnoValidatorAddress{},
+		ChainStats{},
 		ApiKey{},
 		SchemaMigration{},
 	}
