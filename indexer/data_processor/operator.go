@@ -54,14 +54,12 @@ func NewDataProcessor(
 //   - toHeight: the end height
 //
 // Returns:
-//   - nil
-//
-// The method will not throw an error if the validator addresses are not found, it will just return nil.
+//   - error: if the addresses could not be resolved
 func (d *DataProcessor) ProcessValidatorAddresses(
 	blocks []*rpcClient.BlockResponse,
 	fromHeight uint64,
 	toHeight uint64,
-) {
+) error {
 	var mu sync.Mutex
 	addressesMap := make(map[string]struct{})
 	wg := sync.WaitGroup{}
@@ -79,10 +77,10 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 
 	// Retry 3 times just for the sake of it
 	if _, err := d.validatorCache.AddressSolver(addresses, 3); err != nil {
-		l.Error(fmt.Sprintf("Failed to resolve validator addresses from %d to %d: %v", fromHeight, toHeight, err))
-		return
+		return fmt.Errorf("failed to resolve validator addresses from %d to %d: %w", fromHeight, toHeight, err)
 	}
 	l.Info(fmt.Sprintf("Validator addresses processed from %d to %d", fromHeight, toHeight))
+	return nil
 }
 
 // extractAddresses is a helper function to extract the addresses from a map[string]struct{}
@@ -140,10 +138,8 @@ func processPrecommits(
 //   - toHeight: the end height
 //
 // Returns:
-//   - nil
-//
-// The method will not throw an error if the blocks are not found, it will just return nil.
-func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) {
+//   - error: if the blocks could not be inserted
+func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) error {
 	// Preallocate slice to avoid growing allocations
 	blockAmount := len(blocks)
 	blocksData := make([]s.Blocks, blockAmount)
@@ -162,9 +158,10 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 	defer cancel()
 	err := d.dbPool.InsertRows(ctx, s.AsInsertable(blocksData))
 	if err != nil {
-		l.Error(fmt.Sprintf("Failed to insert blocks: %v", err))
+		return fmt.Errorf("failed to insert blocks from %d to %d: %w", fromHeight, toHeight, err)
 	}
 	l.Info(fmt.Sprintf("Blocks processed from %d to %d", fromHeight, toHeight))
+	return nil
 }
 
 // processBlock is a helper method to process a block and store it at a pre-allocated slice.
@@ -203,14 +200,12 @@ func (d *DataProcessor) processBlock(
 //   - compressEvents: if true, compress the events
 //
 // Returns:
-//   - nil
-//
-// The method will not throw an error if the transactions are not found, it will just return nil
+//   - error: if any transaction was dropped or the insert failed
 func (d *DataProcessor) ProcessTransactions(
 	transactions []TransactionsData,
 	compressEvents bool,
 	fromHeight uint64,
-	toHeight uint64) {
+	toHeight uint64) error {
 
 	// Preallocate slice to avoid growing allocations
 	transactionAmount := len(transactions)
@@ -233,15 +228,21 @@ func (d *DataProcessor) ProcessTransactions(
 		}
 	}
 
+	// Entries dropped by processTransaction would otherwise be lost while the range is marked done.
+	if len(result) != transactionAmount {
+		return fmt.Errorf("failed to process %d of %d transactions from %d to %d",
+			transactionAmount-len(result), transactionAmount, fromHeight, toHeight)
+	}
+
 	// Add multiplier for the timeout depending on the transaction amount
 	timeout := 10*time.Second + (time.Duration(len(result)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	if err := d.dbPool.InsertRows(ctx, s.AsInsertable(result)); err != nil {
-		l.Error(fmt.Sprintf("Failed to insert transactions: %v", err))
-		return
+		return fmt.Errorf("failed to insert transactions from %d to %d: %w", fromHeight, toHeight, err)
 	}
 	l.Info(fmt.Sprintf("Transactions processed from %d to %d", fromHeight, toHeight))
+	return nil
 }
 
 // processTransaction is a helper method to process a transaction and store it at a pre-allocated index.
@@ -509,14 +510,13 @@ func (d *DataProcessor) insertMessageBatch(batch decoder.InsertBatch, errors *[]
 func (d *DataProcessor) ProcessValidatorSignings(
 	commits []*rpcClient.CommitResponse,
 	fromHeight uint64,
-	toHeight uint64) {
+	toHeight uint64) error {
 
 	// The cache may have evicted validators since ProcessValidatorAddresses ran,
 	// so resolve exactly the ones these commits reference.
 	resolved, err := d.validatorCache.AddressSolver(commitAddresses(commits), 3)
 	if err != nil {
-		l.Error(fmt.Sprintf("Failed to resolve validator addresses for signings from %d to %d: %v", fromHeight, toHeight, err))
-		return
+		return fmt.Errorf("failed to resolve validator addresses for signings from %d to %d: %w", fromHeight, toHeight, err)
 	}
 
 	commitAmount := len(commits)
@@ -544,9 +544,10 @@ func (d *DataProcessor) ProcessValidatorSignings(
 	err = d.dbPool.InsertRows(ctx, s.AsInsertable(result))
 	cancel()
 	if err != nil {
-		l.Error(fmt.Sprintf("Failed to insert validator commit signings: %v", err))
+		return fmt.Errorf("failed to insert validator commit signings from %d to %d: %w", fromHeight, toHeight, err)
 	}
 	l.Info(fmt.Sprintf("Validator commit signings processed from %d to %d", fromHeight, toHeight))
+	return nil
 }
 
 // commitAddresses returns the unique proposer and signer addresses of the commits.

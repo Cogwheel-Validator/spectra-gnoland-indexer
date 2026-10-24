@@ -10,4 +10,3 @@ This documentation is a work in progress and will be updated as the indexer is u
 - [Benchmarks](./benchmarks.md)
 - [API](./api.md)
 - [Data Model](./data-model.md)
-- [Backup and Restore](./backup.md)
