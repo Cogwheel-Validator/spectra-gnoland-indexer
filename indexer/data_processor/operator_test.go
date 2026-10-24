@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	addresscache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
 	dataProcessor "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
 	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 )
@@ -24,12 +25,13 @@ type MockAddressCache struct {
 	ReturnID int32
 }
 
-func (m *MockAddressCache) AddressSolver(addresses []string, chainName string, insertValidators bool, retryAttempts uint8, oneByOne *bool) {
-	// Do nothing for testing
-}
-
-func (m *MockAddressCache) GetAddress(address string) int32 {
-	return m.ReturnID
+// AddressSolver resolves every address to ReturnID
+func (m *MockAddressCache) AddressSolver(addresses []string, retryAttempts uint8) (addresscache.Resolved, error) {
+	resolved := make(addresscache.Resolved, len(addresses))
+	for _, addr := range addresses {
+		resolved[addr] = m.ReturnID
+	}
+	return resolved, nil
 }
 
 // Test DataProcessor constructor and basic functionality
@@ -66,13 +68,13 @@ func TestDataProcessor_WithEmptyData(t *testing.T) {
 	}
 
 	// We can test that the mocks work correctly
-	addressID := mockAddressCache.GetAddress("test-address")
-	if addressID != 123 {
+	addresses, _ := mockAddressCache.AddressSolver([]string{"test-address"}, 1)
+	if addressID := addresses.GetAddress("test-address"); addressID != 123 {
 		t.Errorf("Expected address ID 123, got %d", addressID)
 	}
 
-	validatorID := mockValidatorCache.GetAddress("test-validator")
-	if validatorID != 456 {
+	validators, _ := mockValidatorCache.AddressSolver([]string{"test-validator"}, 1)
+	if validatorID := validators.GetAddress("test-validator"); validatorID != 456 {
 		t.Errorf("Expected validator ID 456, got %d", validatorID)
 	}
 }
@@ -96,13 +98,13 @@ func TestDataProcessor_AddressCacheInterface(t *testing.T) {
 	var cache dataProcessor.AddressCache = &MockAddressCache{ReturnID: 999}
 
 	// Test interface methods
-	id := cache.GetAddress("test")
-	if id != 999 {
+	resolved, err := cache.AddressSolver([]string{"addr1", "addr2"}, 3)
+	if err != nil {
+		t.Fatalf("AddressSolver returned error: %v", err)
+	}
+	if id := resolved.GetAddress("addr1"); id != 999 {
 		t.Errorf("Expected ID 999, got %d", id)
 	}
-
-	// Test AddressSolver doesn't panic
-	cache.AddressSolver([]string{"addr1", "addr2"}, "chain", false, 3, nil)
 }
 
 // Test error handling

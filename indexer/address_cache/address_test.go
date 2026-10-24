@@ -3,241 +3,246 @@ package addresscache
 import (
 	"context"
 	"errors"
-	"maps"
-	"reflect"
-	"sort"
+	"slices"
 	"testing"
 )
 
+type resolveCall struct {
+	addresses  []string
+	chain      string
+	validators bool
+}
+
 type mockDB struct {
 	// record calls
-	findExistingCalls []struct {
-		addresses  []string
-		chain      string
-		validators bool
-	}
-	insertCalls []struct {
-		addresses  []string
-		chain      string
-		validators bool
-	}
-	getAllCalls []struct {
-		chain      string
-		validators bool
-	}
+	calls []resolveCall
 
 	// behavior controls
 	existing map[string]int32
-	// insert errors by attempt index (global)
-	insertErrors []error
-	// per-address insert errors when called one by one
-	perAddressInsertError map[string]error
+	// errors by attempt index (global)
+	errs []error
+	// addresses the database leaves out of the result, as if a concurrent
+	// writer inserted them mid-statement; each is left out only once
+	skipOnce map[string]bool
 }
 
-func (m *mockDB) FindExistingAccounts(ctx context.Context, addresses []string, chainName string, searchValidators bool) (map[string]int32, error) {
-	m.findExistingCalls = append(m.findExistingCalls, struct {
-		addresses  []string
-		chain      string
-		validators bool
-	}{append([]string(nil), addresses...), chainName, searchValidators})
+func newMockDB(existing map[string]int32) *mockDB {
+	m := &mockDB{existing: map[string]int32{}, skipOnce: map[string]bool{}}
+	for k, v := range existing {
+		m.existing[k] = v
+	}
+	return m
+}
+
+func (m *mockDB) ResolveAddresses(ctx context.Context, addresses []string, chainName string, validators bool) (map[string]int32, error) {
+	m.calls = append(m.calls, resolveCall{slices.Clone(addresses), chainName, validators})
+
+	idx := len(m.calls) - 1
+	if idx < len(m.errs) && m.errs[idx] != nil {
+		return nil, m.errs[idx]
+	}
 
 	res := map[string]int32{}
-	for _, a := range addresses {
-		if id, ok := m.existing[a]; ok {
-			res[a] = id
-		}
-	}
-	return res, nil
-}
-
-func (m *mockDB) InsertAddresses(ctx context.Context, addresses []string, chainName string, insertValidators bool) error {
-	m.insertCalls = append(m.insertCalls, struct {
-		addresses  []string
-		chain      string
-		validators bool
-	}{append([]string(nil), addresses...), chainName, insertValidators})
-
-	// global attempt-based error simulation
-	idx := len(m.insertCalls) - 1
-	if idx < len(m.insertErrors) && m.insertErrors[idx] != nil {
-		return m.insertErrors[idx]
-	}
-
-	// if called one-by-one, use per-address errors
-	if len(addresses) == 1 {
-		if err, ok := m.perAddressInsertError[addresses[0]]; ok && err != nil {
-			return err
-		}
-	}
-
-	// simulate successful insert by adding to existing with new ids
 	for _, a := range addresses {
 		if _, ok := m.existing[a]; !ok {
 			// assign a synthetic id: len(existing)+1
 			m.existing[a] = int32(len(m.existing) + 1)
 		}
-	}
-	return nil
-}
-
-func (m *mockDB) GetAllAddresses(ctx context.Context, chainName string, searchValidators bool, highestIndex *int32) (map[string]int32, int32, error) {
-	m.getAllCalls = append(m.getAllCalls, struct {
-		chain      string
-		validators bool
-	}{chainName, searchValidators})
-
-	// return current snapshot
-	// copy map to avoid aliasing in tests
-	out := make(map[string]int32, len(m.existing))
-	var max int32
-	for k, v := range m.existing {
-		out[k] = v
-		if v > max {
-			max = v
+		if m.skipOnce[a] {
+			delete(m.skipOnce, a)
+			continue
 		}
+		res[a] = m.existing[a]
 	}
-	return out, max, nil
+	return res, nil
 }
 
-func newCacheForTest(t *testing.T, existing map[string]int32, loadValidators bool) (*AddressCache, *mockDB) {
+func newCacheForTest(t *testing.T, existing map[string]int32, validators bool, size int) (*AddressCache, *mockDB) {
 	t.Helper()
-	m := &mockDB{existing: map[string]int32{}}
-	maps.Copy(m.existing, existing)
-	// constructor loads all existing for the flag
-	c := NewAddressCache("chain", m, loadValidators)
+	m := newMockDB(existing)
+	c, err := NewAddressCache(m, "chain", validators, size)
+	if err != nil {
+		t.Fatalf("NewAddressCache: %v", err)
+	}
 	return c, m
 }
 
-func sorted(keys map[string]int32) []string {
-	out := make([]string, 0, len(keys))
-	for k := range keys {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
-}
-
-func TestAddressSolver_NoOpWhenAllCached(t *testing.T) {
-	cache, m := newCacheForTest(t, map[string]int32{"a": 1, "b": 2}, false)
-	before := sorted(cache.address)
-	cache.AddressSolver([]string{"a", "b"}, "chain", false, 2, nil)
-	after := sorted(cache.address)
-
-	if !reflect.DeepEqual(before, after) {
-		t.Fatalf("cache changed but should not; before=%v after=%v", before, after)
-	}
-	if len(m.insertCalls) != 0 {
-		t.Fatalf("expected no inserts, got %d", len(m.insertCalls))
+func TestNewAddressCache_RejectsInvalidSize(t *testing.T) {
+	if _, err := NewAddressCache(newMockDB(nil), "chain", false, 0); err == nil {
+		t.Fatal("expected an error for size 0")
 	}
 }
 
-func TestAddressSolver_SyncExistingFromDB(t *testing.T) {
-	cache, m := newCacheForTest(t, map[string]int32{"a": 1}, false)
-	// cache initially has {a:1}
-	cache.AddressSolver([]string{"a", "b"}, "chain", false, 1, nil)
+func TestAddressSolver_ResolvesAndCaches(t *testing.T) {
+	cache, m := newCacheForTest(t, map[string]int32{"a": 10}, false, 10)
 
-	if cache.GetAddress("a") != 1 {
-		t.Fatalf("expected a to remain 1")
+	resolved, err := cache.AddressSolver([]string{"a", "b"}, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if cache.GetAddress("b") == 0 {
-		t.Fatalf("expected b to be cached after solver")
+	if resolved.GetAddress("a") != 10 {
+		t.Fatalf("expected a to keep id 10, got %d", resolved.GetAddress("a"))
 	}
-	// Should have attempted to insert only missing ones (b)
-	if len(m.insertCalls) == 0 || len(m.insertCalls[0].addresses) != 1 || m.insertCalls[0].addresses[0] != "b" {
-		t.Fatalf("expected insert for [b], got %+v", m.insertCalls)
+	if resolved.GetAddress("b") == 0 {
+		t.Fatal("expected b to be resolved")
 	}
-}
-
-func TestAddressSolver_BatchInsertWithRetry(t *testing.T) {
-	cache, m := newCacheForTest(t, map[string]int32{}, false)
-	// fail first attempt, succeed second
-	m.insertErrors = []error{errors.New("temp"), nil}
-
-	cache.AddressSolver([]string{"x", "y"}, "chain", false, 2, nil)
-
-	if cache.GetAddress("x") == 0 || cache.GetAddress("y") == 0 {
-		t.Fatalf("expected x and y to be cached after retry path")
+	if len(m.calls) != 1 {
+		t.Fatalf("expected 1 db call, got %d", len(m.calls))
 	}
-	if len(m.insertCalls) != 2 {
-		t.Fatalf("expected 2 batch insert attempts, got %d", len(m.insertCalls))
+	if !cache.cache.Contains("a") || !cache.cache.Contains("b") {
+		t.Fatal("expected a and b to be cached")
 	}
 }
 
-func TestAddressSolver_OneByOneFallback(t *testing.T) {
-	cache, m := newCacheForTest(t, map[string]int32{}, false)
-	// cause all batch attempts to fail; retryAttempts=1 ensures we hit fallback on first/last attempt
-	m.insertErrors = []error{errors.New("batch fail")}
-	// one-by-one: fail for "bad", succeed for "good"
-	m.perAddressInsertError = map[string]error{"bad": errors.New("fail one")}
+func TestAddressSolver_CacheHitSkipsDB(t *testing.T) {
+	cache, m := newCacheForTest(t, nil, false, 10)
 
-	one := true
-	cache.AddressSolver([]string{"good", "bad"}, "chain", false, 1, &one)
-
-	if cache.GetAddress("good") == 0 {
-		t.Fatalf("expected good to be cached from one-by-one path")
+	if _, err := cache.AddressSolver([]string{"a", "b"}, 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	// bad may still be absent if all inserts failed for it
-	if cache.GetAddress("bad") != 0 {
-		// it could have been inserted if fetch found it; but our mock only inserts on success, so expect 0
-		t.Fatalf("expected bad to not be cached")
+	resolved, err := cache.AddressSolver([]string{"a", "b"}, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(m.calls) != 1 {
+		t.Fatalf("expected the second call to be served from cache, got %d db calls", len(m.calls))
+	}
+	if resolved.GetAddress("a") == 0 || resolved.GetAddress("b") == 0 {
+		t.Fatal("expected cached ids in the result")
 	}
 }
 
-func TestAddressSolver_RespectsInsertValidatorsFlag(t *testing.T) {
-	cache, m := newCacheForTest(t, map[string]int32{}, true)
+func TestAddressSolver_OnlyQueriesMissing(t *testing.T) {
+	cache, m := newCacheForTest(t, nil, false, 10)
 
-	cache.AddressSolver([]string{"val1"}, "chain", true, 1, nil)
-
-	if len(m.insertCalls) != 1 || m.insertCalls[0].validators != true {
-		t.Fatalf("expected insert with validators=true, got %+v", m.insertCalls)
+	if _, err := cache.AddressSolver([]string{"a"}, 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := cache.AddressSolver([]string{"a", "b", "b", ""}, 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := m.calls[1].addresses; !slices.Equal(got, []string{"b"}) {
+		t.Fatalf("expected second query for [b], got %v", got)
 	}
 }
 
 func TestAddressSolver_EmptyInput(t *testing.T) {
-	cache, m := newCacheForTest(t, map[string]int32{"a": 1}, false)
-	cache.AddressSolver([]string{}, "chain", false, 2, nil)
-	if len(m.insertCalls) != 0 || len(m.findExistingCalls) != 0 {
-		t.Fatalf("expected no DB calls on empty input")
+	cache, m := newCacheForTest(t, nil, false, 10)
+
+	resolved, err := cache.AddressSolver(nil, 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resolved) != 0 || len(m.calls) != 0 {
+		t.Fatal("expected no db calls and an empty result on empty input")
 	}
 }
 
-func TestAddressSolver_DoesNotOverwriteExistingIDs(t *testing.T) {
-	cache, _ := newCacheForTest(t, map[string]int32{"a": 10}, false)
-	// attempt to reinsert same address
-	cache.AddressSolver([]string{"a"}, "chain", false, 1, nil)
-	if got := cache.GetAddress("a"); got != 10 {
-		t.Fatalf("expected a to remain 10, got %d", got)
+func TestAddressSolver_PassesChainAndValidatorFlag(t *testing.T) {
+	cache, m := newCacheForTest(t, nil, true, 10)
+
+	if _, err := cache.AddressSolver([]string{"val1"}, 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(m.calls) != 1 || !m.calls[0].validators || m.calls[0].chain != "chain" {
+		t.Fatalf("expected a validator query for chain, got %+v", m.calls)
+	}
+}
+
+func TestAddressSolver_RetriesOnError(t *testing.T) {
+	cache, m := newCacheForTest(t, nil, false, 10)
+	// fail first attempt, succeed second
+	m.errs = []error{errors.New("temp")}
+
+	resolved, err := cache.AddressSolver([]string{"x", "y"}, 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolved.GetAddress("x") == 0 || resolved.GetAddress("y") == 0 {
+		t.Fatal("expected x and y to be resolved after retry")
+	}
+	if len(m.calls) != 2 {
+		t.Fatalf("expected 2 attempts, got %d", len(m.calls))
 	}
 }
 
 func TestAddressSolver_HonorsRetryAttempts(t *testing.T) {
-	cache, m := newCacheForTest(t, map[string]int32{}, false)
-	// cause failures for all attempts
-	m.insertErrors = []error{errors.New("1"), errors.New("2"), errors.New("3")}
-	cache.AddressSolver([]string{"a"}, "chain", false, 3, nil)
-	if len(m.insertCalls) != 3 {
-		t.Fatalf("expected 3 attempts, got %d", len(m.insertCalls))
+	cache, m := newCacheForTest(t, nil, false, 10)
+	m.errs = []error{errors.New("1"), errors.New("2"), errors.New("3")}
+
+	if _, err := cache.AddressSolver([]string{"a"}, 3); err == nil {
+		t.Fatal("expected an error after all attempts failed")
+	}
+	if len(m.calls) != 3 {
+		t.Fatalf("expected 3 attempts, got %d", len(m.calls))
+	}
+	if cache.cache.Contains("a") {
+		t.Fatal("expected a to not be cached")
 	}
 }
 
-func TestAddressSolver_CachesAfterPartialSuccess(t *testing.T) {
-	cache, m := newCacheForTest(t, map[string]int32{}, false)
-	// First batch fails, second succeeds; both x and y will be added in success path
-	m.insertErrors = []error{errors.New("temp"), nil}
+func TestAddressSolver_RequeriesAddressesLeftOut(t *testing.T) {
+	cache, m := newCacheForTest(t, nil, false, 10)
+	m.skipOnce["b"] = true
 
-	cache.AddressSolver([]string{"x", "y"}, "chain", false, 2, nil)
-
-	if cache.GetAddress("x") == 0 || cache.GetAddress("y") == 0 {
-		t.Fatalf("expected x and y to be cached after success")
+	resolved, err := cache.AddressSolver([]string{"a", "b"}, 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolved.GetAddress("b") == 0 {
+		t.Fatal("expected b to be resolved on the second query")
+	}
+	if len(m.calls) != 2 || !slices.Equal(m.calls[1].addresses, []string{"b"}) {
+		t.Fatalf("expected a second query for [b], got %+v", m.calls)
 	}
 }
 
-func TestAddressSolver_SkipFetchWhenNothingToAdd(t *testing.T) {
-	cache, m := newCacheForTest(t, map[string]int32{"a": 1}, false)
-	// provide only already-known address so newAddresses empty -> early return
-	cache.AddressSolver([]string{"a"}, "chain", false, 1, nil)
+func TestAddressSolver_PartialResultOnError(t *testing.T) {
+	cache, m := newCacheForTest(t, nil, false, 10)
+	m.skipOnce["b"] = true
+	m.errs = []error{nil, errors.New("down")}
 
-	if len(m.findExistingCalls) != 0 || len(m.insertCalls) != 0 {
-		t.Fatalf("expected no DB calls when nothing to add")
+	resolved, err := cache.AddressSolver([]string{"a", "b"}, 2)
+	if err == nil {
+		t.Fatal("expected an error for the unresolved address")
+	}
+	if resolved.GetAddress("a") == 0 {
+		t.Fatal("expected a to be in the partial result")
+	}
+	if resolved.GetAddress("b") != 0 {
+		t.Fatal("expected b to be missing from the partial result")
+	}
+}
+
+func TestAddressSolver_ResultSurvivesEviction(t *testing.T) {
+	// a batch larger than the cache must still resolve every address
+	cache, _ := newCacheForTest(t, nil, false, 2)
+	batch := []string{"a", "b", "c", "d", "e"}
+
+	resolved, err := cache.AddressSolver(batch, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, addr := range batch {
+		if resolved.GetAddress(addr) == 0 {
+			t.Fatalf("expected %s to be resolved", addr)
+		}
+	}
+	if cache.cache.Len() > 2 {
+		t.Fatalf("expected the cache to hold at most 2 entries, got %d", cache.cache.Len())
+	}
+}
+
+func TestAddressSolver_DoesNotOverwriteExistingIDs(t *testing.T) {
+	cache, _ := newCacheForTest(t, map[string]int32{"a": 10}, false, 10)
+
+	for range 2 {
+		resolved, err := cache.AddressSolver([]string{"a"}, 1)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := resolved.GetAddress("a"); got != 10 {
+			t.Fatalf("expected a to remain 10, got %d", got)
+		}
 	}
 }
