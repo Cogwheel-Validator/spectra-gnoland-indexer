@@ -32,6 +32,14 @@ chain_name: gnoland
 max_block_chunk_size: 50
 max_transaction_chunk_size: 100
 
+# Address cache settings
+#
+# The indexer keeps the most used addresses and their database ids in memory (ARC cache),
+# addresses that are not in the cache are looked up (and inserted if new) in the database.
+# 0 or unset uses the default, 100000 addresses and 1000 validators.
+# address_cache_size: 100000
+# validator_cache_size: 1000
+
 # Live settings
 # this is the time that the indexer will wait before it checks the chain if there are new blocks
 live_pooling: 5s

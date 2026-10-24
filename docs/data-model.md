@@ -87,12 +87,17 @@ erDiagram
     gno_addresses {
       INTEGER id
       TEXT address
-      chain_name chain_name
+      chain_name[] chains
     }
     gno_validators {
       INTEGER id
       TEXT address
+      chain_name[] chains
+    }
+    chain_stats {
       chain_name chain_name
+      BIGINT address_count
+      BIGINT validator_count
     }
     validator_block_signing {
       BIGINT block_height
@@ -114,6 +119,13 @@ erDiagram
     transaction_general ||--o{ address_tx : "involves"
     gno_addresses ||--o{ address_tx : "participates"
 ```
+
+`gno_addresses` and `gno_validators` are shared by every chain in the database: an
+address used on both mainnet and a testnet keeps a single id and a single row. The
+`chains` column lists every chain the address was seen on, so per-chain lookups filter
+on it. `chain_stats` counts, per chain, the addresses and validators seen on it; the
+count goes up when a chain is added to an address's `chains`, so reading it is a single
+row lookup.
 
 ## Message Types
 

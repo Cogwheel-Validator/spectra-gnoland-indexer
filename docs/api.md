@@ -40,7 +40,7 @@ There are total of 5 routes available. This are the basic routes that are needed
 
 - /address/{address}/transactions - Get all of the transactions for a given address for a certain time period
 - /addresses/stats/active/daily - Get the number of daily active addresses within the given date range.
-- /addresses/stats/total - Get the total number of addresses active since indexer started to process the data.
+- /addresses/stats/total - Get the total number of addresses seen on the chain since the indexer started to process the data.
 
 ### Utilities
 
