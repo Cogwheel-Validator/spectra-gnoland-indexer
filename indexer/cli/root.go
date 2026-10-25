@@ -49,6 +49,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(setupCmd)
+	rootCmd.AddCommand(migrateCmd)
 
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "define log level (debug, info, warn, error, fatal)")
 }
