@@ -6,6 +6,7 @@ This documentation is a work in progress and will be updated as the indexer is u
 
 - [Requirements](./requirements.md)
 - [Setup](./setup.md)
+- [Migrations](./migrations.md)
 - [Scaling](./scaling.md)
 - [Benchmarks](./benchmarks.md)
 - [API](./api.md)
