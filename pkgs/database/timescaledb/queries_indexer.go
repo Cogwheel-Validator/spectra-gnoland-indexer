@@ -4,30 +4,19 @@ import (
 	"context"
 )
 
-// FindExistingAccounts finds which addresses already exist in the database.
-// Used by the account cache to determine which ones to insert.
-func (t *TimescaleDb) FindExistingAccounts(
+// ResolveAddresses returns the id of every given address, inserting the ones the
+// database does not know yet. The resolve_addresses / resolve_validators function
+// also records each address as seen on chainName and counts the ones that are new
+// to the chain in chain_stats.
+func (t *TimescaleDb) ResolveAddresses(
 	ctx context.Context,
 	addresses []string,
 	chainName string,
-	searchValidators bool,
+	validators bool,
 ) (map[string]int32, error) {
-	addressesMap := make(map[string]int32)
-	query := ""
-	if searchValidators {
-		query = `
-	SELECT address, id
-	FROM gno_validators
-	WHERE chain_name = $1
-	AND address = ANY($2)
-	`
-	} else {
-		query = `
-		SELECT address, id
-		FROM gno_addresses
-		WHERE chain_name = $1
-		AND address = ANY($2)
-		`
+	query := `SELECT address, id FROM resolve_addresses($1, $2)`
+	if validators {
+		query = `SELECT address, id FROM resolve_validators($1, $2)`
 	}
 	rows, err := t.pool.Query(ctx, query, chainName, addresses)
 	if err != nil {
@@ -35,66 +24,19 @@ func (t *TimescaleDb) FindExistingAccounts(
 	}
 	defer rows.Close()
 
+	addressesMap := make(map[string]int32, len(addresses))
 	for rows.Next() {
 		var address string
 		var id int32
-		err := rows.Scan(&address, &id)
-		if err != nil {
+		if err := rows.Scan(&address, &id); err != nil {
 			return nil, err
 		}
 		addressesMap[address] = id
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return addressesMap, nil
-}
-
-// GetAllAddresses returns all addresses for a chain, starting after highestIndex.
-// Used at program init to load existing accounts and their IDs.
-func (t *TimescaleDb) GetAllAddresses(
-	ctx context.Context,
-	chainName string,
-	searchValidators bool,
-	highestIndex *int32,
-) (map[string]int32, int32, error) {
-	addressesMap := make(map[string]int32)
-	var maxIndex int32 = 0
-	if highestIndex != nil {
-		maxIndex = *highestIndex
-	}
-	query := ""
-	if searchValidators {
-		query += `
-		SELECT address, id
-		FROM gno_validators
-		WHERE chain_name = $1
-		AND id > $2
-		`
-	} else {
-		query += `
-		SELECT address, id
-		FROM gno_addresses
-		WHERE chain_name = $1
-		AND id > $2
-		`
-	}
-	rows, err := t.pool.Query(ctx, query, chainName, maxIndex)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var address string
-		var id int32
-		err := rows.Scan(&address, &id)
-		if err != nil {
-			return nil, 0, err
-		}
-		addressesMap[address] = id
-		if id > maxIndex {
-			maxIndex = id
-		}
-	}
-	return addressesMap, maxIndex, nil
 }
 
 // CheckCurrentDatabaseName returns the name of the database the pool is connected to.

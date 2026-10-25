@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"runtime"
-	"sync"
 
 	addressCache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
@@ -34,19 +33,14 @@ func RunSyntheticIntegrationTest(testConfig *SyntheticIntegrationTestConfig) err
 
 	// Initialize address caches (required by data processor). These are shared
 	// across all chunks so accumulated address state carries forward correctly.
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	var validatorCache *addressCache.AddressCache
-	var addrCache *addressCache.AddressCache
-	go func() {
-		defer wg.Done()
-		validatorCache = addressCache.NewAddressCache(testConfig.ChainID, db, true)
-	}()
-	go func() {
-		defer wg.Done()
-		addrCache = addressCache.NewAddressCache(testConfig.ChainID, db, false)
-	}()
-	wg.Wait()
+	validatorCache, err := addressCache.NewAddressCache(db, testConfig.ChainID, true, addressCache.DefaultValidatorCacheSize)
+	if err != nil {
+		log.Fatalf("Failed to initialize validator cache: %v", err)
+	}
+	addrCache, err := addressCache.NewAddressCache(db, testConfig.ChainID, false, addressCache.DefaultAddressCacheSize)
+	if err != nil {
+		log.Fatalf("Failed to initialize address cache: %v", err)
+	}
 	log.Printf("Initialized address caches")
 
 	orchConfig := &config.Config{

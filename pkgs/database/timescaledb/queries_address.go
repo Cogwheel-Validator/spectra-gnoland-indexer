@@ -65,22 +65,19 @@ func (t *TimescaleDb) GetAddressTxs(
 	)
 }
 
+// GetTotalAddressesCount returns the number of addresses seen on the chain since genesis.
 func (t *TimescaleDb) GetTotalAddressesCount(ctx context.Context, chainName string) (int32, error) {
 	query := `
 	SELECT
-	id::int4
-	FROM gno_addresses
-	WHERE chain_name = $1
-	ORDER BY id DESC
-	LIMIT 1
+	coalesce((SELECT address_count::int4 FROM chain_stats WHERE chain_name = $1), 0)
 	`
 	row := t.pool.QueryRow(ctx, query, chainName)
-	var maxId int32
-	err := row.Scan(&maxId)
+	var count int32
+	err := row.Scan(&count)
 	if err != nil {
 		return 0, err
 	}
-	return maxId, nil
+	return count, nil
 }
 
 // queryAddressTxs runs both query modes for GetAddressTxs. When fromTimestamp and
@@ -242,7 +239,7 @@ func (t *TimescaleDb) getAccountId(
 	chainName string,
 ) (int32, error) {
 	query := `
-	SELECT id FROM gno_addresses WHERE address = $1 AND chain_name = $2
+	SELECT id FROM gno_addresses WHERE address = $1 AND $2::chain_name = ANY(chains)
 	`
 	row := t.pool.QueryRow(ctx, query, address, chainName)
 	var id int32

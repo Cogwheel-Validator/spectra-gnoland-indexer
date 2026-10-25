@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	addresscache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/decoder"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
@@ -53,14 +54,12 @@ func NewDataProcessor(
 //   - toHeight: the end height
 //
 // Returns:
-//   - nil
-//
-// The method will not throw an error if the validator addresses are not found, it will just return nil.
+//   - error: if the addresses could not be resolved
 func (d *DataProcessor) ProcessValidatorAddresses(
 	blocks []*rpcClient.BlockResponse,
 	fromHeight uint64,
 	toHeight uint64,
-) {
+) error {
 	var mu sync.Mutex
 	addressesMap := make(map[string]struct{})
 	wg := sync.WaitGroup{}
@@ -77,8 +76,11 @@ func (d *DataProcessor) ProcessValidatorAddresses(
 	addresses := extractAddresses(addressesMap)
 
 	// Retry 3 times just for the sake of it
-	d.validatorCache.AddressSolver(addresses, d.chainName, true, 3, nil)
+	if _, err := d.validatorCache.AddressSolver(addresses, 3); err != nil {
+		return fmt.Errorf("failed to resolve validator addresses from %d to %d: %w", fromHeight, toHeight, err)
+	}
 	l.Info(fmt.Sprintf("Validator addresses processed from %d to %d", fromHeight, toHeight))
+	return nil
 }
 
 // extractAddresses is a helper function to extract the addresses from a map[string]struct{}
@@ -136,10 +138,8 @@ func processPrecommits(
 //   - toHeight: the end height
 //
 // Returns:
-//   - nil
-//
-// The method will not throw an error if the blocks are not found, it will just return nil.
-func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) {
+//   - error: if the blocks could not be inserted
+func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) error {
 	// Preallocate slice to avoid growing allocations
 	blockAmount := len(blocks)
 	blocksData := make([]s.Blocks, blockAmount)
@@ -158,9 +158,10 @@ func (d *DataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHei
 	defer cancel()
 	err := d.dbPool.InsertRows(ctx, s.AsInsertable(blocksData))
 	if err != nil {
-		l.Error(fmt.Sprintf("Failed to insert blocks: %v", err))
+		return fmt.Errorf("failed to insert blocks from %d to %d: %w", fromHeight, toHeight, err)
 	}
 	l.Info(fmt.Sprintf("Blocks processed from %d to %d", fromHeight, toHeight))
+	return nil
 }
 
 // processBlock is a helper method to process a block and store it at a pre-allocated slice.
@@ -199,14 +200,12 @@ func (d *DataProcessor) processBlock(
 //   - compressEvents: if true, compress the events
 //
 // Returns:
-//   - nil
-//
-// The method will not throw an error if the transactions are not found, it will just return nil
+//   - error: if any transaction was dropped or the insert failed
 func (d *DataProcessor) ProcessTransactions(
 	transactions []TransactionsData,
 	compressEvents bool,
 	fromHeight uint64,
-	toHeight uint64) {
+	toHeight uint64) error {
 
 	// Preallocate slice to avoid growing allocations
 	transactionAmount := len(transactions)
@@ -229,15 +228,21 @@ func (d *DataProcessor) ProcessTransactions(
 		}
 	}
 
+	// Entries dropped by processTransaction would otherwise be lost while the range is marked done.
+	if len(result) != transactionAmount {
+		return fmt.Errorf("failed to process %d of %d transactions from %d to %d",
+			transactionAmount-len(result), transactionAmount, fromHeight, toHeight)
+	}
+
 	// Add multiplier for the timeout depending on the transaction amount
 	timeout := 10*time.Second + (time.Duration(len(result)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	if err := d.dbPool.InsertRows(ctx, s.AsInsertable(result)); err != nil {
-		l.Error(fmt.Sprintf("Failed to insert transactions: %v", err))
-		return
+		return fmt.Errorf("failed to insert transactions from %d to %d: %w", fromHeight, toHeight, err)
 	}
 	l.Info(fmt.Sprintf("Transactions processed from %d to %d", fromHeight, toHeight))
+	return nil
 }
 
 // processTransaction is a helper method to process a transaction and store it at a pre-allocated index.
@@ -328,10 +333,11 @@ func (d *DataProcessor) ProcessMessages(
 	// Extract addresses from map[string]struct{} and resolve to IDs
 	allAddresses := extractAddresses(addressesMap)
 
-	if len(allAddresses) > 0 {
-		d.addressCache.AddressSolver(allAddresses, d.chainName, false, 3, nil)
-		l.Info(fmt.Sprintf("Resolved %d unique addresses for messages from %d to %d", len(allAddresses), fromHeight, toHeight))
+	resolved, err := d.addressCache.AddressSolver(allAddresses, 3)
+	if err != nil {
+		return fmt.Errorf("failed to resolve addresses: %w", err)
 	}
+	l.Info(fmt.Sprintf("Resolved %d unique addresses for messages from %d to %d", len(allAddresses), fromHeight, toHeight))
 
 	// Phase 2: Process message groups, each goroutine writes to its own index slot.
 	msgResults := make([]*decoder.DbMessages, transactionAmount)
@@ -345,7 +351,7 @@ func (d *DataProcessor) ProcessMessages(
 			wg.Done()
 			continue
 		}
-		go d.processMessageGroup(idx, transaction, allDecodedMsgs[idx], &wg, msgResults, msgErrors)
+		go d.processMessageGroup(idx, transaction, allDecodedMsgs[idx], resolved, &wg, msgResults, msgErrors)
 	}
 
 	wg.Wait()
@@ -373,7 +379,7 @@ func (d *DataProcessor) ProcessMessages(
 	addresses := createAddressTx(aggregatedDbMessages)
 	timeout := 10*time.Second + (time.Duration(len(addresses)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	err := d.dbPool.InsertRows(ctx, s.AsInsertable(addresses))
+	err = d.dbPool.InsertRows(ctx, s.AsInsertable(addresses))
 	cancel()
 	if err != nil {
 		return fmt.Errorf("failed to insert address tx: %w", err)
@@ -445,6 +451,7 @@ func (d *DataProcessor) processMessageGroup(
 	idx int,
 	transaction TransactionsData,
 	decodedMsg *decoder.DecodedMsg,
+	resolved addresscache.Resolved,
 	wg *sync.WaitGroup,
 	results []*decoder.DbMessages,
 	errs []error,
@@ -457,7 +464,7 @@ func (d *DataProcessor) processMessageGroup(
 	}
 
 	dbMessages, err := decodedMsg.ConvertToDbMessages(
-		d.addressCache, decodedMsg.GetBasicData().TxHash, d.chainName, transaction.Timestamp, decodedMsg.GetSigners(),
+		resolved, decodedMsg.GetBasicData().TxHash, d.chainName, transaction.Timestamp, decodedMsg.GetSigners(),
 	)
 	if err != nil {
 		l.Error(fmt.Sprintf("Failed to convert messages for tx %s: %v", transaction.Response.GetHash(), err))
@@ -503,7 +510,14 @@ func (d *DataProcessor) insertMessageBatch(batch decoder.InsertBatch, errors *[]
 func (d *DataProcessor) ProcessValidatorSignings(
 	commits []*rpcClient.CommitResponse,
 	fromHeight uint64,
-	toHeight uint64) {
+	toHeight uint64) error {
+
+	// The cache may have evicted validators since ProcessValidatorAddresses ran,
+	// so resolve exactly the ones these commits reference.
+	resolved, err := d.validatorCache.AddressSolver(commitAddresses(commits), 3)
+	if err != nil {
+		return fmt.Errorf("failed to resolve validator addresses for signings from %d to %d: %w", fromHeight, toHeight, err)
+	}
 
 	commitAmount := len(commits)
 	validatorData := make([]s.ValidatorBlockSigning, commitAmount)
@@ -512,7 +526,7 @@ func (d *DataProcessor) ProcessValidatorSignings(
 	wg.Add(commitAmount)
 
 	for idx, commit := range commits {
-		go d.processValidatorSigning(idx, commit, &wg, &valid[idx], validatorData)
+		go d.processValidatorSigning(idx, commit, resolved, &wg, &valid[idx], validatorData)
 	}
 
 	wg.Wait()
@@ -527,30 +541,46 @@ func (d *DataProcessor) ProcessValidatorSignings(
 
 	timeout := 10*time.Second + (time.Duration(len(result)) * time.Second / 5)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	err := d.dbPool.InsertRows(ctx, s.AsInsertable(result))
+	err = d.dbPool.InsertRows(ctx, s.AsInsertable(result))
 	cancel()
 	if err != nil {
-		l.Error(fmt.Sprintf("Failed to insert validator commit signings: %v", err))
+		return fmt.Errorf("failed to insert validator commit signings from %d to %d: %w", fromHeight, toHeight, err)
 	}
 	l.Info(fmt.Sprintf("Validator commit signings processed from %d to %d", fromHeight, toHeight))
+	return nil
+}
+
+// commitAddresses returns the unique proposer and signer addresses of the commits.
+func commitAddresses(commits []*rpcClient.CommitResponse) []string {
+	addressesMap := make(map[string]struct{})
+	for _, commit := range commits {
+		addressesMap[commit.GetProposerAddress()] = struct{}{}
+		for _, precommit := range commit.GetSigners() {
+			if precommit != nil {
+				addressesMap[precommit.ValidatorAddress] = struct{}{}
+			}
+		}
+	}
+	return extractAddresses(addressesMap)
 }
 
 // processValidatorSigning processes a single commit and stores it at a pre-allocated index.
 func (d *DataProcessor) processValidatorSigning(
 	idx int,
 	commit *rpcClient.CommitResponse,
+	resolved addresscache.Resolved,
 	wg *sync.WaitGroup,
 	valid *bool,
 	validatorData []s.ValidatorBlockSigning,
 ) {
 	defer wg.Done()
 
-	proposer := d.validatorCache.GetAddress(commit.GetProposerAddress())
+	proposer := resolved.GetAddress(commit.GetProposerAddress())
 	precommits := commit.GetSigners()
 	signedVals := make([]int32, 0, len(precommits))
 	for _, precommit := range precommits {
 		if precommit != nil {
-			signedVals = append(signedVals, d.validatorCache.GetAddress(precommit.ValidatorAddress))
+			signedVals = append(signedVals, resolved.GetAddress(precommit.ValidatorAddress))
 		}
 	}
 

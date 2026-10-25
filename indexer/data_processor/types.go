@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	addresscache "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/address_cache"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
 	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
 )
@@ -16,8 +17,7 @@ type Database interface {
 
 // Define interface for what DataProcessor needs from AddressCache
 type AddressCache interface {
-	AddressSolver(address []string, chainName string, insertValidators bool, retryAttempts uint8, oneByOne *bool)
-	GetAddress(address string) int32
+	AddressSolver(addresses []string, retryAttempts uint8) (addresscache.Resolved, error)
 }
 
 type DataProcessor struct {

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -370,8 +371,6 @@ func (or *Orchestrator) processAll(
 	fromHeight uint64,
 	toHeight uint64) error {
 
-	phase1Done := make(chan struct{})
-	phase2Done := make(chan struct{})
 	hasTxs := len(transactions) > 0
 
 	ctx := &processingContext{
@@ -384,23 +383,28 @@ func (or *Orchestrator) processAll(
 		hasTxs:         hasTxs,
 	}
 
-	go or.processPhase1(phase1Done, ctx)
-	go or.processPhase2(phase1Done, phase2Done, ctx)
-	<-phase2Done
+	if err := or.processPhase1(ctx); err != nil {
+		return fmt.Errorf("chunk %d-%d phase 1: %w", fromHeight, toHeight, err)
+	}
+	if err := or.processPhase2(ctx); err != nil {
+		return fmt.Errorf("chunk %d-%d phase 2: %w", fromHeight, toHeight, err)
+	}
 
 	l.Info(fmt.Sprintf("All processing completed successfully from %d to %d", fromHeight, toHeight))
 	return nil
 }
 
-func (or *Orchestrator) processPhase1(
-	phase1Done chan struct{},
-	ctx *processingContext,
-) {
-	defer close(phase1Done)
+// processPhase1 returns the joined errors of its steps.
+func (or *Orchestrator) processPhase1(ctx *processingContext) error {
 	var wg1 sync.WaitGroup
+	var addressesErr, messagesErr, txErr error
 	wg1.Go(func() {
 		l.Info("Phase 1: Starting ProcessValidatorAddresses")
-		or.dataProcessor.ProcessValidatorAddresses(ctx.blocks, ctx.fromHeight, ctx.toHeight)
+		if err := or.dataProcessor.ProcessValidatorAddresses(ctx.blocks, ctx.fromHeight, ctx.toHeight); err != nil {
+			l.Error("Phase 1: ProcessValidatorAddresses failed", "error", err)
+			addressesErr = err
+			return
+		}
 		l.Info("Phase 1: ProcessValidatorAddresses completed")
 	})
 
@@ -411,42 +415,48 @@ func (or *Orchestrator) processPhase1(
 				ctx.transactions, ctx.fromHeight, ctx.toHeight,
 			); err != nil {
 				l.Error("Phase 1: ProcessMessages failed", "error", err)
+				messagesErr = fmt.Errorf("process messages %d-%d: %w", ctx.fromHeight, ctx.toHeight, err)
+				return
 			}
 			l.Info("Phase 1: ProcessMessages completed")
 		})
 		wg1.Go(func() {
 			l.Info("Phase 1: Starting ProcessTransactions")
-			or.dataProcessor.ProcessTransactions(ctx.transactions, ctx.compressEvents, ctx.fromHeight, ctx.toHeight)
+			if err := or.dataProcessor.ProcessTransactions(
+				ctx.transactions, ctx.compressEvents, ctx.fromHeight, ctx.toHeight,
+			); err != nil {
+				l.Error("Phase 1: ProcessTransactions failed", "error", err)
+				txErr = err
+				return
+			}
 			l.Info("Phase 1: ProcessTransactions completed")
 		})
 	}
 
 	wg1.Wait()
 	l.Info("Phase 1: chunk processing completed")
+	return errors.Join(addressesErr, messagesErr, txErr)
 }
 
-func (or *Orchestrator) processPhase2(
-	phase1Done chan struct{},
-	phase2Done chan struct{},
-	ctx *processingContext,
-) {
-	<-phase1Done
-	defer close(phase2Done)
-	var wg2 sync.WaitGroup
-	wg2.Go(func() {
-		l.Info("Phase 2: Starting ProcessBlocks")
-		or.dataProcessor.ProcessBlocks(ctx.blocks, ctx.fromHeight, ctx.toHeight)
-		l.Info("Phase 2: ProcessBlocks completed")
-	})
+// processPhase2 saves signings and then blocks. Blocks are the completion marker
+// for a range, so they are only saved once everything else succeeded; otherwise the
+// range would be skipped on the next run and the missing data never backfilled.
+func (or *Orchestrator) processPhase2(ctx *processingContext) error {
+	l.Info("Phase 2: Starting ProcessValidatorSignings")
+	if err := or.dataProcessor.ProcessValidatorSignings(ctx.commits, ctx.fromHeight, ctx.toHeight); err != nil {
+		l.Error("Phase 2: ProcessValidatorSignings failed", "error", err)
+		return err
+	}
+	l.Info("Phase 2: ProcessValidatorSignings completed")
 
-	wg2.Go(func() {
-		l.Info("Phase 2: Starting ProcessValidatorSignings")
-		or.dataProcessor.ProcessValidatorSignings(ctx.commits, ctx.fromHeight, ctx.toHeight)
-		l.Info("Phase 2: ProcessValidatorSignings completed")
-	})
-
-	wg2.Wait()
+	l.Info("Phase 2: Starting ProcessBlocks")
+	if err := or.dataProcessor.ProcessBlocks(ctx.blocks, ctx.fromHeight, ctx.toHeight); err != nil {
+		l.Error("Phase 2: ProcessBlocks failed", "error", err)
+		return err
+	}
+	l.Info("Phase 2: ProcessBlocks completed")
 	l.Info("Phase 2: chunk processing completed")
+	return nil
 }
 
 // saveProcessingState is a private method that saves

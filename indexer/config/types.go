@@ -5,9 +5,9 @@ import (
 )
 
 type Environment struct {
-	Host    string `env:"DB_HOST" envDefault:"localhost"`
-	Port    int    `env:"DB_PORT" envDefault:"5432"`
-	User    string `env:"DB_USER" envDefault:"postgres"`
+	Host        string `env:"DB_HOST" envDefault:"localhost"`
+	Port        int    `env:"DB_PORT" envDefault:"5432"`
+	User        string `env:"DB_USER" envDefault:"postgres"`
 	Sslmode     string `env:"DB_SSLMODE" envDefault:"disable"`
 	SslRootCert string `env:"DB_SSLROOTCERT" envDefault:""`
 	SslCert     string `env:"DB_SSLCERT" envDefault:""`
@@ -30,6 +30,9 @@ type Config struct {
 	MaxBlockChunkSize         uint64        `yaml:"max_block_chunk_size"`
 	MaxTransactionChunkSize   uint64        `yaml:"max_transaction_chunk_size"`
 	ChainName                 string        `yaml:"chain_name"`
+	// maximum number of addresses kept in memory, 0 means use the default
+	AddressCacheSize   int `yaml:"address_cache_size"`
+	ValidatorCacheSize int `yaml:"validator_cache_size"`
 	// retry options are optional, so we need to set them to a pointer
 	RetryAmount        *int           `yaml:"retry_amount"`
 	Pause              *int           `yaml:"pause"`

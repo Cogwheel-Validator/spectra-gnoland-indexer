@@ -224,10 +224,22 @@ func initializeMajorConstructors(
 	}
 
 	// initialize the validator cache
-	validatorCache := addressCache.NewAddressCache(chainName, db, true)
+	if conf.ValidatorCacheSize == 0 {
+		conf.ValidatorCacheSize = addressCache.DefaultValidatorCacheSize
+	}
+	validatorCache, err := addressCache.NewAddressCache(db, chainName, true, conf.ValidatorCacheSize)
+	if err != nil {
+		l.Fatal("failed to initialize validator cache", "error", err)
+	}
 
 	// initialize the address cache
-	addressCache := addressCache.NewAddressCache(chainName, db, false)
+	if conf.AddressCacheSize == 0 {
+		conf.AddressCacheSize = addressCache.DefaultAddressCacheSize
+	}
+	addressCache, err := addressCache.NewAddressCache(db, chainName, false, conf.AddressCacheSize)
+	if err != nil {
+		l.Fatal("failed to initialize address cache", "error", err)
+	}
 
 	// initialize the data processor
 	dataProcessor := dp.NewDataProcessor(db, addressCache, validatorCache, chainName)

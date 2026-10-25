@@ -27,18 +27,21 @@ type MockDataProcessor struct {
 }
 
 // Mock method for ProcessValidatorAddresses
-func (m *MockDataProcessor) ProcessValidatorAddresses(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) {
+func (m *MockDataProcessor) ProcessValidatorAddresses(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) error {
 	m.ProcessValidatorAddressesCalled = true
+	return nil
 }
 
 // Mock method for ProcessBlocks
-func (m *MockDataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) {
+func (m *MockDataProcessor) ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) error {
 	m.ProcessBlocksCalled = true
+	return nil
 }
 
 // Mock method for ProcessTransactions
-func (m *MockDataProcessor) ProcessTransactions(transactions []dataprocessor.TransactionsData, compressEvents bool, fromHeight uint64, toHeight uint64) {
+func (m *MockDataProcessor) ProcessTransactions(transactions []dataprocessor.TransactionsData, compressEvents bool, fromHeight uint64, toHeight uint64) error {
 	m.ProcessTransactionsCalled = true
+	return nil
 }
 
 // Mock method for ProcessMessages
@@ -48,8 +51,9 @@ func (m *MockDataProcessor) ProcessMessages(transactions []dataprocessor.Transac
 }
 
 // Mock method for ProcessValidatorSignings
-func (m *MockDataProcessor) ProcessValidatorSignings(commits []*rpcClient.CommitResponse, fromHeight uint64, toHeight uint64) {
+func (m *MockDataProcessor) ProcessValidatorSignings(commits []*rpcClient.CommitResponse, fromHeight uint64, toHeight uint64) error {
 	m.ProcessValidatorSigningsCalled = true
+	return nil
 }
 
 // MockQueryOperator - returns minimal data

@@ -11,11 +11,11 @@ import (
 
 // Define interfaces where we USE them (consumer-side interfaces)
 type DataProcessor interface {
-	ProcessValidatorAddresses(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64)
-	ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64)
-	ProcessTransactions(transactions []dataprocessor.TransactionsData, compressEvents bool, fromHeight uint64, toHeight uint64)
+	ProcessValidatorAddresses(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) error
+	ProcessBlocks(blocks []*rpcClient.BlockResponse, fromHeight uint64, toHeight uint64) error
+	ProcessTransactions(transactions []dataprocessor.TransactionsData, compressEvents bool, fromHeight uint64, toHeight uint64) error
 	ProcessMessages(transactions []dataprocessor.TransactionsData, fromHeight uint64, toHeight uint64) error
-	ProcessValidatorSignings(commits []*rpcClient.CommitResponse, fromHeight uint64, toHeight uint64)
+	ProcessValidatorSignings(commits []*rpcClient.CommitResponse, fromHeight uint64, toHeight uint64) error
 }
 
 type QueryOperator interface {

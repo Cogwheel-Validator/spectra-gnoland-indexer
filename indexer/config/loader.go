@@ -43,6 +43,9 @@ func LoadConfig(path string) (*Config, error) {
 	if err := ValidateChainName(config.ChainName); err != nil {
 		return nil, err
 	}
+	if config.AddressCacheSize < 0 || config.ValidatorCacheSize < 0 {
+		return nil, errors.New("address_cache_size and validator_cache_size can't be negative")
+	}
 
 	if err != nil {
 		return nil, err

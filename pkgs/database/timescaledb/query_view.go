@@ -346,7 +346,7 @@ func (t *TimescaleDb) GetValidatorSigning24h(
 	id
 	FROM gno_validators
 	WHERE address = $1
-	AND chain_name = $2
+	AND $2::chain_name = ANY(chains)
 	`
 	row1 := t.pool.QueryRow(ctx, query1, validatorAddress, chainName)
 	var validatorId int32
@@ -416,7 +416,7 @@ func (t *TimescaleDb) GetValidatorSigningByHour(
 	id
 	FROM gno_validators
 	WHERE address = $1
-	AND chain_name = $2
+	AND $2::chain_name = ANY(chains)
 	`
 	row1 := t.pool.QueryRow(ctx, query1, validatorAddress, chainName)
 	var validatorId int32
@@ -497,7 +497,6 @@ func (t *TimescaleDb) GetAllValidatorSigning24h(
 		AND bc.chain_name  = vsc.chain_name
 	JOIN gno_validators gv
 		ON gv.id = vsc.validator_id
-		AND gv.chain_name = vsc.chain_name
 	WHERE vsc.chain_name    = $1
 		AND vsc.time_bucket >= now() - INTERVAL '24 hours'
 		AND vsc.time_bucket <  now()

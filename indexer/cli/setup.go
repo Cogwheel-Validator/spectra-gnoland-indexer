@@ -153,6 +153,10 @@ func initializeNewDatabase(db *timescaledb.TimescaleDb, dbConfig timescaledb.Dat
 		return err
 	}
 
+	if err := createFunctions(dbInit, chainName); err != nil {
+		return err
+	}
+
 	if err := createHypertables(dbInit, chainName); err != nil {
 		return err
 	}
@@ -203,6 +207,20 @@ func createRegularTables(dbInit *dbinit.DBInitializer, chainName string) error {
 	for _, dataType := range s.RegularTables() {
 		if err := dbInit.CreateTableFromStruct(dataType, dataType.TableName()); err != nil {
 			l.Error("failed to create table", "error", err, "table", dataType.TableName())
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createFunctions(dbInit *dbinit.DBInitializer, chainName string) error {
+	l := logger.Get()
+
+	l.Info("creating functions", "chain", chainName)
+	for _, fn := range s.Functions() {
+		if err := dbInit.CreateFunction(fn); err != nil {
+			l.Error("failed to create function", "error", err, "function", fn.Name)
 			return err
 		}
 	}
