@@ -371,8 +371,6 @@ func (or *Orchestrator) processAll(
 	fromHeight uint64,
 	toHeight uint64) error {
 
-	phase1Done := make(chan struct{})
-	phase2Done := make(chan struct{})
 	hasTxs := len(transactions) > 0
 
 	ctx := &processingContext{
@@ -385,26 +383,19 @@ func (or *Orchestrator) processAll(
 		hasTxs:         hasTxs,
 	}
 
-	var phase1Err, phase2Err error
-	go func() { phase1Err = or.processPhase1(phase1Done, ctx) }()
-	go func() { phase2Err = or.processPhase2(phase1Done, &phase1Err, phase2Done, ctx) }()
-	<-phase2Done
-
-	if err := errors.Join(phase1Err, phase2Err); err != nil {
-		return err
+	if err := or.processPhase1(ctx); err != nil {
+		return fmt.Errorf("chunk %d-%d phase 1: %w", fromHeight, toHeight, err)
+	}
+	if err := or.processPhase2(ctx); err != nil {
+		return fmt.Errorf("chunk %d-%d phase 2: %w", fromHeight, toHeight, err)
 	}
 
 	l.Info(fmt.Sprintf("All processing completed successfully from %d to %d", fromHeight, toHeight))
 	return nil
 }
 
-// processPhase1 returns the joined errors of its steps. The result is only
-// safe to read after phase1Done is closed.
-func (or *Orchestrator) processPhase1(
-	phase1Done chan struct{},
-	ctx *processingContext,
-) error {
-	defer close(phase1Done)
+// processPhase1 returns the joined errors of its steps.
+func (or *Orchestrator) processPhase1(ctx *processingContext) error {
 	var wg1 sync.WaitGroup
 	var addressesErr, messagesErr, txErr error
 	wg1.Go(func() {
@@ -450,20 +441,7 @@ func (or *Orchestrator) processPhase1(
 // processPhase2 saves signings and then blocks. Blocks are the completion marker
 // for a range, so they are only saved once everything else succeeded; otherwise the
 // range would be skipped on the next run and the missing data never backfilled.
-func (or *Orchestrator) processPhase2(
-	phase1Done chan struct{},
-	phase1Err *error,
-	phase2Done chan struct{},
-	ctx *processingContext,
-) error {
-	<-phase1Done
-	defer close(phase2Done)
-
-	if *phase1Err != nil {
-		l.Error("Phase 2: skipped because phase 1 failed", "from", ctx.fromHeight, "to", ctx.toHeight)
-		return nil
-	}
-
+func (or *Orchestrator) processPhase2(ctx *processingContext) error {
 	l.Info("Phase 2: Starting ProcessValidatorSignings")
 	if err := or.dataProcessor.ProcessValidatorSignings(ctx.commits, ctx.fromHeight, ctx.toHeight); err != nil {
 		l.Error("Phase 2: ProcessValidatorSignings failed", "error", err)
