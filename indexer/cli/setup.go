@@ -8,6 +8,7 @@ import (
 
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/config"
 	dbinit "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/db_init"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/migrations"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/database/timescaledb"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/logger"
 	s "github.com/Cogwheel-Validator/spectra-gnoland-indexer/pkgs/schema"
@@ -169,7 +170,16 @@ func initializeNewDatabase(db *timescaledb.TimescaleDb, dbConfig timescaledb.Dat
 		return err
 	}
 
-	l.Info("successfully created all hypertables and continuous aggregates", "chain", chainName)
+	// The schema above is the latest one, so every migration counts as applied.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := migrations.RecordAll(ctx, db.GetPool()); err != nil {
+		l.Error("failed to record schema version", "error", err)
+		return err
+	}
+
+	l.Info("successfully created all hypertables and continuous aggregates",
+		"chain", chainName, "schema_version", migrations.Latest())
 	return nil
 }
 

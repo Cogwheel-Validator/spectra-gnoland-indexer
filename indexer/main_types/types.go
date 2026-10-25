@@ -11,6 +11,7 @@ type RpcFlags struct {
 type RunningFlags struct {
 	RunningMode        string
 	SkipInitialDbCheck bool
+	SkipMigrationCheck bool
 	CompressEvents     bool
 	FromHeight         uint64
 	ToHeight           uint64

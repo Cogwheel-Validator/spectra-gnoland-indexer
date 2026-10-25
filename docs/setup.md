@@ -102,10 +102,16 @@ Flags:
   -h, --help                         help for run
   -m, --max-req-per-window int       max requests per window (default 10000000)
   -r, --rate-limit-window duration   rate limit window (default 1m0s)
+      --skip-migration-check         start even if the database schema version doesn't match this binary (for forks with their own schema)
   -t, --timeout duration             timeout (default 20s)
 ```
 
 Compress events does work but it is still experimental.
+
+On start the indexer checks the `schema_migrations` table and stops if the database is not at the schema version
+the binary expects. After upgrading the indexer run `indexer migrate up` with the database owner account, see
+[Migrations](./migrations.md). If you run a fork with its own schema, `--skip-migration-check` turns the error
+into a warning.
 
 The max request per window is the maximum number of requests that can be made to the RPC within the rate limit window. So depending on the RPC rate limit option you can decrease the rate limit window and set up any desired value for the maximum requests per window.
 

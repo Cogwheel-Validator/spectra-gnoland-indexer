@@ -41,8 +41,7 @@ var liveCmd = &cobra.Command{
 			ToHeight:           0,
 		}
 
-		launchIndexer(configPath, rateLimitFlags, runningFlags)
-		return nil
+		return launchIndexer(cmd, configPath, rateLimitFlags, runningFlags)
 	},
 }
 
