@@ -55,13 +55,23 @@ func parseCommonRunFlags(cmd *cobra.Command) (configPath string, rpcFlags mainTy
 }
 
 // launchIndexer logs startup state and starts the main operator for either run mode.
-func launchIndexer(configPath string, rpcFlags mainTypes.RpcFlags, runningFlags mainTypes.RunningFlags) {
+func launchIndexer(
+	cmd *cobra.Command, configPath string, rpcFlags mainTypes.RpcFlags, runningFlags mainTypes.RunningFlags,
+) error {
 	l := logger.Get()
+	skipMigrationCheck, err := cmd.Flags().GetBool("skip-migration-check")
+	if err != nil {
+		l.Error("failed to get skip migration check", "error", err)
+		return err
+	}
+	runningFlags.SkipMigrationCheck = skipMigrationCheck
+
 	l.Info("indexer started")
 	if runningFlags.CompressEvents {
 		l.Warn("compress events is enabled, this is experimental and it might slow down the data processing speed")
 	}
 	mainOperator.InitMainOperator(configPath, ".", rpcFlags, runningFlags)
+	return nil
 }
 
 func init() {
@@ -75,4 +85,6 @@ func init() {
 	runCmd.PersistentFlags().DurationP("rate-limit-window", "r", 1*time.Minute, "rate limit window")
 	runCmd.PersistentFlags().DurationP("timeout", "t", 20*time.Second, "timeout")
 	runCmd.PersistentFlags().BoolP("compress-events", "e", false, "compress events")
+	runCmd.PersistentFlags().Bool("skip-migration-check", false,
+		"start even if the database schema version doesn't match this binary (for forks with their own schema)")
 }

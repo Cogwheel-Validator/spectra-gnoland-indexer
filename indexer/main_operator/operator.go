@@ -1,6 +1,7 @@
 package mainoperator
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	_ "net/http/pprof"
@@ -13,6 +14,7 @@ import (
 	contextHook "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/context_hook"
 	dp "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/data_processor"
 	mainTypes "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/main_types"
+	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/migrations"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/orchestrator"
 	"github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/query"
 	rpcClient "github.com/Cogwheel-Validator/spectra-gnoland-indexer/indexer/rpc_client"
@@ -45,7 +47,7 @@ func InitMainOperator(
 	// get the chain name
 	chainName := &conf.ChainName
 
-	mc := initializeMajorConstructors(conf, env, *chainName, rpcFlags)
+	mc := initializeMajorConstructors(conf, env, *chainName, rpcFlags, runningFlags.SkipMigrationCheck)
 
 	// initialize the orchestrator
 	orch := orchestrator.NewOrchestrator(
@@ -109,6 +111,23 @@ func InitMainOperator(
 		signalHandler.OperationComplete()
 	default:
 		l.Fatal("invalid running mode, please choose between live and historic")
+	}
+}
+
+// checkSchemaVersion stops the indexer unless the database schema is at the
+// version this binary writes. skip only logs the mismatch, for forks that
+// manage their own schema.
+func checkSchemaVersion(db *timescaledb.TimescaleDb, skip bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err := migrations.Check(ctx, db.GetPool())
+	switch {
+	case err == nil:
+		l.Info("database schema is up to date", "version", migrations.Latest())
+	case skip:
+		l.Warn("skipping database schema version check", "error", err)
+	default:
+		l.Fatal("database schema version check failed, use --skip-migration-check to start anyway", "error", err)
 	}
 }
 
@@ -193,7 +212,8 @@ func initializeMajorConstructors(
 	conf *config.Config,
 	env *config.Environment,
 	chainName string,
-	rpcFlags mainTypes.RpcFlags) *MajorConstructors {
+	rpcFlags mainTypes.RpcFlags,
+	skipMigrationCheck bool) *MajorConstructors {
 	// initialize the rpc client
 	// check the flags first
 	// this is yet to be implemented but for now just set it and later fix anything
@@ -214,6 +234,7 @@ func initializeMajorConstructors(
 
 	// initialize the database
 	db := initializeDatabase(conf, env)
+	checkSchemaVersion(db, skipMigrationCheck)
 
 	// initialize the rpc client
 	gnoRpcClient, err := rpcClient.NewRateLimitedRpcClient(

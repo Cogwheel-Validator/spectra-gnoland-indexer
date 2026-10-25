@@ -300,10 +300,10 @@ erDiagram
     }
 ```
 
-The `version` column is the primary key and should be incremented sequentially for each migration. 
-`applied_at` defaults to `NOW()` so it is set automatically on insert. `success` lets you record a failed 
-migration attempt without deleting the row. Since the project is still in development it won't probably be
-used until a stable version of indexer is published.
+The primary key is `(version, success)`, versions are sequential and start at 1 (the v0.10.1 schema).
+`applied_at` defaults to `NOW()` so it is set automatically on insert. A failed attempt is recorded with
+`success = false` next to the eventual successful row. `setup create-db` records every version, `migrate up`
+records the ones it applies, and `run` checks the table on start. See [Migrations](./migrations.md).
 
 ## Aggregates
 

@@ -46,8 +46,7 @@ var historicCmd = &cobra.Command{
 			ToHeight:           toHeight,
 		}
 
-		launchIndexer(configPath, rateLimitFlags, runningFlags)
-		return nil
+		return launchIndexer(cmd, configPath, rateLimitFlags, runningFlags)
 	},
 }
 
