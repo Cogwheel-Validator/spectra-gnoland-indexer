@@ -26,13 +26,13 @@ not the best choice. And finally the nodes are not the best when it comes to sto
 - [Why TimescaleDB? And can it work on other SQL databases?](#why-timescaledb-and-can-it-work-on-other-sql-databases)
 - [How does the indexer work?](#how-does-the-indexer-work)
 - [What data is stored in the database?](#what-data-is-stored-in-the-database)
-  - [Blocks](#blocks)
-  - [Validator signings](#validator-signings)
-  - [Transactions](#transactions)
-  - [Counters](#counters)
+    - [Blocks](#blocks)
+    - [Validator signings](#validator-signings)
+    - [Transactions](#transactions)
+    - [Counters](#counters)
 - [Pros and cons of the SGI](#pros-and-cons-of-the-sgi)
-  - [🦾 Pros](#-pros)
-  - [🐞 Cons](#-cons)
+    - [🦾 Pros](#-pros)
+    - [🐞 Cons](#-cons)
 - [Official Gnoland Indexer vs Spectra Gnoland Indexer](#official-gnoland-indexer-vs-spectra-gnoland-indexer)
 - [In depth documentation](#in-depth-documentation)
 
@@ -266,33 +266,50 @@ history recorded by each of the counters. This is useful for the analytics and t
 The official Gnoland indexer is available on [GitHub](https://github.com/gnolang/tx-indexer).
 There are some differences between how each operates as have their own strengths and weaknesses.
 
-| Feature | Official Gnoland Indexer | Spectra Gnoland Indexer |
-| ---- | ---- | ---- |
-| Database | PebbleDB | Postgres+TimescaleDB |
-| Query data | GraphQL and RPC | REST and SQL (directly in the database or via some other tool) |
-| Streaming data | WebSocket is present over RPC endpoint | Not supported (yet) |
-| Programming language | Go | Go |
-| Setup | Easy (just run CLI command `start`) | Manual setup required |
+| Feature              | Official Gnoland Indexer               | Spectra Gnoland Indexer                                        |
+| -------------------- | -------------------------------------- | -------------------------------------------------------------- |
+| Database             | PebbleDB                               | Postgres+TimescaleDB                                           |
+| Query data           | GraphQL and RPC                        | REST and SQL (directly in the database or via some other tool) |
+| Streaming data       | WebSocket is present over RPC endpoint | SSE                                                            |
+| Programming language | Go                                     | Go                                                             |
+| Setup                | Easy (just run CLI command `start`)    | Manual setup required                                          |
 
 Both offer high performance however the biggest difference here is how the data is stored and accessed.
 PebbleDB is a key-value DB that does offer high performance for read/write operations. Any extending of
 the database requires in-depth knowledge of the database and Go since official API for this database was
 written in Go. There might exist some third party libraries that work with PebbleDB, but they are not
-officially supported by the CockroachDB team. Or you might need to even use RocksDB API which in theory 
+officially supported by the CockroachDB team. Or you might need to even use RocksDB API which in theory
 could work.
 
-The official indexer is very easy to set up. Pretty much just run the indexer and it will set up the 
+The official indexer is very easy to set up. Pretty much just run the indexer and it will set up the
 database for you. The SGI requires manual setup of the database and setting up a config file. It also
 allows only to do a partial scan if the chain if you desire. SGI in this case requires a bit more setup.
 
 TimescaleDB is a Postgres extension, so any kind of library that works on Postgres should pretty much
 work for the TimescaleDB, which means there is no limit to which language you can use to interact with
-the database. You can also add new tables, indexes, and TimescaleDB continuous aggregation tables along 
+the database. You can also add new tables, indexes, and TimescaleDB continuous aggregation tables along
 with automation jobs all by just using SQL.
 
 Official indexer does offer a variety of endpoints to query from GraphQL/RPC/WS. The SGI does only have
-REST API but if you know any programming language and a bit of SQL you should be able to extend the API 
+REST API but if you know any programming language and a bit of SQL you should be able to extend the API
 or make your own custom endpoints.
+
+## Roadmap
+
+- [x] Fully working indexer to process individual segments and near live time data processing
+      processing by pulling the data from the chain RPC.
+- [x] REST API to serve all of the indexed data for any web app or any other kind of application.
+- [x] Basic continuous aggregation tables for statistical data such as daily active
+      accounts and fee volume.
+- [x] Add SSE streaming to the API for serving blocks.
+- [x] Compressing transaction events (still experimental feature)
+- [x] Migration of database out of the box available for any new message type or new aggregation
+      tables.
+- [ ] Database integrity check and recover of missing data (in development).
+- [ ] Simplified backup and restore process (in development).
+- [ ] Prometheus endpoint to track indexer metrics.
+- [x] Limit access to API via API keys.
+- [ ] Support for multiple RPC nodes with automatic failover.
 
 ## In depth documentation
 
