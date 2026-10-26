@@ -1,102 +1,107 @@
 services:
-  timescaledb:
-    image: timescale/timescaledb-ha:pg17
-    command: -c 'max_connections=500'
-    container_name: timescale-gnoland
-    restart: always
-    ports:
-      - "127.0.0.1:5432:5432"
-    environment:
-      POSTGRES_PASSWORD: 12345678
-      POSTGRES_DB: gnoland
-    volumes:
-      - spectra-data:/home/postgres/pgdata/data
-    networks:
-      - spectra
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d gnoland"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    timescaledb:
+        image: timescale/timescaledb-ha:pg17
+        command: -c 'max_connections=500'
+        container_name: timescale-gnoland
+        restart: always
+        ports:
+            - "127.0.0.1:5432:5432"
+        environment:
+            POSTGRES_PASSWORD: 12345678
+            POSTGRES_DB: gnoland
+        volumes:
+            - spectra-data:/home/postgres/pgdata/data
+        networks:
+            - spectra
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U postgres -d gnoland"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
 
-  indexer:
-    build:
-      context: .
-      args:
-        GIT_COMMIT: dev
-        GIT_TAG: dev
-        GIT_BRANCH: dev
-        VERSION: dev
-      dockerfile: Dockerfile
-    container_name: indexer
-    restart: always
-    environment:
-      DB_HOST: timescaledb
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: 12345678
-      DB_NAME: gnoland
-    networks:
-      - spectra
-    depends_on:
-      - timescaledb
-    volumes:
-      - ./config.yml:/app/config.yml:ro,Z
-    command: ["run", "live", "--config", "/app/config.yml"]
-  api:
-    build:
-      context: .
-      args:
-        GIT_COMMIT: dev
-        GIT_TAG: dev
-        GIT_BRANCH: dev
-        VERSION: dev
-      dockerfile: Dockerfile-api
-    container_name: api
-    restart: always
-    ports:
-      - "127.0.0.1:8080:8080"
-    environment:
-      API_DB_HOST: timescaledb
-      API_DB_PORT: 5432
-      API_DB_USER: postgres
-      API_DB_PASSWORD: 12345678
-      API_DB_NAME: gnoland
-      VALKEY_HOST: valkey
-      VALKEY_PORT: 6379
-    networks:
-      - spectra
-    depends_on:
-      - timescaledb
-      - valkey
-    volumes:
-      - ./config-api.yml:/app/config-api.yml:ro,Z
-    command: ["-c", "/app/config-api.yml"]
-    healthcheck:
-      test: ["CMD", "/app/api", "-c", "/app/config-api.yml", "healthcheck"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+    indexer:
+        build:
+            context: .
+            args:
+                GIT_COMMIT: dev
+                GIT_TAG: dev
+                GIT_BRANCH: dev
+                VERSION: dev
+            dockerfile: Dockerfile
+        container_name: indexer
+        restart: always
+        environment:
+            DB_HOST: timescaledb
+            DB_PORT: 5432
+            DB_USER: postgres
+            DB_PASSWORD: 12345678
+            DB_NAME: gnoland
+        networks:
+            - spectra
+        depends_on:
+            - timescaledb
+        volumes:
+            - ./config.yml:/app/config.yml:ro,Z
+        command: ["run", "live", "--config", "/app/config.yml"]
+    api:
+        build:
+            context: .
+            args:
+                GIT_COMMIT: dev
+                GIT_TAG: dev
+                GIT_BRANCH: dev
+                VERSION: dev
+            dockerfile: Dockerfile-api
+        container_name: api
+        restart: always
+        ports:
+            - "127.0.0.1:8080:8080"
+        environment:
+            API_DB_HOST: timescaledb
+            API_DB_PORT: 5432
+            API_DB_USER: postgres
+            API_DB_PASSWORD: 12345678
+            API_DB_NAME: gnoland
+            VALKEY_HOST: valkey
+            VALKEY_PORT: 6379
+        networks:
+            - spectra
+        depends_on:
+            - timescaledb
+            - valkey
+        volumes:
+            - ./config-api.yml:/app/config-api.yml:ro,Z
+        command: ["-c", "/app/config-api.yml"]
+        healthcheck:
+            test:
+                ["CMD", "/app/api", "-c", "/app/config-api.yml", "healthcheck"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+            start_period: 30s
 
-  valkey:
-    image: valkey/valkey:alpine
-    container_name: valkey
-    restart: always
-    ports:
-      - "127.0.0.1:6379:6379"
-    networks:
-      - spectra
-    healthcheck:
-      test: ["CMD-SHELL", "valkey-cli ping | grep PONG"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
+    valkey:
+        image: valkey/valkey:alpine
+        container_name: valkey
+        restart: always
+        ports:
+            - "127.0.0.1:6379:6379"
+        networks:
+            - spectra
+        healthcheck:
+            test: ["CMD-SHELL", "valkey-cli ping | grep PONG"]
+            interval: 10s
+            timeout: 3s
+            retries: 5
+        volumes:
+            - valkey-data:/data
 
 networks:
-  spectra:
-    driver: bridge
+    spectra:
+        driver: bridge
 
 volumes:
-  spectra-data:
-    driver: local
+    spectra-data:
+        driver: local
+    valkey-data:
+        driver: local
