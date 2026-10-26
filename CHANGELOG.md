@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-10-26
+
+This marks the first stable release. What makes this release special and stable
+is that the indexer now has an option to migrate the database out of the box available
+for any new message type or new aggregation tables or any kind of performance improvements.
+In case the indexer was used for multiple chains (example running both mainnet and testnet)
+the current migration plan can't handle it. It would be better to reindex from scratch if
+this is the case.
+
+Some new features have been added and some stability improvements have been made.
+Future releases shouldn't have many breaking changes that will require syncing from scratch.
+
+### Breaking Changes
+
+- Use ARC cache for addresses and redesign address schemas ([#48](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/48)) [81bccb4](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/81bccb47f990817e41190a6805b11c14eb50ef97)
+
+### Added
+
+- Add migration cli command ([#49](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/49)) [1f64960](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/1f64960ea1f30078f64d0250b6a8c1f26dd6105d)
+- Add block SSE streming [c27a374](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c27a3744ca90c17afb91b962b35ee8279bdbf962)
+- Add transaction route for tx stats ([#46](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/46)) [d84e7d5](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d84e7d5bc78ad34eb32d63af537fc4d3dec93e26)
+
+### Changes
+
+- Update main README.md [e9f038e](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/e9f038ec994c0b8c21b5265436bb2013be123dee)
+- Update go version and otel related dependencies [1e64822](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/1e64822e2a459606a42a8b7a825dc73e8624b835)
+- Switch zerolog for log/slog [e3bb0f7](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/e3bb0f777b45d450c91d0be89f88c0b019ad7e7c)
+- Update dependencies and workflow permissions [c1d78da](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/c1d78da7f1da7f1d1c00181e27d8cdd4e2bac706)
+- Adjust order in which data is processed [a2a19e8](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/a2a19e86187754a1b7fc04f170392a80abd3efcc)
+- Bump actions/upload-artifact from 7.0.1 to 7.0.2 ([#45](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/pull/45)) [dd7d001](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/dd7d0016d4f1dc817dc4a6c3399db329c76634bc)
+
+### Fixed
+
+- Fix: add missing volume to the valkey and add exact go version to the [907ac46](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/907ac4688056dcdd2edd9e1aa7838b8578c62d9b)
+- Block stream add limit [d97b10d](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/d97b10d1f8f956a765d1a873a87d62cdd5f813bd)
+- Block stream can skip over blocks [a862f2c](https://github.com/Cogwheel-Validator/spectra-gnoland-indexer/commit/a862f2cac105be3e537719f49f434f0159161227)
+
 ## [0.10.0] - 2026-09-27
 
 Fix for the new vm message types that were added in the Gnoland mainnet.
